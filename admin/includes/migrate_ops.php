@@ -75,13 +75,25 @@ function runOperationsMigration(PDO $pdo): void
         ['STF-MCD', 'Paolo McDo Manager', 'mcdo.manager@motobook.com', '09301110004', $hash, 2, 'store_operator', 'store', 'on_shift', 1],
     ];
 
+    $findStaff = $pdo->prepare('SELECT id FROM staff WHERE email = ?');
     $insertStaff = $pdo->prepare('
-        INSERT IGNORE INTO staff (staff_code, full_name, email, phone, password, store_id, role, staff_type, shift_status, is_active, last_active_at)
+        INSERT INTO staff (staff_code, full_name, email, phone, password, store_id, role, staff_type, shift_status, is_active, last_active_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    ');
+    $updateStaff = $pdo->prepare('
+        UPDATE staff SET full_name = ?, phone = ?, password = ?, store_id = ?, role = ?, staff_type = ?, shift_status = ?, is_active = 1, last_active_at = NOW()
+        WHERE id = ?
     ');
 
     foreach ($staffRows as $row) {
-        $insertStaff->execute($row);
+        [$code, $name, $email, $phone, $pass, $storeId, $role, $type, $shift, $active] = $row;
+        $findStaff->execute([$email]);
+        $existingId = $findStaff->fetchColumn();
+        if ($existingId) {
+            $updateStaff->execute([$name, $phone, $pass, $storeId, $role, $type, $shift, $existingId]);
+        } else {
+            $insertStaff->execute([$code, $name, $email, $phone, $pass, $storeId, $role, $type, $shift, $active]);
+        }
     }
 
     $pdo->exec("UPDATE staff SET staff_type = 'store' WHERE store_id IS NOT NULL AND (staff_type IS NULL OR staff_type = 'platform') AND role = 'store_operator'");

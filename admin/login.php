@@ -48,19 +48,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-group">
                 <label for="email">Email Address</label>
                 <input type="email" id="email" name="email" class="form-control" required
-                       value="<?= e($_POST['email'] ?? 'admin@motobook.com') ?>" placeholder="admin@motobook.com">
+                       value="<?= e($_POST['email'] ?? '') ?>" placeholder="Enter your email" autocomplete="username">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" class="form-control" required
-                       placeholder="Enter password" value="password">
+                       placeholder="Enter password">
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;">Sign In</button>
         </form>
-
-        <p class="text-muted text-center mt-1" style="font-size:0.8rem;margin-top:1rem;">
-            Default login: admin@motobook.com / password
-        </p>
     </div>
 </div>
 </body>

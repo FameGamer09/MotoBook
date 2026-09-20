@@ -33,6 +33,6 @@
         </a>
     </nav>
     <div class="sidebar-footer">
-        <small>v1.0 Native PHP</small>
+        <small>API v1 · <a href="/IM-101/motobook/A-management/login.php" style="color:#fff">Management panel</a></small>
     </div>
 </aside>

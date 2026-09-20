@@ -1,0 +1,43 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+Homestead.json
+Homestead.yaml
+Thumbs.db
+# NEVER commit these:
+.env
+admin/config/database.php          # contains DB credentials
+A-management/config/app.php  # contains DB credentials
+admin/uploads/                # uploaded permits / banners (use .gitkeep only)
+storage/logs/*.log
+storage/framework/cache/*
+!storage/framework/cache/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+storage/framework/testing/*
+!storage/framework/testing/.gitignore
+node_modules/
+vendor/
+.DS_Store
+Thumbs.db
+*.sql
