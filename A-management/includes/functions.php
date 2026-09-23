@@ -416,9 +416,19 @@ function reassignOrderRider(int $orderId, int $riderId, string $reason = ''): bo
     $pdo = getOpsDB();
     $pdo->beginTransaction();
     try {
-        $pdo->prepare('UPDATE orders SET rider_id = ?, updated_at = NOW() WHERE id = ?')->execute([$riderId, $orderId]);
+        $check = $pdo->prepare('SELECT rider_id, assigned_at FROM orders WHERE id = ?');
+        $check->execute([$orderId]);
+        $existing = $check->fetch();
+        $isFirstAssign = $existing && empty($existing['rider_id']);
+        $eventType = $isFirstAssign ? 'rider_assigned' : 'rider_reassigned';
+        $eventNote = ($isFirstAssign ? 'Rider assigned: ' : 'Rider reassigned: ') . ($reason ?: 'Staff action');
+        if ($isFirstAssign) {
+            $pdo->prepare('UPDATE orders SET rider_id = ?, assigned_at = NOW(), updated_at = NOW() WHERE id = ?')->execute([$riderId, $orderId]);
+        } else {
+            $pdo->prepare('UPDATE orders SET rider_id = ?, updated_at = NOW() WHERE id = ?')->execute([$riderId, $orderId]);
+        }
         $pdo->prepare("INSERT INTO order_events (order_id, actor_type, actor_id, event_type, notes, created_at) VALUES (?,'staff',?,?,?,NOW())")->execute([
-            $orderId, currentUserId() ?: 0, 'rider_reassigned', 'Rider reassigned: ' . ($reason ?: 'Staff action'),
+            $orderId, currentUserId() ?: 0, $eventType, $eventNote,
         ]);
         $pdo->commit();
         return true;
@@ -746,4 +756,404 @@ function orderBucket(?string $raw): string
     if ($bucket === 'pending') $bucket = 'placed';
     $allowed = ['placed','preparing','driver_assigned','out_for_delivery','delayed'];
     return in_array($bucket, $allowed, true) ? $bucket : 'placed';
+}
+
+function canDeleteMenu(?array $user): bool
+{
+    if (!$user) return false;
+    $type = $user['type'] ?? '';
+    if ($type === 'super_admin') return true;
+    if ($type === 'platform_staff') {
+        $role = $user['role'] ?? '';
+        return in_array($role, ['inventory_manager', 'order_approver'], true);
+    }
+    if ($type === 'store_owner') return true;
+    return false;
+}
+
+function fetchMenuWithCounts(int $storeId): array
+{
+    $pdo = getOpsDB();
+    $sql = 'SELECT i.*,
+                   (SELECT COUNT(*) FROM store_menu_item_option_groups g WHERE g.item_id = i.id) AS group_count,
+                   (SELECT COUNT(*) FROM store_menu_item_options o
+                      INNER JOIN store_menu_item_option_groups g ON g.id = o.group_id
+                      WHERE g.item_id = i.id) AS option_count
+            FROM store_menu_items i
+            WHERE i.store_id = ?
+            ORDER BY i.category, i.item_name';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$storeId]);
+    return $stmt->fetchAll();
+}
+
+function fetchItemWithOptions(int $itemId): ?array
+{
+    $pdo = getOpsDB();
+    $stmt = $pdo->prepare('SELECT * FROM store_menu_items WHERE id = ?');
+    $stmt->execute([$itemId]);
+    $item = $stmt->fetch();
+    if (!$item) return null;
+    $gStmt = $pdo->prepare('SELECT * FROM store_menu_item_option_groups WHERE item_id = ? ORDER BY sort_order, id');
+    $gStmt->execute([$itemId]);
+    $groups = $gStmt->fetchAll();
+    $oStmt = $pdo->prepare('SELECT * FROM store_menu_item_options WHERE group_id = ? ORDER BY sort_order, id');
+    foreach ($groups as &$g) {
+        $oStmt->execute([$g['id']]);
+        $g['options'] = $oStmt->fetchAll();
+    }
+    unset($g);
+    $item['groups'] = $groups;
+    return $item;
+}
+
+function saveItemWithOptions(int $storeId, array $itemData, array $groups): int|false
+{
+    $pdo = getOpsDB();
+    $pdo->beginTransaction();
+    try {
+        $name = trim((string)($itemData['item_name'] ?? ''));
+        $category = trim((string)($itemData['category'] ?? ''));
+        $price = (float)($itemData['price'] ?? 0);
+        $description = (string)($itemData['description'] ?? '');
+        $imagePath = isset($itemData['image_path']) ? (string)$itemData['image_path'] : null;
+        $isAvailable = isset($itemData['is_available']) ? (int)(bool)$itemData['is_available'] : 1;
+        $itemId = isset($itemData['id']) ? (int)$itemData['id'] : 0;
+        if ($name === '' || $category === '' || $price < 0) {
+            $pdo->rollBack();
+            return false;
+        }
+        if ($itemId > 0) {
+            $scope = isStoreStaff() ? 'AND store_id = ' . (int)$storeId : '';
+            $check = $pdo->prepare('SELECT id, image_path FROM store_menu_items WHERE id = ? ' . $scope);
+            $check->execute([$itemId]);
+            $existing = $check->fetch();
+            if (!$existing) {
+                $pdo->rollBack();
+                return false;
+            }
+            if ($imagePath === null) {
+                $imagePath = $existing['image_path'];
+            }
+            $pdo->prepare('UPDATE store_menu_items
+                SET item_name = ?, category = ?, price = ?, description = ?, image_path = ?, is_available = ?, updated_at = NOW()
+                WHERE id = ?')->execute([$name, $category, $price, $description, $imagePath, $isAvailable, $itemId]);
+            $pdo->prepare('DELETE g, o FROM store_menu_item_option_groups g
+                LEFT JOIN store_menu_item_options o ON o.group_id = g.id
+                WHERE g.item_id = ?')->execute([$itemId]);
+        } else {
+            $pdo->prepare('INSERT INTO store_menu_items
+                (store_id, item_name, category, price, description, image_path, is_available, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,1,NOW(),NOW())')->execute([$storeId, $name, $category, $price, $description, $imagePath]);
+            $itemId = (int)$pdo->lastInsertId();
+        }
+        $groupSort = 0;
+        foreach ($groups as $gIdx => $g) {
+            $groupName = trim((string)($g['group_name'] ?? ''));
+            if ($groupName === '') continue;
+            $selType = ($g['selection_type'] ?? 'radio') === 'checkbox' ? 'checkbox' : 'radio';
+            $minSel = max(0, (int)($g['min_select'] ?? 0));
+            $maxSel = max($minSel, (int)($g['max_select'] ?? 1));
+            if ($selType === 'radio') {
+                $minSel = min($minSel, 1);
+                $maxSel = 1;
+            }
+            $isReq = !empty($g['is_required']) ? 1 : 0;
+            $pdo->prepare('INSERT INTO store_menu_item_option_groups
+                (item_id, group_name, selection_type, min_select, max_select, is_required, sort_order, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,NOW(),NOW())')->execute([
+                    $itemId, $groupName, $selType, $minSel, $maxSel, $isReq, $groupSort,
+            ]);
+            $groupId = (int)$pdo->lastInsertId();
+            $groupSort++;
+            $options = $g['options'] ?? [];
+            if (!is_array($options)) continue;
+            $optSort = 0;
+            foreach ($options as $o) {
+                $optName = trim((string)($o['option_name'] ?? ''));
+                if ($optName === '') continue;
+                $delta = (float)($o['price_delta'] ?? 0);
+                $avail = !empty($o['is_available']) ? 1 : 1;
+                if (array_key_exists('is_available', $o)) {
+                    $avail = (int)(bool)$o['is_available'];
+                }
+                $pdo->prepare('INSERT INTO store_menu_item_options
+                    (group_id, option_name, price_delta, is_available, sort_order, created_at, updated_at)
+                    VALUES (?,?,?,?,?,NOW(),NOW())')->execute([
+                        $groupId, $optName, $delta, $avail, $optSort,
+                ]);
+                $optSort++;
+            }
+        }
+        $pdo->commit();
+        return $itemId;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return false;
+    }
+}
+
+function deleteMenuItem(int $id, ?int $storeScope): bool
+{
+    $pdo = getOpsDB();
+    try {
+        $scope = $storeScope ? 'AND store_id = ' . (int)$storeScope : '';
+        $stmt = $pdo->prepare('DELETE FROM store_menu_items WHERE id = ? ' . $scope);
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function fetchOrderWithItems(int $id): ?array
+{
+    $pdo = getOpsDB();
+    $stmt = $pdo->prepare('SELECT o.*, ps.store_name, r.full_name AS rider_name FROM orders o
+        LEFT JOIN partnership_stores ps ON ps.id = o.store_id
+        LEFT JOIN riders r ON r.id = o.rider_id
+        WHERE o.id = ?');
+    $stmt->execute([$id]);
+    $order = $stmt->fetch();
+    if (!$order) return null;
+    if (currentUserStoreId() && (int)$order['store_id'] !== currentUserStoreId()) return null;
+    $itemsStmt = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id');
+    $itemsStmt->execute([$id]);
+    $items = $itemsStmt->fetchAll();
+    $optsStmt = $pdo->prepare('SELECT * FROM order_item_options WHERE order_item_id = ? ORDER BY id');
+    foreach ($items as &$it) {
+        $optsStmt->execute([$it['id']]);
+        $it['options'] = $optsStmt->fetchAll();
+    }
+    unset($it);
+    $order['items'] = $items;
+    return decorateOrderRow($order);
+}
+
+function generateOrderNumber(): string
+{
+    $pdo = getOpsDB();
+    $pdo->prepare('INSERT IGNORE INTO orders (order_number) VALUES (?)')->execute(['__seq_hint__']);
+    $seq = (int)$pdo->lastInsertId();
+    if ($seq === 0) $seq = random_int(100000, 999999);
+    return 'MB-' . date('Ymd') . '-' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT);
+}
+
+function createDirectOrder(array $customer, int $storeId, array $lineItems, int $placedByStaffId): int|false
+{
+    $pdo = getOpsDB();
+    $pdo->beginTransaction();
+    try {
+        $customerName = trim((string)($customer['customer_name'] ?? ''));
+        $customerPhone = trim((string)($customer['customer_phone'] ?? ''));
+        $deliveryAddress = trim((string)($customer['delivery_address'] ?? ''));
+        $notes = trim((string)($customer['notes'] ?? ''));
+        if ($customerName === '' || $customerPhone === '') {
+            $pdo->rollBack();
+            return false;
+        }
+        $subtotal = 0.0;
+        $validLines = [];
+        $menuStmt = $pdo->prepare('SELECT id, item_name, price FROM store_menu_items WHERE id = ? AND store_id = ?');
+        $groupStmt = $pdo->prepare('SELECT g.id AS group_id, g.group_name, g.selection_type, g.min_select, g.max_select, g.is_required,
+            o.id AS option_id, o.option_name, o.price_delta, o.is_available
+            FROM store_menu_item_option_groups g
+            LEFT JOIN store_menu_item_options o ON o.group_id = g.id
+            WHERE g.item_id = ?
+            ORDER BY g.sort_order, g.id, o.sort_order, o.id');
+        foreach ($lineItems as $line) {
+            $menuItemId = !empty($line['menu_item_id']) ? (int)$line['menu_item_id'] : 0;
+            $qty = max(1, (int)($line['qty'] ?? 1));
+            $itemName = '';
+            $unitPrice = 0.0;
+            $selectedOptionIds = $line['selected_option_ids'] ?? [];
+            $optionDeltas = [];
+            if ($menuItemId > 0) {
+                $menuStmt->execute([$menuItemId, $storeId]);
+                $mi = $menuStmt->fetch();
+                if (!$mi) continue;
+                $itemName = $mi['item_name'];
+                $unitPrice = (float)$mi['price'];
+                $groupStmt->execute([$menuItemId]);
+                $rows = $groupStmt->fetchAll();
+                $groups = [];
+                foreach ($rows as $r) {
+                    if (empty($groups[$r['group_id']])) {
+                        $groups[$r['group_id']] = [
+                            'group_id' => (int)$r['group_id'],
+                            'group_name' => $r['group_name'],
+                            'options' => [],
+                        ];
+                    }
+                    if ($r['option_id']) {
+                        $groups[$r['group_id']]['options'][(int)$r['option_id']] = [
+                            'option_id' => (int)$r['option_id'],
+                            'option_name' => $r['option_name'],
+                            'price_delta' => (float)$r['price_delta'],
+                        ];
+                    }
+                }
+                if (!is_array($selectedOptionIds)) $selectedOptionIds = [];
+                $selectedOptionIds = array_map('intval', $selectedOptionIds);
+                foreach ($groups as $g) {
+                    foreach ($g['options'] as $oid => $opt) {
+                        if (in_array($oid, $selectedOptionIds, true)) {
+                            $unitPrice += (float)$opt['price_delta'];
+                            $optionDeltas[] = [
+                                'group_name' => $g['group_name'],
+                                'option_name' => $opt['option_name'],
+                                'price_delta' => (float)$opt['price_delta'],
+                            ];
+                        }
+                    }
+                }
+            } else {
+                $itemName = trim((string)($line['item_name_snapshot'] ?? 'Custom Item'));
+                $unitPrice = (float)($line['unit_price_snapshot'] ?? 0);
+                $opts = $line['options'] ?? [];
+                if (is_array($opts)) {
+                    foreach ($opts as $o) {
+                        $d = (float)($o['price_delta'] ?? 0);
+                        $unitPrice += $d;
+                        $optionDeltas[] = [
+                            'group_name' => (string)($o['group_name'] ?? ''),
+                            'option_name' => (string)($o['option_name'] ?? ''),
+                            'price_delta' => $d,
+                        ];
+                    }
+                }
+            }
+            if ($itemName === '') continue;
+            $lineSub = round($unitPrice * $qty, 2);
+            $subtotal += $lineSub;
+            $validLines[] = [
+                'menu_item_id' => $menuItemId ?: null,
+                'item_name_snapshot' => $itemName,
+                'qty' => $qty,
+                'unit_price_snapshot' => $unitPrice,
+                'subtotal_snapshot' => $lineSub,
+                'options' => $optionDeltas,
+            ];
+        }
+        if (!$validLines) {
+            $pdo->rollBack();
+            return false;
+        }
+        $deliveryFee = (float)($customer['delivery_fee'] ?? 0);
+        if ($deliveryFee <= 0) {
+            try {
+                $defaultFee = (float)settingValue('default_delivery_fee', '49');
+                $deliveryFee = max(0, $defaultFee);
+            } catch (Throwable $e) {
+                $deliveryFee = 49.0;
+            }
+        }
+        $orderTotal = round($subtotal + $deliveryFee, 2);
+        $commissionRate = 0.0;
+        try {
+            $commissionRate = (float)settingValue('default_commission_rate', '0');
+        } catch (Throwable $e) {}
+        $commissionAmount = round($orderTotal * ($commissionRate / 100), 2);
+        $orderNumber = 'MB-' . date('Ymd-His') . '-' . str_pad((string)random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+        $pdo->prepare('INSERT INTO orders
+            (order_number, store_id, customer_name, customer_phone, delivery_address, notes, placed_by_staff_id, placed_at,
+             order_total, delivery_fee, commission_amount, payment_method, payment_status, order_status, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,NOW(),?,?,?,?,?, \'placed\', NOW(), NOW())')->execute([
+                $orderNumber, $storeId, $customerName, $customerPhone, $deliveryAddress, $notes,
+                $placedByStaffId ?: null,
+                $orderTotal, $deliveryFee, $commissionAmount,
+                (string)($customer['payment_method'] ?? 'cash'),
+                (string)($customer['payment_status'] ?? 'pending'),
+        ]);
+        $orderId = (int)$pdo->lastInsertId();
+        $itemStmt = $pdo->prepare('INSERT INTO order_items
+            (order_id, menu_item_id, item_name_snapshot, qty, unit_price_snapshot, subtotal_snapshot, created_at)
+            VALUES (?,?,?,?,?,?,NOW())');
+        $optStmt = $pdo->prepare('INSERT INTO order_item_options
+            (order_item_id, group_name_snapshot, option_name_snapshot, price_delta_snapshot)
+            VALUES (?,?,?,?)');
+        foreach ($validLines as $vl) {
+            $itemStmt->execute([
+                $orderId, $vl['menu_item_id'], $vl['item_name_snapshot'], $vl['qty'],
+                $vl['unit_price_snapshot'], $vl['subtotal_snapshot'],
+            ]);
+            $orderItemId = (int)$pdo->lastInsertId();
+            foreach ($vl['options'] as $od) {
+                $optStmt->execute([
+                    $orderItemId,
+                    (string)($od['group_name'] ?? ''),
+                    (string)($od['option_name'] ?? ''),
+                    (float)$od['price_delta'],
+                ]);
+            }
+        }
+        $actorType = isPlatformStaff() ? 'staff' : (isStoreStaff() ? 'store' : 'staff');
+        $pdo->prepare("INSERT INTO order_events (order_id, actor_type, actor_id, event_type, notes, created_at) VALUES (?,?,?,?,?,NOW())")->execute([
+            $orderId, $actorType, $placedByStaffId ?: 0, 'order_created_direct', 'Direct order created from dispatch panel',
+        ]);
+        $pdo->commit();
+        return $orderId;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return false;
+    }
+}
+
+function updateOrderStatus(int $id, string $newStatus, ?int $actorId = null, ?int $riderId = null): bool
+{
+    $pdo = getOpsDB();
+    $validStatuses = ['pending','placed','preparing','driver_assigned','out_for_delivery','delayed','picked_up','delivered','cancelled'];
+    if (!in_array($newStatus, $validStatuses, true)) return false;
+    $pdo->beginTransaction();
+    try {
+        $actorId = $actorId ?? currentUserId() ?? 0;
+        $sets = ['order_status = ?', 'updated_at = NOW()'];
+        $params = [$newStatus];
+        $extraTs = '';
+        $eventType = 'status_changed';
+        $eventNote = 'Status changed to ' . $newStatus;
+        switch ($newStatus) {
+            case 'placed':
+                $sets[] = 'placed_at = COALESCE(placed_at, NOW())';
+                break;
+            case 'driver_assigned':
+                $sets[] = 'assigned_at = COALESCE(assigned_at, NOW())';
+                if ($riderId) {
+                    $sets[] = 'rider_id = ?';
+                    $params[] = $riderId;
+                }
+                $eventType = 'rider_assigned';
+                $eventNote = 'Rider assigned and status set to driver_assigned';
+                break;
+            case 'out_for_delivery':
+            case 'picked_up':
+                $sets[] = 'in_transit_at = COALESCE(in_transit_at, NOW())';
+                $eventType = 'out_for_delivery';
+                $eventNote = 'Order marked in transit / picked up by rider';
+                break;
+            case 'delivered':
+                $sets[] = 'in_transit_at = COALESCE(in_transit_at, NOW())';
+                $sets[] = 'delivered_at = COALESCE(delivered_at, NOW())';
+                $sets[] = "payment_status = CASE WHEN payment_status = 'pending' THEN 'paid' ELSE payment_status END";
+                $eventType = 'delivered';
+                $eventNote = 'Order marked as delivered';
+                break;
+            case 'cancelled':
+                $eventType = 'cancelled';
+                $eventNote = 'Order cancelled';
+                break;
+        }
+        $params[] = $id;
+        $sql = 'UPDATE orders SET ' . implode(', ', $sets) . ' WHERE id = ?';
+        $pdo->prepare($sql)->execute($params);
+        $actorType = isPlatformStaff() ? 'staff' : (isStoreStaff() ? 'store' : 'system');
+        $pdo->prepare("INSERT INTO order_events (order_id, actor_type, actor_id, event_type, notes, created_at) VALUES (?,?,?,?,?,NOW())")->execute([
+            $id, $actorType, $actorId, $eventType, $eventNote,
+        ]);
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return false;
+    }
 }
