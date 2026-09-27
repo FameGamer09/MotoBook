@@ -130,19 +130,52 @@
     // 4. Drawer open/close
     MB.drawer = {
         _current: null,
+        _lastOverflow: '',
         open: function (drawerId, data) {
             var d = drawerId && typeof drawerId === 'string'
                 ? document.getElementById(drawerId)
                 : document.getElementById('itemDrawer');
             if (!d) { console.warn('Drawer not found'); return; }
+            var overlay = null;
+            if (d.parentNode && d.parentNode.classList && d.parentNode.classList.contains('drawer-overlay')) {
+                overlay = d.parentNode;
+            }
+            if (!overlay) {
+                overlay = document.querySelector('[data-drawer-overlay="' + (drawerId || 'itemDrawer') + '"]')
+                    || (d.previousElementSibling && d.previousElementSibling.classList && d.previousElementSibling.classList.contains('drawer-overlay') ? d.previousElementSibling : null);
+            }
+            MB.drawer._lastOverflow = document.documentElement.style.overflow || '';
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
             document.body.classList.add('drawer-open');
+            if (overlay) overlay.classList.add('drawer-open');
             MB.drawer._current = d;
-            if (data && typeof data === 'object' && window.MB._drawerHydrate) window.MB._drawerHydrate(d, data);
+            var form = d.querySelector('form, .drawer-body');
+            if (form) { try { form.scrollTop = 0; } catch (_) {} }
+            var title = d.querySelector('.drawer-title');
+            if (data && typeof data === 'object' && data.item && data.item.id) {
+                if (title) title.textContent = 'Edit Menu Item';
+            } else if (title) {
+                title.textContent = 'New Menu Item';
+            }
+            if (data && typeof data === 'object') {
+                data._focusGroups = !!(data._focusGroups);
+                if (window.MB._drawerHydrate) window.MB._drawerHydrate(d, data);
+            }
             var first = d.querySelector('input,select,textarea,button');
-            if (first) setTimeout(function () { first.focus(); }, 260);
+            if (first) setTimeout(function () { try { first.focus(); } catch (_) {} }, 320);
+            if (data && typeof data === 'object' && data._focusGroups) {
+                var sec = d.querySelector('#sectionGroups');
+                setTimeout(function () { if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400);
+            }
+            try { document.body.setAttribute('data-drawer-state', 'open'); } catch (_) {}
         },
         close: function () {
             document.body.classList.remove('drawer-open');
+            document.querySelectorAll('[data-drawer-overlay], .drawer-overlay').forEach(function (o) { o.classList.remove('drawer-open'); });
+            try { document.body.removeAttribute('data-drawer-state'); } catch (_) {}
+            document.documentElement.style.overflow = MB.drawer._lastOverflow || '';
+            document.body.style.overflow = '';
             MB.drawer._current = null;
         },
         init: function () {
@@ -150,26 +183,56 @@
             closeBtn.forEach(function (b) {
                 b.addEventListener('click', function (e) { e.preventDefault(); MB.drawer.close(); });
             });
-            var overlay = document.querySelector('.drawer-overlay');
-            if (overlay) overlay.addEventListener('click', function () { MB.drawer.close(); });
+            var overlays = document.querySelectorAll('.drawer-overlay, [data-drawer-overlay]');
+            overlays.forEach(function (overlay) {
+                overlay.addEventListener('click', function (e) {
+                    if (e.target !== overlay) return;
+                    MB.drawer.close();
+                });
+            });
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && document.body.classList.contains('drawer-open')) MB.drawer.close();
             });
-            document.querySelectorAll('[data-drawer-open]').forEach(function (btn) {
+            var attachOnce = {};
+            function attachOpen(btn) {
+                if (!btn || btn.dataset && btn.dataset._drawerBound === '1') return;
+                try { btn.dataset._drawerBound = '1'; } catch (_) {}
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
-                    var id = btn.getAttribute('data-drawer-open');
+                    e.stopPropagation();
+                    var id = btn.getAttribute('data-drawer-open') || btn.getAttribute('data-drawer') || 'itemDrawer';
                     var itemId = btn.getAttribute('data-item-id') || null;
-                    var payload = {};
+                    var focusGroups = btn.getAttribute('data-focus-groups') === '1';
+                    var payload = { _focusGroups: focusGroups };
                     if (itemId) {
                         payload.item = { id: itemId };
-                        // Hydrate via embedded JSON or inline data attrs
                         var raw = btn.getAttribute('data-item-json');
-                        if (raw) { try { payload.item = JSON.parse(raw); } catch (_) {} }
+                        if (raw) { try { payload.item = JSON.parse(raw); } catch (_) { try { payload._rawJsonErr = true; } catch (_) {} } }
+                        var editEl = document.getElementById('menuEditData');
+                        if (editEl && editEl.textContent) {
+                            try {
+                                var all = JSON.parse(editEl.textContent);
+                                if (all && String(all.id) === String(itemId)) payload.item = all;
+                            } catch (_) {}
+                        }
+                    } else {
+                        payload._reset = true;
                     }
                     MB.drawer.open(id, payload);
                 });
-            });
+            }
+            function bindAll() {
+                document.querySelectorAll('[data-drawer-open], [data-drawer]').forEach(attachOpen);
+            }
+            bindAll();
+            if (!window.MB.__drawerObserver) {
+                try {
+                    window.MB.__drawerObserver = new MutationObserver(function (muts) {
+                        muts.forEach(function (m) { bindAll(); });
+                    });
+                    window.MB.__drawerObserver.observe(document.body, { childList: true, subtree: true });
+                } catch (_) { setInterval(bindAll, 800); }
+            }
         }
     };
 
@@ -178,6 +241,7 @@
         init: function (formEl) {
             formEl = formEl || document.querySelector('#itemDrawer form, form[data-option-builder]');
             if (!formEl) return;
+            MB.optionBuilder._wireImageDrop(formEl);
             var addGroupBtn = formEl.querySelector('[data-add-group]');
             if (addGroupBtn) addGroupBtn.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -189,8 +253,7 @@
                 if (t.matches('[data-remove-group]')) {
                     e.preventDefault();
                     var card = t.closest('.option-group-card');
-                    if (card && formEl.querySelectorAll('.option-group-card').length > 1) card.parentNode.removeChild(card);
-                    else if (card) { MB.flashToast('At least one group is recommended; delete options instead', 'error'); }
+                    if (card && formEl.querySelectorAll('.option-group-card').length > 0) card.parentNode.removeChild(card);
                     MB.optionBuilder.reindex(formEl);
                 }
                 if (t.matches('[data-add-option]')) {
@@ -207,6 +270,69 @@
                     MB.optionBuilder.reindex(formEl);
                 }
             });
+            formEl.addEventListener('change', function (e) {
+                var t = e.target;
+                if (t.matches('[data-selection-type]') || t.matches('.group-seltype') || t.matches('[data-f="selection_type"]')) {
+                    var card = t.closest('.option-group-card');
+                    if (!card) return;
+                    var isRadio = (t.value || '') === 'radio';
+                    var maxInp = card.querySelector('[data-f="max_select"], .group-max, [data-max-select]');
+                    var minInp = card.querySelector('[data-f="min_select"], .group-min, [data-min-select]');
+                    if (isRadio) {
+                        if (maxInp) { maxInp.value = '1'; maxInp.setAttribute('readonly', 'readonly'); }
+                        if (minInp) { minInp.value = Math.min(1, parseInt(minInp.value || '1')); minInp.setAttribute('max', '1'); }
+                    } else {
+                        if (maxInp) { maxInp.removeAttribute('readonly'); maxInp.removeAttribute('max'); }
+                        if (minInp) minInp.removeAttribute('max');
+                    }
+                    MB.optionBuilder.reindex(formEl);
+                }
+            });
+            formEl.addEventListener('submit', function (e) {
+                if (!formEl.hasAttribute('data-option-builder')) return;
+                var errors = MB.optionBuilder.validate(formEl);
+                if (errors.length) {
+                    e.preventDefault();
+                    errors.forEach(function (msg) { MB.flashToast(msg, 'error'); });
+                }
+            });
+        },
+        _wireImageDrop: function (formEl) {
+            var drop = formEl.querySelector('#imageDropZone, .image-drop');
+            var fileInput = formEl.querySelector('#itemImageInput, input[name="item_image"]');
+            var previewWrap = formEl.querySelector('#imageDropPreview, .image-drop-preview');
+            var existingHdn = formEl.querySelector('#hfExistingImage, input[name="existing_image_path"]');
+            if (!drop || !fileInput) return;
+            drop.addEventListener('click', function () { fileInput.click(); });
+            drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.style.outline = '2px dashed var(--blue-500)'; });
+            drop.addEventListener('dragleave', function () { drop.style.outline = ''; });
+            drop.addEventListener('drop', function (e) {
+                e.preventDefault();
+                drop.style.outline = '';
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    fileInput.files = e.dataTransfer.files;
+                    MB.optionBuilder._updateImagePreview(fileInput, previewWrap, existingHdn);
+                }
+            });
+            fileInput.addEventListener('change', function () {
+                MB.optionBuilder._updateImagePreview(fileInput, previewWrap, existingHdn);
+            });
+        },
+        _updateImagePreview: function (fileInput, previewWrap, existingHdn) {
+            if (!previewWrap) return;
+            var file = fileInput && fileInput.files && fileInput.files[0];
+            if (!file) {
+                if (existingHdn && existingHdn.value) {
+                    previewWrap.innerHTML = '<img src="' + existingHdn.value + '" style="max-width:100%;max-height:220px;object-fit:cover;border-radius:12px;" alt="Item preview">';
+                }
+                return;
+            }
+            if (!/^image\//.test(file.type)) return;
+            var reader = new FileReader();
+            reader.onload = function () {
+                previewWrap.innerHTML = '<img src="' + reader.result + '" style="max-width:100%;max-height:220px;object-fit:cover;border-radius:12px;" alt="Item preview">';
+            };
+            reader.readAsDataURL(file);
         },
         addGroup: function (formEl, preset) {
             preset = preset || {};
@@ -215,10 +341,19 @@
             var idx = container.querySelectorAll('.option-group-card').length;
             var tmpl = MB.optionBuilder._groupTmpl(idx, preset);
             container.insertAdjacentHTML('beforeend', tmpl);
+            var cards = container.querySelectorAll('.option-group-card');
+            var card = cards.length ? cards[cards.length - 1] : null;
+            if (card) {
+                var sel = card.querySelector('[data-selection-type], .group-seltype');
+                if (sel && sel.value === 'radio') {
+                    var maxInp = card.querySelector('[data-f="max_select"], .group-max');
+                    if (maxInp) { maxInp.value = '1'; maxInp.setAttribute('readonly', 'readonly'); }
+                }
+            }
         },
         addOptionRow: function (groupEl, opt) {
             opt = opt || {};
-            var list = groupEl.querySelector('.option-list tbody, .option-list');
+            var list = groupEl.querySelector('.option-list tbody, .option-tbody, .option-table tbody');
             if (!list) return;
             var tr = document.createElement('tr');
             tr.className = 'option-row';
@@ -226,43 +361,51 @@
                 '<td><input type="text" class="form-control opt-name" data-f="option_name" value="' + (opt.option_name ? MB.esc(opt.option_name) : '') + '" placeholder="e.g. Extra Rice" required></td>' +
                 '<td><div class="input-prefix">₱<input type="number" step="0.01" min="0" class="form-control opt-delta" data-f="price_delta" value="' + (opt.price_delta || '0.00') + '"></div></td>' +
                 '<td style="text-align:center"><label class="switch" style="display:inline-flex"><input type="checkbox" class="opt-avail" data-f="is_available" ' + (opt.is_available !== 0 ? 'checked' : '') + '><span class="slider round"></span></label></td>' +
-                '<td><button type="button" class="btn btn-danger btn-sm" data-remove-option title="Remove option">×</button></td>';
+                '<td><button type="button" class="btn btn-danger-outline btn-xs btn-remove-option" title="Remove option" data-remove-option>' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+                '</button></td>';
             list.appendChild(tr);
         },
         _groupTmpl: function (idx, g) {
             g = g || { options: [] };
             var selT = g.selection_type || 'radio';
-            var min = g.min_select || 1;
-            var max = g.max_select || 1;
+            var min = g.min_select != null ? Number(g.min_select) : 1;
+            var max = g.max_select != null ? Number(g.max_select) : 1;
             var req = g.is_required ? 1 : 0;
             var optsRows = '';
-            (g.options || [{ option_name: '', price_delta: '0.00', is_available: 1 }]).forEach(function (o) {
+            var seed = g.options && g.options.length ? g.options : [{ option_name: '', price_delta: '0.00', is_available: 1 }];
+            seed.forEach(function (o) {
                 optsRows +=
                     '<tr class="option-row">' +
                     '<td><input type="text" class="form-control opt-name" data-f="option_name" value="' + (o.option_name ? MB.esc(o.option_name) : '') + '" placeholder="e.g. Fries" required></td>' +
                     '<td><div class="input-prefix">₱<input type="number" step="0.01" min="0" class="form-control opt-delta" data-f="price_delta" value="' + (o.price_delta ?? '0.00') + '"></div></td>' +
                     '<td style="text-align:center"><label class="switch" style="display:inline-flex"><input type="checkbox" class="opt-avail" data-f="is_available" ' + (o.is_available !== 0 ? 'checked' : '') + '><span class="slider round"></span></label></td>' +
-                    '<td><button type="button" class="btn btn-danger btn-sm" data-remove-option title="Remove option">×</button></td>' +
+                    '<td><button type="button" class="btn btn-danger-outline btn-xs" data-remove-option title="Remove option">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+                    '</button></td>' +
                     '</tr>';
             });
             return '<div class="option-group-card" data-group-idx="' + idx + '">' +
                 '<div class="option-group-head">' +
-                '<input type="text" class="form-control group-name" data-f="group_name" value="' + (g.group_name ? MB.esc(g.group_name) : 'Choice ' + (idx + 1) + ': Sides') + '" placeholder="Group name e.g. Choice A: Sides" style="flex:1">' +
-                '<select class="form-control group-seltype" data-f="selection_type" style="max-width:160px">' +
-                '<option value="radio"' + (selT === 'radio' ? ' selected' : '') + '>Radio (Pick 1)</option>' +
-                '<option value="checkbox"' + (selT === 'checkbox' ? ' selected' : '') + '>Checkbox (Multi)</option>' +
+                '<input type="text" class="form-control group-name" data-f="group_name" value="' + (g.group_name ? MB.esc(g.group_name) : '') + '" placeholder="Group name (e.g. Choose 1 Drink)" style="flex:1" maxlength="100">' +
+                '<select class="form-control group-seltype" data-f="selection_type" style="max-width:180px">' +
+                '<option value="radio"' + (selT === 'radio' ? ' selected' : '') + '>Single (Radio)</option>' +
+                '<option value="checkbox"' + (selT === 'checkbox' ? ' selected' : '') + '>Multi (Checkbox)</option>' +
                 '</select>' +
-                '<button type="button" class="btn btn-danger btn-sm" data-remove-group title="Remove group">×</button>' +
+                '<button type="button" class="btn btn-danger-outline btn-xs" data-remove-group title="Remove group">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+                '</button>' +
                 '</div>' +
-                '<div class="form-row" style="margin-top:.5rem">' +
-                '<div class="form-group" style="max-width:140px"><label>Min</label><input type="number" min="0" class="form-control group-min" data-f="min_select" value="' + min + '"></div>' +
-                '<div class="form-group" style="max-width:140px"><label>Max</label><input type="number" min="1" class="form-control group-max" data-f="max_select" value="' + max + '"></div>' +
-                '<div class="form-group" style="max-width:180px"><label>Required</label><br><label class="switch" style="display:inline-flex;vertical-align:middle"><input type="checkbox" class="group-req" data-f="is_required" ' + (req ? 'checked' : '') + '><span class="slider round"></span></label> <small class="text-muted" style="vertical-align:middle">Customer must select</small></div>' +
+                '<div class="option-group-rules">' +
+                '<label class="rule-item"><span>Min</span><input type="number" class="form-control group-min" data-f="min_select" min="0" value="' + min + '"></label>' +
+                '<label class="rule-item"><span>Max</span><input type="number" class="form-control group-max" data-f="max_select" min="1" value="' + max + '"' + (selT === 'radio' ? ' readonly' : '') + '></label>' +
+                '<label class="rule-item switch-row"><span>Required</span><label class="switch"><input type="checkbox" class="group-req" data-f="is_required" ' + (req ? 'checked' : '') + '><span class="slider round"></span></label>' +
+                '<small class="text-muted">Customer must select</small></label>' +
                 '</div>' +
-                '<table class="option-list" style="width:100%;margin-top:.5rem">' +
-                '<thead><tr><th style="width:44%">Sub-item</th><th style="width:26%">+₱ Delta</th><th style="width:14%;text-align:center">Avail</th><th style="width:16%"></th></tr></thead>' +
-                '<tbody>' + optsRows + '</tbody></table>' +
-                '<button type="button" class="btn btn-outline btn-sm" style="margin-top:.4rem" data-add-option>+ Add Sub-Option</button>' +
+                '<table class="option-table"><thead><tr><th>Sub-item Name</th><th style="width:140px">+ ₱ Delta</th><th style="width:80px">Active</th><th style="width:40px"></th></tr></thead>' +
+                '<tbody class="option-tbody">' + optsRows + '</tbody>' +
+                '<tfoot><tr><td colspan="4"><button type="button" class="btn btn-add-option" data-add-option>+ Add Sub-option</button></td></tr></tfoot>' +
+                '</table>' +
                 '</div>';
         },
         reindex: function (formEl) {
@@ -280,7 +423,6 @@
                         var j = rows.indexOf(tr);
                         inp.setAttribute('name', 'groups[' + i + '][options][' + j + '][' + f + ']');
                         if (inp.type === 'checkbox' && !inp.checked) {
-                            // Add hidden 0 for unchecked
                             var hidName = 'groups[' + i + '][options][' + j + '][' + f + ']';
                             var hidden = inp.parentNode.querySelector('input[type=hidden][name="' + hidName + '"]');
                             if (!hidden) {
@@ -288,7 +430,6 @@
                                 inp.parentNode.insertBefore(h, inp);
                             }
                         } else if (inp.type === 'checkbox' && inp.checked) {
-                            // remove 0-hidden if any
                             var hidName2 = inp.name;
                             var h2 = inp.parentNode.querySelector('input[type=hidden][name="' + hidName2 + '"]');
                             if (h2) h2.parentNode.removeChild(h2);
@@ -309,26 +450,58 @@
             });
         },
         hydrate: function (formEl, item) {
-            // Reset basic fields
-            ['item_name', 'price', 'category', 'description'].forEach(function (k) {
-                var inp = formEl.querySelector('[name="item[' + k + ']"]');
-                if (inp) inp.value = (item && item[k] != null) ? item[k] : '';
-            });
-            var imgPreview = formEl.querySelector('#drawerImgPreview');
-            if (imgPreview) {
-                if (item && item.image_path) imgPreview.src = item.image_path;
-                else imgPreview.src = '';
+            item = item || {};
+            var fName = formEl.querySelector('#fItemName, [name="item_name"]');
+            if (fName) fName.value = item.item_name || '';
+            var fCat = formEl.querySelector('#fCategory, [name="category"]');
+            if (fCat) {
+                var v = item.category || 'Uncategorized';
+                if (fCat.tagName === 'SELECT') {
+                    var found = false;
+                    for (var i = 0; i < fCat.options.length; i++) {
+                        if (String(fCat.options[i].value) === String(v)) { fCat.selectedIndex = i; found = true; break; }
+                    }
+                    if (!found) {
+                        var customInp = formEl.querySelector('#fCategoryCustom, [name="category_custom"]');
+                        if (customInp) { customInp.value = v; fCat.value = '__custom__'; }
+                        else fCat.value = v;
+                    }
+                } else {
+                    fCat.value = v;
+                }
             }
-            var hdnId = formEl.querySelector('[name="item[id]"]');
-            if (hdnId) hdnId.value = (item && item.id) ? item.id : '';
-            // Reset groups container
+            var fPrice = formEl.querySelector('#fPrice, [name="price"]');
+            if (fPrice) fPrice.value = item.price != null ? Number(item.price).toFixed(2) : '0.00';
+            var fDesc = formEl.querySelector('#fDescription, [name="description"]');
+            if (fDesc) fDesc.value = item.description || '';
+            var fAvail = formEl.querySelector('#fIsAvailable, [name="is_available"]');
+            if (fAvail) fAvail.checked = item.is_available === 0 ? false : true;
+            var hdnId = formEl.querySelector('#hfItemId, [name="item_id"]');
+            if (hdnId) hdnId.value = item.id ? String(item.id) : '0';
+            var existingImg = formEl.querySelector('#hfExistingImage, input[name="existing_image_path"]');
+            var imgPreview = formEl.querySelector('#imageDropPreview, .image-drop-preview');
+            var fileInput = formEl.querySelector('#itemImageInput');
+            var baseImgSrc = '';
+            if (item.image_path) {
+                var base = formEl.getAttribute('data-asset-base') || (window.APP_URL ? window.APP_URL + '/../admin/' : '');
+                baseImgSrc = base.replace(/\/+$/, '') + '/' + String(item.image_path).replace(/^\/+/, '');
+            }
+            if (existingImg) existingImg.value = item.image_path || '';
+            if (imgPreview) {
+                if (baseImgSrc) {
+                    imgPreview.innerHTML = '<img src="' + baseImgSrc + '" style="max-width:100%;max-height:220px;object-fit:cover;border-radius:12px;" alt="Item preview">';
+                } else {
+                    imgPreview.innerHTML = '<span class="image-drop-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:32px;height:32px;margin-bottom:.5rem;opacity:.5;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><br><small>Drag image here or click to upload</small></span>';
+                }
+            }
+            if (fileInput) fileInput.value = '';
             var container = formEl.querySelector('#optionGroupsContainer, .option-groups-container');
             if (!container) return;
             container.innerHTML = '';
-            var groups = item && item.groups && item.groups.length ? item.groups : [];
-            if (!groups.length) {
+            var groups = item.groups && item.groups.length ? item.groups : (item.groups_json && item.groups_json.length ? item.groups_json : []);
+            if (!groups || !groups.length) {
                 MB.optionBuilder.addGroup(formEl, {
-                    group_name: 'Choice 1: Sides', selection_type: 'radio',
+                    group_name: 'Choice 1: Drink / Side', selection_type: 'radio',
                     min_select: 1, max_select: 1, is_required: 1,
                     options: [{ option_name: '', price_delta: '0.00', is_available: 1 }]
                 });
@@ -336,6 +509,42 @@
                 groups.forEach(function (g) { MB.optionBuilder.addGroup(formEl, g); });
             }
             MB.optionBuilder.reindex(formEl);
+        },
+        validate: function (formEl) {
+            var errors = [];
+            var name = (formEl.querySelector('#fItemName, [name="item_name"]') || {}).value || '';
+            var categorySel = formEl.querySelector('#fCategory, [name="category"]');
+            var categoryVal = '';
+            if (categorySel) {
+                if (categorySel.tagName === 'SELECT' && categorySel.value === '__custom__') {
+                    var cust = formEl.querySelector('#fCategoryCustom, [name="category_custom"]');
+                    categoryVal = cust ? (cust.value || '').trim() : '';
+                    if (categoryVal === '') errors.push('Enter or select a category.');
+                } else {
+                    categoryVal = (categorySel.value || '').trim();
+                }
+            }
+            if (!categoryVal) errors.push('Category is required.');
+            if (!name.trim()) errors.push('Item name is required.');
+            var price = Number((formEl.querySelector('#fPrice, [name="price"]') || {}).value || 0);
+            if (!(price >= 0)) errors.push('Base price is required and must be >= 0.');
+            var container = formEl.querySelector('#optionGroupsContainer, .option-groups-container');
+            if (container) {
+                container.querySelectorAll('.option-group-card').forEach(function (card, i) {
+                    var gn = card.querySelector('[data-f="group_name"], .group-name');
+                    var hasName = gn && gn.value && gn.value.trim();
+                    var tbody = card.querySelector('.option-tbody, tbody');
+                    var rows = tbody ? tbody.querySelectorAll('.option-row') : [];
+                    var validOpts = 0;
+                    rows.forEach(function (r) {
+                        var on = r.querySelector('[data-f="option_name"], .opt-name');
+                        if (on && on.value && on.value.trim()) validOpts++;
+                    });
+                    if (hasName && validOpts === 0) errors.push('Group "' + gn.value.trim() + '" (#' + (i + 1) + ') needs at least one sub-option.');
+                    if (!hasName && validOpts > 0) errors.push('Group #' + (i + 1) + ' is missing a group name.');
+                });
+            }
+            return errors;
         }
     };
 
@@ -348,11 +557,16 @@
     // Hydrate drawer on open
     window.MB._drawerHydrate = function (d, data) {
         var form = d.querySelector('form[data-option-builder]');
-        if (!form || !data || !data.item) return;
+        if (!form) return;
+        var reset = !!(data && (data._reset));
+        if (reset) {
+            MB.optionBuilder.hydrate(form, {});
+            return;
+        }
+        if (!data || !data.item) return;
         if (data.item.id) {
-            // If we only have id, fetch from server via data-item-url attribute on drawer
             var url = form.getAttribute('data-fetch-url');
-            if (url) {
+            if (url && !(data.item && data.item.item_name)) {
                 MB.ajax.postJSON(url, { item_id: String(data.item.id) }).then(function (res) {
                     if (res && res.item) MB.optionBuilder.hydrate(form, res.item);
                 });

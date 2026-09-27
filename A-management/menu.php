@@ -78,6 +78,32 @@ function handleMenuUpload(?array $file): ?string
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? null)) {
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'fetch_item' && is_numeric($_POST['item_id'] ?? '')) {
+        $itemId = (int)$_POST['item_id'];
+        $scope = isStoreStaff() ? $myStoreId : null;
+        $item = fetchItemWithOptions($itemId);
+        if (!$item) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'Item not found.']);
+            exit;
+        }
+        if ($scope && (int)$item['store_id'] !== $scope) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'Forbidden.']);
+            exit;
+        }
+        if (!empty($item['image_path'])) {
+            $item['image_url'] = rtrim(APP_URL, '/') . '/../admin/' . ltrim($item['image_path'], '/');
+        }
+        if (!empty($item['groups_json']) && is_string($item['groups_json'])) {
+            $dec = json_decode($item['groups_json'], true);
+            if (is_array($dec)) $item['groups_json'] = $dec;
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => true, 'item' => $item]);
+        exit;
+    }
+
     if ($action === 'toggle_item' && is_numeric($_POST['item_id'] ?? '')) {
         $itemId = (int)$_POST['item_id'];
         $scope = isStoreStaff() ? $myStoreId : null;
@@ -103,10 +129,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
 
     if ($action === 'save_item') {
         $itemId = !empty($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
+        $category = trim((string)($_POST['category'] ?? ''));
+        if ($category === '__custom__') {
+            $category = trim((string)($_POST['category_custom'] ?? ''));
+        }
         $itemData = [
             'id' => $itemId,
             'item_name' => trim((string)($_POST['item_name'] ?? '')),
-            'category' => trim((string)($_POST['category'] ?? 'Uncategorized')),
+            'category' => $category === '' ? 'Uncategorized' : $category,
             'price' => (float)($_POST['price'] ?? 0),
             'description' => (string)($_POST['description'] ?? ''),
             'is_available' => isset($_POST['is_available']) ? 1 : 0,
@@ -139,10 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
                         if (!is_array($o)) continue;
                         $optName = trim((string)($o['option_name'] ?? ''));
                         if ($optName === '') continue;
+                        $avail = 1;
+                        if (array_key_exists('is_available', $o)) {
+                            $avail = !empty($o['is_available']) ? 1 : 0;
+                        }
                         $group['options'][] = [
                             'option_name' => $optName,
                             'price_delta' => (float)($o['price_delta'] ?? 0),
-                            'is_available' => isset($o['is_available']) ? 1 : 1,
+                            'is_available' => $avail,
                         ];
                     }
                 }
@@ -200,7 +234,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="page-header-row card" style="margin-bottom:1rem;padding:1rem 1.25rem;display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap;">
     <div>
-        <h2 style="margin:0;font-size:1.35rem;">🍽️ <?= e($storeName) ?> Menu Manager</h2>
+        <h2 style="margin:0;font-size:1.35rem;"><?= e($storeName) ?> Menu Manager</h2>
         <p class="text-muted" style="margin:0.25rem 0 0 0;font-size:0.85rem;">
             Manage item availability, pricing, and variant groups (sides, drinks, add-ons).
         </p>
@@ -249,10 +283,12 @@ include __DIR__ . '/includes/header.php';
             <?php if ($imgSrc): ?>
                 <img src="<?= e($imgSrc) ?>" alt="<?= e($item['item_name']) ?>" loading="lazy">
             <?php else: ?>
-                <div class="menu-card-thumb-placeholder">🍽️</div>
+                <div class="menu-card-thumb-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                </div>
             <?php endif; ?>
             <label class="upload-btn" title="Upload new image" data-upload-for="<?= (int)$item['id'] ?>">
-                📷
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </label>
         </div>
         <div class="menu-card-body">
@@ -265,7 +301,8 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin:0.6rem 0 0.8rem 0;gap:0.5rem;">
                 <span class="variations-badge" title="Modifier groups / sub-options">
-                    🏷️ <?= (int)($item['group_count'] ?? 0) ?> groups · <?= (int)($item['option_count'] ?? 0) ?> options
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    <?= (int)($item['group_count'] ?? 0) ?> groups &middot; <?= (int)($item['option_count'] ?? 0) ?> options
                 </span>
                 <label class="switch" title="Toggle availability">
                     <input type="checkbox" class="avail-toggle" data-item-id="<?= (int)$item['id'] ?>"<?= !empty($item['is_available']) ? ' checked' : '' ?>>
@@ -278,14 +315,16 @@ include __DIR__ . '/includes/header.php';
                 <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
             </form>
             <div class="menu-card-actions">
-                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int)$item['id'] ?>" data-drawer="itemDrawer">✏️ Edit</button>
-                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int)$item['id'] ?>" data-focus-groups="1" data-drawer="itemDrawer">🧩 Variants</button>
+                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int)$item['id'] ?>" data-item-json='<?= e(json_encode(['id' => (int)$item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float)$item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int)($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Edit</button>
+                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int)$item['id'] ?>" data-focus-groups="1" data-item-json='<?= e(json_encode(['id' => (int)$item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float)$item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int)($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Variants</button>
                 <?php if ($canDelete): ?>
                 <form method="POST" style="margin:0;display:inline;" onsubmit="return confirm('Permanently delete \'<?= e($item['item_name']) ?>\' and all its variants? This cannot be undone.')">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="delete_item">
                     <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
-                    <button type="submit" class="btn btn-danger-outline btn-sm" title="Delete item">🗑️</button>
+                    <button type="submit" class="btn btn-danger-outline btn-sm" title="Delete item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                 </form>
                 <?php endif; ?>
             </div>
@@ -351,13 +390,13 @@ include __DIR__ . '/includes/header.php';
 <?php endif; ?>
 <?php endif; ?>
 
-<div class="drawer-overlay" id="itemDrawerOverlay" data-drawer-overlay="itemDrawer"></div>
+<div class="drawer-overlay" id="itemDrawerOverlay" data-drawer-overlay="itemDrawer">
 <aside class="drawer-right" id="itemDrawer" aria-labelledby="itemDrawerTitle" role="dialog" aria-modal="true">
     <div class="drawer-header">
         <h3 id="itemDrawerTitle" class="drawer-title">New Menu Item</h3>
-        <button type="button" class="drawer-close" data-drawer-close="itemDrawer" aria-label="Close">&times;</button>
+        <button type="button" class="drawer-close" data-drawer-close="itemDrawer" aria-label="Close">&times; Close</button>
     </div>
-    <form method="POST" id="itemForm" enctype="multipart/form-data" class="drawer-body" onsubmit="return true;" data-option-builder="1">
+    <form method="POST" id="itemForm" enctype="multipart/form-data" class="drawer-body" data-option-builder="1" data-fetch-url="<?= e(APP_URL) ?>/menu.php" data-asset-base="<?= e(rtrim(APP_URL, '/')) ?>/../admin/">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="save_item">
         <input type="hidden" name="item_id" id="hfItemId" value="0">
@@ -365,53 +404,80 @@ include __DIR__ . '/includes/header.php';
 
         <section class="drawer-section">
             <h4 class="drawer-section-title">Basic Information</h4>
-            <div class="image-drop" id="imageDropZone">
-                <div class="image-drop-preview" id="imageDropPreview">
-                    <span class="image-drop-placeholder">📷<br><small>Drag image here or click to upload</small></span>
+            <div class="basic-info-grid">
+                <div class="info-col-left">
+                    <div class="image-drop" id="imageDropZone" style="min-height:240px;display:flex;align-items:center;justify-content:center;">
+                        <div class="image-drop-preview" id="imageDropPreview">
+                            <span class="image-drop-placeholder" style="width:100%;text-align:center;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:42px;height:42px;margin-bottom:.6rem;opacity:.55;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><br>
+                                <strong style="display:block;margin-bottom:.25rem;">Product photo</strong>
+                                <small>Drag image here or click to upload</small>
+                            </span>
+                        </div>
+                        <input type="file" id="itemImageInput" name="item_image" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+                    </div>
                 </div>
-                <input type="file" id="itemImageInput" name="item_image" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
-            </div>
-            <div class="form-group">
-                <label for="fItemName">Item name <span class="req">*</span></label>
-                <input type="text" id="fItemName" class="form-control" name="item_name" required maxlength="150" placeholder="e.g. Chickenjoy Bucket">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="fCategory">Category <span class="req">*</span></label>
-                    <input type="text" id="fCategory" class="form-control" name="category" list="categoryDatalist" value="Main" placeholder="Main, Drinks, Family Packs…" maxlength="80" required>
-                    <datalist id="categoryDatalist">
-                        <?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?>
-                    </datalist>
+                <div class="info-col-right">
+                    <div class="info-fields">
+                        <div class="full-row form-group">
+                            <label for="fItemName">Item name <span class="req">*</span></label>
+                            <input type="text" id="fItemName" class="form-control" name="item_name" required maxlength="150" placeholder="e.g. 1-pc Chickenjoy with Side" style="font-size:1rem;padding:.7rem .85rem;">
+                        </div>
+                        <div class="form-group">
+                            <label for="fCategory">Category <span class="req">*</span></label>
+                            <select id="fCategory" class="form-control" name="category" required style="padding:.6rem .75rem;">
+                                <?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php endforeach; ?>
+                                <option value="__custom__" <?= $categories ? '' : 'selected' ?>>+ Add new category…</option>
+                            </select>
+                            <input type="text" id="fCategoryCustom" class="form-control" name="category_custom" maxlength="80" placeholder="Enter new category name (e.g. Burgers)" style="display:none;margin-top:0.5rem;">
+                            <script>
+                                (function () {
+                                    var sel = document.getElementById('fCategory');
+                                    var inp = document.getElementById('fCategoryCustom');
+                                    if (!sel || !inp) return;
+                                    var sync = function () { inp.style.display = (sel.value === '__custom__') ? '' : 'none'; if (sel.value !== '__custom__') inp.value = ''; };
+                                    sel.addEventListener('change', sync);
+                                    document.addEventListener('DOMContentLoaded', sync);
+                                    sync();
+                                })();
+                            </script>
+                        </div>
+                        <div class="form-group">
+                            <label for="fPrice">Base Price (₱) <span class="req">*</span></label>
+                            <div class="input-prefix" style="display:flex;align-items:stretch;border:1px solid var(--slate-300);border-radius:8px;overflow:hidden;background:#fff;">
+                                <span style="padding:0 .7rem;display:inline-flex;align-items:center;background:var(--slate-50);color:var(--slate-700);font-weight:600;border-right:1px solid var(--slate-200);">₱</span>
+                                <input type="number" id="fPrice" name="price" min="0" step="0.01" value="0.00" required style="border:none;outline:none;width:100%;padding:.6rem .75rem;font-size:1rem;">
+                            </div>
+                        </div>
+                        <div class="full-row form-group">
+                            <label for="fDescription">Description</label>
+                            <textarea id="fDescription" class="form-control" name="description" rows="3" maxlength="500" placeholder="Short item description (optional)"></textarea>
+                        </div>
+                        <div class="full-row form-group" style="display:flex;align-items:center;gap:0.7rem;margin:0;">
+                            <label class="switch" title="Available to order" style="margin:0;">
+                                <input type="checkbox" id="fIsAvailable" name="is_available" checked>
+                                <span class="slider round"></span>
+                            </label>
+                            <label for="fIsAvailable" style="margin:0;cursor:pointer;font-weight:600;color:var(--slate-700);">In stock (available for ordering)</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="fPrice">Base Price (₱) <span class="req">*</span></label>
-                    <input type="number" id="fPrice" class="form-control" name="price" min="0" step="0.01" value="0" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="fDescription">Description</label>
-                <textarea id="fDescription" class="form-control" name="description" rows="2" maxlength="500" placeholder="Short item description (optional)"></textarea>
-            </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:0.6rem;">
-                <label class="switch" title="Available to order">
-                    <input type="checkbox" id="fIsAvailable" name="is_available" checked>
-                    <span class="slider round"></span>
-                </label>
-                <label for="fIsAvailable" style="margin:0;cursor:pointer;">Available for ordering</label>
             </div>
         </section>
 
         <section class="drawer-section" id="sectionGroups" data-option-group-table="store_menu_item_option_groups">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-                <h4 class="drawer-section-title" style="margin:0;">Modifier &amp; Add-on Groups</h4>
-                <button type="button" class="btn btn-primary-outline btn-sm" id="btnAddGroup" data-add-group="1">+ Add Option Group</button>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;gap:1rem;flex-wrap:wrap;">
+                <h4 class="drawer-section-title" style="margin:0;">Modifiers &amp; Add-ons (Option Groups)</h4>
+                <button type="button" class="btn btn-primary btn-sm" id="btnAddGroup" data-add-group="1" style="border-radius:999px;padding:.45rem 1rem;">+ Add Option Group</button>
             </div>
             <div id="optionGroupsContainer" class="option-groups-container"></div>
             <template id="tplOptionGroup">
                 <div class="option-group-card" data-group-index="0">
                     <div class="option-group-head">
                         <input type="text" class="form-control" data-group-name placeholder="Group name (e.g. Choice A: Sides)" maxlength="100">
-                        <button type="button" class="btn btn-danger-outline btn-xs btn-remove-group" title="Remove group">✕</button>
+                        <button type="button" class="btn btn-danger-outline btn-xs btn-remove-group" title="Remove group">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
                     <div class="option-group-rules">
                         <label class="rule-item">
@@ -435,28 +501,36 @@ include __DIR__ . '/includes/header.php';
                         </label>
                     </div>
                     <table class="option-table">
-                        <thead><tr><th>Sub-item Name</th><th style="width:140px;">+ ₱ Delta</th><th style="width:80px;">Active</th><th style="width:40px;"></th></tr></thead>
+                        <thead><tr><th>Sub-item / Variant Name</th><th style="width:160px;">+ ₱ Extra Cost</th><th style="width:90px;">Active</th><th style="width:40px;"></th></tr></thead>
                         <tbody class="option-tbody"></tbody>
-                        <tfoot><tr><td colspan="4"><button type="button" class="btn btn-add-option">+ Add Sub-option</button></td></tr></tfoot>
+                        <tfoot><tr><td colspan="4"><button type="button" class="btn btn-add-option" style="border-radius:10px;padding:.5rem .9rem;">+ Add Sub-option</button></td></tr></tfoot>
                     </table>
                 </div>
             </template>
             <template id="tplOptionRow">
                 <tr class="option-row">
-                    <td><input type="text" class="form-control" data-option-name placeholder="Extra Gravy, Coke, Rice…" maxlength="150"></td>
-                    <td><input type="number" class="form-control" data-price-delta step="0.01" min="0" value="0"></td>
+                    <td><input type="text" class="form-control" data-option-name placeholder="e.g. Extra Gravy, Coke, Rice, Large Fries" maxlength="150"></td>
+                    <td><div class="input-prefix" style="display:flex;align-items:stretch;border:1px solid var(--slate-300);border-radius:8px;overflow:hidden;background:#fff;">
+                        <span style="padding:0 .6rem;display:inline-flex;align-items:center;background:var(--slate-50);color:var(--slate-700);font-weight:600;border-right:1px solid var(--slate-200);">₱</span>
+                        <input type="number" class="form-control" data-price-delta step="0.01" min="0" value="0.00" style="border:none;outline:none;">
+                    </div></td>
                     <td style="text-align:center;"><label class="switch"><input type="checkbox" data-option-avail checked><span class="slider round"></span></label></td>
-                    <td><button type="button" class="btn btn-danger-outline btn-xs btn-remove-option" title="Remove option">✕</button></td>
+                    <td><button type="button" class="btn btn-danger-outline btn-xs btn-remove-option" title="Remove option">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button></td>
                 </tr>
             </template>
         </section>
-
-        <div class="drawer-footer">
-            <button type="button" class="btn btn-outline" data-drawer-close="itemDrawer">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="btnSaveItem">💾 Save Menu Item</button>
-        </div>
     </form>
+    <div class="drawer-footer">
+        <div style="color:var(--slate-500);font-weight:600;font-size:.8rem;">Fields with <span class="req" style="color:var(--rose-600);">*</span> are required</div>
+        <div class="footer-right">
+            <button type="button" class="btn btn-outline" data-drawer-close="itemDrawer">Cancel</button>
+            <button type="submit" form="itemForm" class="btn btn-primary" id="btnSaveItem" style="min-width:170px;padding:.6rem 1.25rem;border-radius:10px;">Save Menu Item</button>
+        </div>
+    </div>
 </aside>
+</div>
 
 <script id="menuEditData" type="application/json"><?= json_encode($editItem) ?></script>
 

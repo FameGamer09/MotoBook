@@ -21,6 +21,21 @@ define('API_BASE', $scheme . '://' . $host . '/IM-101/motobook/admin/api/v1/inde
 
 if (session_status() === PHP_SESSION_NONE) {
     session_name(SESSION_NAME);
+    if (PHP_VERSION_ID >= 70300) {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (stripos($host, 'localhost') === false && !filter_var($host, FILTER_VALIDATE_IP));
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'domain'   => '',
+            'secure'   => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    } else {
+        session_set_cookie_params(0, '/; samesite=Lax', '', false, true);
+    }
     session_start();
 }
 
