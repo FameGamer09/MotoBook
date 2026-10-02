@@ -23,6 +23,52 @@ function riderAdminDB(): PDO
     return $pdo;
 }
 
+function riderPasswordColumn(PDO $pdo): ?string
+{
+    $stmt = $pdo->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'riders'");
+    $stmt->execute();
+    $columns = array_fill_keys(array_map('strtolower', array_column($stmt->fetchAll(), 'COLUMN_NAME')), true);
+
+    if (isset($columns['password_hash'])) {
+        return 'password_hash';
+    }
+
+    return isset($columns['password']) ? 'password' : null;
+}
+
+function riderPasswordMatches(PDO $pdo, int $riderId, string $password): bool
+{
+    $column = riderPasswordColumn($pdo);
+    if ($column === null) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare("SELECT `{$column}` FROM riders WHERE id = ? LIMIT 1");
+    $stmt->execute([$riderId]);
+    $stored = (string) ($stmt->fetchColumn() ?: '');
+    if ($password === '' || $stored === '') {
+        return false;
+    }
+
+    return password_verify($password, $stored)
+        || (strlen($stored) === 32 && hash_equals(strtolower($stored), md5($password)))
+        || (strlen($stored) === 40 && hash_equals(strtolower($stored), sha1($password)))
+        || hash_equals($stored, $password);
+}
+
+function riderSavePassword(PDO $pdo, int $riderId, string $password): bool
+{
+    $column = riderPasswordColumn($pdo);
+    if ($column === null) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare("UPDATE riders SET `{$column}` = ? WHERE id = ?");
+    $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $riderId]);
+
+    return $stmt->rowCount() === 1;
+}
+
 function riderRequireAuth(): array
 {
     if (empty($_SESSION['rider_id'])) {

@@ -53,6 +53,12 @@ export interface RiderProfile {
   vehicle_plate: string | null;
   vehicle_type: VehicleType | null;
   city: string | null;
+  address?: string;
+  vehicle_or_number?: string;
+  vehicle_cr_number?: string;
+  notification_preferences?: { in_app: boolean; browser: boolean };
+  quick_pin_enabled?: boolean;
+  two_factor_enabled?: boolean;
   status: RiderStatus;
   duty_today_payout: number;
   completed_today: number;

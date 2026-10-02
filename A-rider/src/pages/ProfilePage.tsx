@@ -1,24 +1,25 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRiderStore } from '@/store/useRiderStore';
 import { Button } from '@/components/ui/Button';
 import { LucideIcon, cn, currencyPHP } from '@/components/ui/Primitive';
+import { AccountSettingsPanel, type AccountSection } from '@/components/AccountSettingsPanel';
+import type { RiderProfile } from '@/types/domain';
 
-type AccountRowKey = 'personal' | 'vehicle' | 'documents' | 'notifications' | 'help' | 'privacy';
 interface AccountRow {
-  key: AccountRowKey;
+  key: AccountSection;
   icon: Parameters<typeof LucideIcon>[0]['name'];
   title: string;
   subtitle?: string;
-  badge?: 'Verified' | 'Pending' | 'New';
   divider?: boolean;
 }
 
 const ACCOUNT_ROWS: AccountRow[] = [
   { key: 'personal',    icon: 'UserCog2',       title: 'Personal Information', subtitle: 'Name, phone, address', divider: true },
   { key: 'vehicle',     icon: 'Bike',           title: 'Vehicle Information',  subtitle: 'Plate, OR/CR details', divider: true },
-  { key: 'documents',   icon: 'FileCheck2',     title: 'Documents',            subtitle: 'License, insurance, permits', badge: 'Verified', divider: true },
+  { key: 'documents',   icon: 'FileCheck2',     title: 'Documents',            subtitle: 'License, insurance, permits', divider: true },
   { key: 'notifications', icon: 'BellRing',     title: 'Notifications',        subtitle: 'SMS, app, dispatch alerts', divider: true },
-  { key: 'help',        icon: 'Headphones',     title: 'Help & Support',       subtitle: 'Live chat, hotlines', divider: true },
+  { key: 'help',        icon: 'Headphones',     title: 'Help & Support',       subtitle: 'Send a request to rider support', divider: true },
   { key: 'privacy',     icon: 'ShieldCheck',    title: 'Privacy & Security',   subtitle: 'PIN, 2FA, sessions' },
 ];
 
@@ -40,8 +41,10 @@ const RIDER_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 export function ProfilePage() {
   const navigate = useNavigate();
   const rider = useRiderStore((s) => s.profile);
+  const patchProfile = useRiderStore((s) => s.patchProfile);
   const logout = useRiderStore((s) => s.logout);
   const setDuty = useRiderStore((s) => s.setDuty);
+  const [activeSection, setActiveSection] = useState<AccountSection | null>(null);
 
   const isOnDuty = rider?.status === 'ON_SHIFT';
   const riderName = rider?.name?.trim() || 'Juan Dela Cruz';
@@ -172,31 +175,20 @@ export function ProfilePage() {
               <li
                 key={row.key}
                 className={cn(
-                  'grid grid-cols-[auto_1fr_auto] items-center gap-3 px-2 py-3 rounded-2xl hover:bg-surface-panel/60 transition-colors cursor-pointer',
+                  'rounded-2xl transition-colors hover:bg-surface-panel/60',
                   idx !== ACCOUNT_ROWS.length - 1 && row.divider && 'border-b border-surface-border/80',
                 )}
               >
-                <span className="h-9 w-9 rounded-2xl inline-flex items-center justify-center bg-cyan-500/12 border border-cyan-500/20 text-cyan-300">
-                  <LucideIcon name={row.icon} size={18} strokeWidth={1.75} />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-[14px] font-semibold text-white truncate">{row.title}</div>
-                  {row.subtitle ? <div className="text-[12px] text-slate-400 mt-0.5">{row.subtitle}</div> : null}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {row.badge ? (
-                    row.badge === 'Verified' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 h-6 text-[11px] font-extrabold uppercase tracking-[0.06em] bg-cyan-500/12 text-cyan-300 border border-cyan-500/25">
-                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> {row.badge}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 h-6 text-[11px] font-extrabold uppercase tracking-[0.06em] bg-slate-500/15 text-slate-300 border border-slate-500/25">
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-500" /> {row.badge}
-                      </span>
-                    )
-                  ) : null}
+                <button type="button" onClick={() => setActiveSection(row.key)} className="grid min-h-[76px] w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-2 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400" aria-label={`Open ${row.title}`}>
+                  <span className="h-9 w-9 rounded-2xl inline-flex items-center justify-center bg-cyan-500/12 border border-cyan-500/20 text-cyan-300">
+                    <LucideIcon name={row.icon} size={18} strokeWidth={1.75} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-white">{row.title}</span>
+                    {row.subtitle ? <span className="mt-0.5 block text-[12px] text-slate-400">{row.subtitle}</span> : null}
+                  </span>
                   <LucideIcon name="ChevronRight" size={18} strokeWidth={2} className="text-slate-500" />
-                </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -212,6 +204,15 @@ export function ProfilePage() {
           </div>
         </section>
       </main>
+      {activeSection && rider ? (
+        <AccountSettingsPanel
+          section={activeSection}
+          rider={rider}
+          onClose={() => setActiveSection(null)}
+          onSectionChange={setActiveSection}
+          onProfileSaved={(profile: Partial<RiderProfile>) => patchProfile(profile)}
+        />
+      ) : null}
     </div>
   );
 }

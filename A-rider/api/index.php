@@ -98,6 +98,15 @@ try {
         if (! $rider) {
             $send(['authenticated' => false], 404);
         }
+        $settingsStmt = $pdo->prepare('SELECT address, vehicle_or_number, vehicle_cr_number, notification_preferences, quick_pin_hash FROM rider_account_settings WHERE rider_id = ? LIMIT 1');
+        $settingsStmt->execute([(int) $rider['id']]);
+        $settings = $settingsStmt->fetch() ?: [];
+        $rider['address'] = $settings['address'] ?? '';
+        $rider['vehicle_or_number'] = $settings['vehicle_or_number'] ?? '';
+        $rider['vehicle_cr_number'] = $settings['vehicle_cr_number'] ?? '';
+        $rider['notification_preferences'] = json_decode((string) ($settings['notification_preferences'] ?? ''), true) ?: ['in_app' => true, 'browser' => false];
+        $rider['quick_pin_enabled'] = ! empty($settings['quick_pin_hash']);
+        $rider['two_factor_enabled'] = false;
         $send(['authenticated' => true, 'rider' => $rider], 200);
     }
 
@@ -147,6 +156,163 @@ try {
 
     riderRequireAuth();
     $riderId = (int) $_SESSION['rider_id'];
+
+    if ($reqPath === '/session/profile' && $method === 'POST') {
+        $body = riderInputJson();
+        $name = trim((string) ($body['name'] ?? ''));
+        $phone = trim((string) ($body['phone'] ?? ''));
+        $city = trim((string) ($body['city'] ?? ''));
+        $vehicleType = strtoupper(trim((string) ($body['vehicle_type'] ?? 'MOTORCYCLE')));
+        $vehiclePlate = strtoupper(trim((string) ($body['vehicle_plate'] ?? '')));
+        $vehicleOrNumber = trim((string) ($body['vehicle_or_number'] ?? ''));
+        $vehicleCrNumber = trim((string) ($body['vehicle_cr_number'] ?? ''));
+        $address = trim((string) ($body['address'] ?? ''));
+        if ($name === '' || mb_strlen($name) > 120 || mb_strlen($phone) > 24 || mb_strlen($city) > 80 || mb_strlen($address) > 255) {
+            $send(['error' => 'INVALID_PROFILE', 'message' => 'Check the required name and field lengths.'], 422);
+        }
+        if (! in_array($vehicleType, ['MOTORCYCLE', 'EBIKE', 'CAR', 'VAN'], true) || mb_strlen($vehiclePlate) > 32 || mb_strlen($vehicleOrNumber) > 64 || mb_strlen($vehicleCrNumber) > 64) {
+            $send(['error' => 'INVALID_VEHICLE', 'message' => 'Check the vehicle type, plate, OR, and CR details.'], 422);
+        }
+
+        $columnStmt = $pdo->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'riders'");
+        $columnStmt->execute();
+        $riderColumns = array_fill_keys(array_map('strtolower', array_column($columnStmt->fetchAll(), 'COLUMN_NAME')), true);
+        $updates = [];
+        $values = [];
+        foreach (['name' => $name, 'full_name' => $name, 'phone' => $phone, 'city' => $city, 'vehicle_type' => $vehicleType, 'vehicle_plate' => $vehiclePlate] as $column => $value) {
+            if (isset($riderColumns[$column])) {
+                $updates[] = "`{$column}` = ?";
+                $values[] = $value;
+            }
+        }
+        if (isset($riderColumns['updated_at'])) {
+            $updates[] = 'updated_at = NOW()';
+        }
+        if ($updates) {
+            $values[] = $riderId;
+            $pdo->prepare('UPDATE riders SET '.implode(', ', $updates).' WHERE id = ?')->execute($values);
+        }
+        $pdo->prepare('INSERT INTO rider_account_settings (rider_id, address, vehicle_or_number, vehicle_cr_number, updated_at)
+            VALUES (?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE address = VALUES(address), vehicle_or_number = VALUES(vehicle_or_number), vehicle_cr_number = VALUES(vehicle_cr_number), updated_at = NOW()')
+            ->execute([$riderId, $address, $vehicleOrNumber, $vehicleCrNumber]);
+        $send(['ok' => true, 'profile' => [
+            'name' => $name,
+            'phone' => $phone,
+            'city' => $city,
+            'address' => $address,
+            'vehicle_type' => $vehicleType,
+            'vehicle_plate' => $vehiclePlate,
+            'vehicle_or_number' => $vehicleOrNumber,
+            'vehicle_cr_number' => $vehicleCrNumber,
+        ]], 200);
+    }
+
+    if ($reqPath === '/session/notifications' && $method === 'POST') {
+        $body = riderInputJson();
+        $preferences = $body['preferences'] ?? [];
+        $safePreferences = [
+            'in_app' => ! empty($preferences['in_app']),
+            'browser' => ! empty($preferences['browser']),
+        ];
+        $pdo->prepare('INSERT INTO rider_account_settings (rider_id, notification_preferences, updated_at)
+            VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE notification_preferences = VALUES(notification_preferences), updated_at = NOW()')
+            ->execute([$riderId, json_encode($safePreferences, JSON_THROW_ON_ERROR)]);
+        $send(['ok' => true, 'preferences' => $safePreferences], 200);
+    }
+
+    if ($reqPath === '/session/documents' && $method === 'GET') {
+        $stmt = $pdo->prepare('SELECT document_type, original_name, mime_type, status, uploaded_at FROM rider_documents WHERE rider_id = ? ORDER BY document_type');
+        $stmt->execute([$riderId]);
+        $send(['documents' => $stmt->fetchAll()], 200);
+    }
+
+    if ($reqPath === '/session/documents' && $method === 'POST') {
+        $body = riderInputJson();
+        $documentType = (string) ($body['document_type'] ?? '');
+        $originalName = basename(trim((string) ($body['file_name'] ?? 'document')));
+        $dataUri = (string) ($body['data_uri'] ?? '');
+        if (! in_array($documentType, ['license', 'insurance', 'permit'], true) || preg_match('#^data:(application/pdf|image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=_-]+)$#i', $dataUri, $matches) !== 1) {
+            $send(['error' => 'INVALID_DOCUMENT', 'message' => 'Choose a PDF, PNG, JPG, or WebP document.'], 422);
+        }
+        $binary = base64_decode(strtr($matches[2], '-_', '+/'), true);
+        if ($binary === false || strlen($binary) > 4 * 1024 * 1024) {
+            $send(['error' => 'DOCUMENT_TOO_LARGE', 'message' => 'Documents must be smaller than 4 MB.'], 413);
+        }
+        $mimeType = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary);
+        $extensions = ['application/pdf' => 'pdf', 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+        if (! isset($extensions[$mimeType])) {
+            $send(['error' => 'INVALID_DOCUMENT_TYPE'], 422);
+        }
+        $directory = dirname(__DIR__, 3).'/motobook-private/rider-documents/'.$riderId;
+        if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
+            $send(['error' => 'DOCUMENT_STORAGE_UNAVAILABLE'], 500);
+        }
+        $storedName = bin2hex(random_bytes(16)).'.'.$extensions[$mimeType];
+        $path = $directory.'/'.$storedName;
+        if (file_put_contents($path, $binary, LOCK_EX) === false) {
+            $send(['error' => 'DOCUMENT_STORAGE_UNAVAILABLE'], 500);
+        }
+        try {
+            $pdo->prepare('INSERT INTO rider_documents (rider_id, document_type, original_name, stored_name, mime_type, status, uploaded_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, \'PENDING\', NOW(), NOW()) ON DUPLICATE KEY UPDATE original_name = VALUES(original_name), stored_name = VALUES(stored_name), mime_type = VALUES(mime_type), status = \'PENDING\', uploaded_at = NOW(), updated_at = NOW()')
+                ->execute([$riderId, $documentType, mb_substr($originalName, 0, 255), $storedName, $mimeType]);
+        } catch (Throwable $exception) {
+            @unlink($path);
+            throw $exception;
+        }
+        $send(['ok' => true, 'document' => ['document_type' => $documentType, 'original_name' => $originalName, 'mime_type' => $mimeType, 'status' => 'PENDING']], 201);
+    }
+
+    if ($reqPath === '/session/support' && $method === 'POST') {
+        $body = riderInputJson();
+        $category = trim((string) ($body['category'] ?? 'Account'));
+        $subject = trim((string) ($body['subject'] ?? ''));
+        $message = trim((string) ($body['message'] ?? ''));
+        if ($subject === '' || $message === '' || mb_strlen($subject) > 120 || mb_strlen($message) > 4000) {
+            $send(['error' => 'INVALID_SUPPORT_REQUEST', 'message' => 'Enter a subject and a message under 4,000 characters.'], 422);
+        }
+        $recent = $pdo->prepare('SELECT COUNT(*) FROM rider_support_requests WHERE rider_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)');
+        $recent->execute([$riderId]);
+        if ((int) $recent->fetchColumn() >= 5) {
+            $send(['error' => 'SUPPORT_RATE_LIMITED', 'message' => 'Please wait before sending another request.'], 429);
+        }
+        $stmt = $pdo->prepare('INSERT INTO rider_support_requests (rider_id, category, subject, message) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$riderId, mb_substr($category, 0, 80), mb_substr($subject, 0, 120), $message]);
+        $send(['ok' => true, 'request_id' => (int) $pdo->lastInsertId()], 201);
+    }
+
+    if ($reqPath === '/session/security/password' && $method === 'POST') {
+        $body = riderInputJson();
+        $currentPassword = (string) ($body['current_password'] ?? '');
+        $newPassword = (string) ($body['new_password'] ?? '');
+        if (! riderPasswordMatches($pdo, $riderId, $currentPassword)) {
+            $send(['error' => 'CURRENT_PASSWORD_INVALID'], 422);
+        }
+        if (mb_strlen($newPassword) < 10 || mb_strlen($newPassword) > 200) {
+            $send(['error' => 'WEAK_PASSWORD', 'message' => 'Use a password between 10 and 200 characters.'], 422);
+        }
+        if (! riderSavePassword($pdo, $riderId, $newPassword)) {
+            $send(['error' => 'PASSWORD_UPDATE_FAILED'], 500);
+        }
+        $send(['ok' => true], 200);
+    }
+
+    if ($reqPath === '/session/security/pin' && $method === 'POST') {
+        $body = riderInputJson();
+        $currentPassword = (string) ($body['current_password'] ?? '');
+        $pin = (string) ($body['pin'] ?? '');
+        if (! riderPasswordMatches($pdo, $riderId, $currentPassword)) {
+            $send(['error' => 'CURRENT_PASSWORD_INVALID'], 422);
+        }
+        if ($pin !== '' && preg_match('/^\d{4,6}$/', $pin) !== 1) {
+            $send(['error' => 'INVALID_PIN', 'message' => 'PIN must contain 4 to 6 digits.'], 422);
+        }
+        $pinHash = $pin === '' ? null : password_hash($pin, PASSWORD_DEFAULT);
+        $pdo->prepare('INSERT INTO rider_account_settings (rider_id, quick_pin_hash, updated_at)
+            VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE quick_pin_hash = VALUES(quick_pin_hash), updated_at = NOW()')
+            ->execute([$riderId, $pinHash]);
+        $send(['ok' => true, 'quick_pin_enabled' => $pin !== ''], 200);
+    }
 
     if (preg_match('#^/orders/list$#', $reqPath) && $method === 'GET') {
         autoAssignPendingRiderOrders($pdo);
