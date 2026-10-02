@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark only" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MotoBook Rider" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="MotoBook Rider" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="manifest" href="/IM-101/motobook/A-rider/public/build/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/IM-101/motobook/A-rider/public/build/assets/rider-icon-192.svg" />
+    <link rel="apple-touch-icon" href="/IM-101/motobook/A-rider/public/build/assets/rider-icon-192.svg" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
+    <title>MotoBook Rider</title>
+    <script type="module" crossorigin src="/IM-101/motobook/A-rider/public/build/assets/main-mjmb9qY6.js"></script>
+    <link rel="stylesheet" crossorigin href="/IM-101/motobook/A-rider/public/build/assets/main-e0d2VJW6.css">
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased">
+    <div id="rider-root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/IM-101/motobook/A-rider/public/build/service-worker.js', {
+            scope: '/IM-101/motobook/A-rider/public/build/',
+          }).catch(function (e) { console.warn('[SW] register failed', e); });
+        });
+      }
+    </script>
+  </body>
+</html>
