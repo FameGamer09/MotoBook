@@ -31,7 +31,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="grid-2">
     <div class="card">
-        <div class="card-header"><h2>📢 Client app banner slot</h2></div>
+        <div class="card-header"><h2>Client App Banner Slot</h2></div>
         <div class="card-body">
             <div class="alert alert-info">
                 Upload approved promotional graphics (GCash-style ads) created for store discounts or partner campaigns. These appear at the top of the customer app.
@@ -66,13 +66,18 @@ include __DIR__ . '/includes/header.php';
                     <label>Graphic file (PNG/JPG, 1200x400 recommended)</label>
                     <input class="form-control" name="image" type="file" accept="image/png,image/jpeg,image/webp">
                 </div>
-                <button class="btn btn-primary" type="submit">⬆️ Upload to banner slot</button>
+                <button class="btn btn-primary" type="submit">Upload to Banner Slot</button>
             </form>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>👀 Live preview card</h2></div>
+        <div class="card-header">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                Live Preview Card
+            </h2>
+        </div>
         <div class="card-body">
             <div id="previewBanner" class="banner-preview" style="background:linear-gradient(135deg,#06b6d4,#0e7490)">
                 <strong style="font-size:1.25rem">Your Banner Title Here</strong>
@@ -86,7 +91,12 @@ include __DIR__ . '/includes/header.php';
 </div>
 
 <div class="card">
-    <div class="card-header"><h2>📚 Uploaded banners library</h2></div>
+    <div class="card-header">
+        <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            Uploaded Banners Library
+        </h2>
+    </div>
     <div class="card-body">
         <div class="grid-2">
             <?php foreach ($banners as $b): ?>

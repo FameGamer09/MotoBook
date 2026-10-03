@@ -1,0 +1,383 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 560" role="img" aria-label="Motobook blue scooter delivery rider login logo">
+  <defs>
+    <linearGradient id="helmet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3FC5FF"/>
+      <stop offset="55%" stop-color="#00B0FF"/>
+      <stop offset="100%" stop-color="#0095E3"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#43C5FF"/>
+      <stop offset="55%" stop-color="#15A8F3"/>
+      <stop offset="100%" stop-color="#0689CE"/>
+    </linearGradient>
+    <linearGradient id="scooterBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4CCBFF"/>
+      <stop offset="50%" stop-color="#12A8F0"/>
+      <stop offset="100%" stop-color="#0582BE"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3FC5FF"/>
+      <stop offset="55%" stop-color="#08B0F4"/>
+      <stop offset="100%" stop-color="#0486C6"/>
+    </linearGradient>
+    <linearGradient id="rimRear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#93A3B5"/>
+      <stop offset="100%" stop-color="#516172"/>
+    </linearGradient>
+    <radialGradient id="headlight" cx=".35" cy=".35" r=".8">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#FFF8CC"/>
+      <stop offset="100%" stop-color="#FFE27A"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx=".5" cy=".5" r=".5">
+      <stop offset="0%" stop-color="rgba(15,23,42,0.30)"/>
+      <stop offset="80%" stop-color="rgba(15,23,42,0.05)"/>
+      <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+    </radialGradient>
+    <filter id="softShadow" x="-40%" y="-30%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="12" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="390" cy="502" rx="310" ry="22" fill="url(#shadow)"/>
+
+  <g filter="url(#softShadow)">
+    <!-- ====================== REAR WHEEL ====================== -->
+    <g transform="translate(240 430)">
+      <circle r="68" fill="#0F172A"/>
+      <circle r="42" fill="url(#rimRear)"/>
+      <circle r="22" fill="#0F172A"/>
+      <circle r="14" fill="#15A8F3"/>
+      <circle r="7" fill="#FFFFFF" opacity=".9"/>
+      <g stroke="#FFFFFF" stroke-opacity=".55" stroke-width="2" fill="none">
+        <line x1="0" y1="-42" x2="0" y2="-22"/>
+        <line x1="0" y1="42" x2="0" y2="22"/>
+        <line x1="-42" y1="0" x2="-22" y2="0"/>
+        <line x1="42" y1="0" x2="22" y2="0"/>
+        <line x1="-30" y1="-30" x2="-16" y2="-16"/>
+        <line x1="30" y1="30" x2="16" y2="16"/>
+        <line x1="-30" y1="30" x2="-16" y2="16"/>
+        <line x1="30" y1="-30" x2="16" y2="-16"/>
+      </g>
+      <circle r="68" fill="none" stroke="#0B1220" stroke-width="2"/>
+    </g>
+
+    <!-- ====================== FRONT WHEEL ====================== -->
+    <g transform="translate(555 430)">
+      <circle r="68" fill="#0F172A"/>
+      <circle r="42" fill="url(#rimRear)"/>
+      <circle r="22" fill="#0F172A"/>
+      <circle r="14" fill="#15A8F3"/>
+      <circle r="7" fill="#FFFFFF" opacity=".9"/>
+      <g stroke="#FFFFFF" stroke-opacity=".55" stroke-width="2" fill="none">
+        <line x1="0" y1="-42" x2="0" y2="-22"/>
+        <line x1="0" y1="42" x2="0" y2="22"/>
+        <line x1="-42" y1="0" x2="-22" y2="0"/>
+        <line x1="42" y1="0" x2="22" y2="0"/>
+        <line x1="-30" y1="-30" x2="-16" y2="-16"/>
+        <line x1="30" y1="30" x2="16" y2="16"/>
+        <line x1="-30" y1="30" x2="-16" y2="16"/>
+        <line x1="30" y1="-30" x2="16" y2="-16"/>
+      </g>
+      <circle r="68" fill="none" stroke="#0B1220" stroke-width="2"/>
+      <!-- Front fender tip highlight -->
+      <path d="M-14 -64 Q0 -78 28 -68" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <!-- ====================== SCOOTER BODY (floor + rear fender) ====================== -->
+    <g>
+      <!-- Lower floorboard deck -->
+      <path d="M170 415
+               Q170 380 210 376
+               L495 376
+               Q515 376 516 396
+               L510 410
+               Q510 418 498 418
+               L180 418
+               Q170 418 170 415 Z"
+            fill="url(#scooterBody)"/>
+      <!-- Floorboard top highlight -->
+      <path d="M186 380 H490 Q498 380 499 390 H180 Q180 380 186 380 Z"
+            fill="#000000" opacity="0.08"/>
+      <!-- Glossy side highlight -->
+      <path d="M200 405 H480" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Step-through curve (connects footwell to front body) -->
+      <path d="M495 376
+               Q560 350 572 280
+               Q580 250 610 245
+               Q640 243 648 265
+               Q658 300 650 360
+               Q646 386 620 390
+               Q580 390 550 405"
+            fill="url(#scooterBody)"/>
+      <!-- Front body vertical highlight -->
+      <path d="M574 260 Q586 320 602 370"
+            fill="none" stroke="#FFFFFF" stroke-opacity=".32" stroke-width="4" stroke-linecap="round"/>
+
+      <!-- Rear fender -->
+      <path d="M158 415
+               Q158 370 190 360
+               L285 342
+               Q320 338 340 354
+               Q340 370 315 378
+               L220 395
+               Q180 398 170 418 Z"
+            fill="url(#scooterBody)"/>
+      <!-- Rear taillight (red) -->
+      <circle cx="175" cy="378" r="14" fill="#FF4848"/>
+      <circle cx="175" cy="378" r="7" fill="#FFDADA" opacity=".9"/>
+      <circle cx="175" cy="378" r="14" fill="none" stroke="#9B1C1C" stroke-width="2" opacity=".7"/>
+
+      <!-- Rear seat (black) -->
+      <path d="M290 336
+               Q330 320 430 320
+               Q454 320 456 340
+               Q456 352 436 356
+               L310 360
+               Q286 362 290 336 Z"
+            fill="#1B2230"/>
+      <!-- Seat top highlight -->
+      <path d="M310 328 Q380 322 440 330"
+            fill="none" stroke="#FFFFFF" stroke-opacity=".22" stroke-width="4" stroke-linecap="round"/>
+      <!-- Seat cushion edge -->
+      <path d="M298 352 Q380 356 450 348"
+            fill="none" stroke="#000000" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Lower body / foot-side skirt -->
+      <path d="M250 420
+               Q320 410 430 410
+               Q520 410 550 400
+               L555 415
+               Q500 430 420 432
+               L260 432 Z"
+            fill="#0B1220"/>
+
+      <!-- Front headlight dome (yellowish, cream) -->
+      <path d="M612 234
+               Q638 230 654 250
+               Q664 278 650 298
+               Q632 316 604 312
+               Q582 308 578 282
+               Q580 254 612 234 Z"
+            fill="url(#headlight)"/>
+      <path d="M612 234
+               Q638 230 654 250
+               Q664 278 650 298
+               Q632 316 604 312
+               Q582 308 578 282
+               Q580 254 612 234 Z"
+            fill="none" stroke="#B38A00" stroke-opacity=".55" stroke-width="2"/>
+      <!-- Headlight inner highlight -->
+      <path d="M604 248 Q616 240 630 244" fill="none" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Front lower white reflector light -->
+      <ellipse cx="602" cy="346" rx="15" ry="22" fill="#F5FCFF"/>
+      <ellipse cx="602" cy="346" rx="15" ry="22" fill="none" stroke="#006A9A" stroke-opacity=".7" stroke-width="2"/>
+      <path d="M596 334 Q602 330 608 332" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Rear rack for box (dark metal) -->
+      <path d="M274 342 L294 326 L362 320 L366 340 Z"
+            fill="#272F3D"/>
+      <rect x="290" y="318" width="94" height="6" rx="3" fill="#0F172A"/>
+
+      <!-- ====================== DELIVERY BOX ====================== -->
+      <g transform="translate(180 198)">
+        <rect x="0" y="0" width="232" height="136" rx="10" fill="url(#box)"/>
+        <!-- Lid top lip -->
+        <rect x="-4" y="-8" width="240" height="18" rx="7" fill="#0AA1E2"/>
+        <!-- Box front highlight -->
+        <path d="M22 20 H210" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+        <!-- Box ridge lines -->
+        <path d="M18 46 H214" stroke="#046796" stroke-opacity=".45" stroke-width="2"/>
+        <path d="M18 120 H214" stroke="#FFFFFF" stroke-opacity=".22" stroke-width="2"/>
+        <!-- Scooter icon on box (white line logo) -->
+        <g transform="translate(48 40)" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Rider head dot -->
+          <circle cx="62" cy="14" r="8" fill="#FFFFFF"/>
+          <!-- Rider body down to seat -->
+          <path d="M62 24 Q58 34 54 44 L66 48 L66 56"/>
+          <!-- Rear wheel -->
+          <circle cx="22" cy="56" r="16"/>
+          <circle cx="22" cy="56" r="7" fill="#FFFFFF"/>
+          <!-- Front wheel -->
+          <circle cx="104" cy="56" r="16"/>
+          <circle cx="104" cy="56" r="7" fill="#FFFFFF"/>
+          <!-- Scooter main body -->
+          <path d="M16 56 Q32 32 66 38 Q90 40 94 50 L96 56"/>
+          <!-- Seat -->
+          <path d="M50 38 Q60 32 78 34"/>
+          <!-- Front handlebar / headlight bracket -->
+          <path d="M94 44 L100 26 L110 26"/>
+          <!-- Headlight dot -->
+          <circle cx="111.5" cy="24.5" r="4" fill="#FFFFFF"/>
+        </g>
+        <!-- MOTOBOOK wordmark -->
+        <g transform="translate(20 98)" fill="#FFFFFF" font-family="Inter, Arial, system-ui, sans-serif" font-weight="800" letter-spacing="2.2" font-size="28">
+          <text x="0" y="0">MOTOBOOK</text>
+        </g>
+        <!-- Box outer outline -->
+        <rect x="0" y="0" width="232" height="136" rx="10" fill="none" stroke="#05587F" stroke-width="3" opacity=".85"/>
+      </g>
+
+      <!-- ====================== HANDLEBAR + MIRROR ====================== -->
+      <!-- Mirror stem -->
+      <path d="M618 232 Q630 198 644 192" fill="none" stroke="#0F172A" stroke-width="6" stroke-linecap="round"/>
+      <!-- Mirror -->
+      <circle cx="646" cy="180" r="18" fill="#0F172A"/>
+      <circle cx="646" cy="180" r="12" fill="#1F2A3A"/>
+      <path d="M640 172 Q648 168 655 170" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- Handlebar tube -->
+      <path d="M572 256 Q600 240 626 246" fill="none" stroke="#0F172A" stroke-width="9" stroke-linecap="round"/>
+      <!-- Left grip -->
+      <circle cx="562" cy="260" r="13" fill="#0B1220"/>
+      <circle cx="562" cy="260" r="13" fill="none" stroke="#3A4252" stroke-width="2"/>
+      <!-- Right grip (hands cover it) -->
+
+      <!-- Front fender over wheel -->
+      <path d="M490 405
+               Q530 360 620 360
+               Q656 360 660 390
+               L648 400
+               Q620 382 530 392
+               Q500 396 490 405 Z"
+            fill="url(#scooterBody)"/>
+      <!-- Fender top highlight -->
+      <path d="M520 374 Q580 360 636 372"
+            fill="none" stroke="#FFFFFF" stroke-opacity=".36" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <!-- ====================== RIDER ====================== -->
+    <g>
+      <!-- Arms (shirt sleeves) -->
+      <path d="M372 272 Q400 254 474 276 L502 292 Q474 302 436 292 L392 288 Z"
+            fill="url(#shirt)"/>
+      <!-- Right sleeve -->
+      <path d="M372 272 Q344 270 334 292 Q352 304 386 300 L406 294 Z"
+            fill="url(#shirt)"/>
+      <!-- Torso (shirt) with collar zip -->
+      <path d="M340 260
+               Q330 300 344 334
+               L458 334
+               Q472 310 470 272
+               Q440 250 406 248
+               Q372 248 340 260 Z"
+            fill="url(#shirt)"/>
+      <!-- Collar -->
+      <path d="M376 252 Q400 238 424 252 L420 264 Q400 258 380 262 Z" fill="#0478B2"/>
+      <!-- Zip line -->
+      <path d="M400 262 L400 330" stroke="#FFFFFF" stroke-opacity=".6" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
+      <!-- Side body highlight -->
+      <path d="M360 280 Q356 318 366 334" stroke="#FFFFFF" stroke-opacity=".32" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+      <!-- Pants (black) -->
+      <path d="M360 322
+               Q380 346 400 390
+               L410 392
+               Q408 370 420 344
+               Q436 328 464 322
+               Q472 356 448 392
+               L468 396
+               Q490 366 482 326
+               Q462 310 412 310
+               Q380 310 360 322 Z"
+            fill="#141925"/>
+      <!-- Pants seam -->
+      <path d="M416 320 L416 394" stroke="#FFFFFF" stroke-opacity=".18" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Left sock & shoe -->
+      <rect x="394" y="388" width="28" height="14" rx="3" fill="#F5F8FC"/>
+      <path d="M380 402 Q380 396 394 396 L432 396 L440 414 Q408 420 388 418 Q380 414 380 402 Z"
+            fill="#0B1220"/>
+      <path d="M390 402 Q414 400 436 406" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+      <!-- Right sock & shoe -->
+      <rect x="454" y="386" width="26" height="14" rx="3" fill="#F5F8FC"/>
+      <path d="M446 402 Q446 396 458 396 L492 396 Q508 398 508 412 Q504 418 470 420 Q450 418 446 402 Z"
+            fill="#0B1220"/>
+      <path d="M460 402 Q480 400 501 406" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+      <!-- Left hand (skin) on handlebar -->
+      <g>
+        <path d="M478 278 Q510 272 526 286 Q532 298 520 308 Q500 310 486 300 Q474 290 478 278 Z"
+              fill="#FFCFAE"/>
+        <!-- Fingers curled around grip -->
+        <path d="M498 276 Q520 280 528 296" fill="none" stroke="#D49B77" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>
+      </g>
+      <!-- Right hand -->
+      <g>
+        <path d="M346 280 Q324 284 314 298 Q312 310 326 316 Q346 316 356 306 Q362 292 346 280 Z"
+              fill="#FFCFAE"/>
+        <path d="M330 286 Q318 294 320 308" fill="none" stroke="#D49B77" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>
+      </g>
+
+      <!-- Neck -->
+      <path d="M388 232 Q388 250 400 254 Q412 250 412 232 Z" fill="#F5B991"/>
+
+      <!-- Head (face) -->
+      <g transform="translate(400 170)">
+        <!-- Helmet -->
+        <path d="M-58 0
+                 Q-58 -70 0 -76
+                 Q58 -76 58 0
+                 L52 20
+                 Q46 32 30 30
+                 L-30 30
+                 Q-46 32 -52 20 Z"
+              fill="url(#helmet)"/>
+        <!-- Helmet glossy highlights -->
+        <path d="M-24 -56 Q-4 -70 10 -60" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/>
+        <path d="M16 -58 Q30 -54 34 -44" fill="none" stroke="#FFFFFF" stroke-opacity=".5" stroke-width="5" stroke-linecap="round"/>
+        <!-- Helmet side adjuster -->
+        <circle cx="-44" cy="10" r="9" fill="#76DBFF"/>
+        <circle cx="-44" cy="10" r="9" fill="none" stroke="#066596" stroke-width="2" opacity=".75"/>
+        <!-- Helmet strap -->
+        <path d="M-32 18 Q-12 24 8 24 Q26 22 36 18 L32 32 Q8 38 -28 32 Z" fill="#141A26"/>
+        <!-- Chin strap highlight -->
+        <path d="M-22 24 Q0 28 24 26" fill="none" stroke="#FFFFFF" stroke-opacity=".2" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- Hair fringe peek -->
+        <path d="M-16 -18 Q-4 -30 10 -24 Q24 -18 30 -8 Q20 -12 8 -14 Q-6 -12 -16 -8 Z" fill="#141A26"/>
+
+        <!-- Face base -->
+        <path d="M-38 2
+                 Q-40 32 -18 56
+                 Q0 70 20 56
+                 Q40 32 38 2
+                 Q20 -16 0 -14
+                 Q-20 -16 -38 2 Z"
+              fill="#FFD3AE"/>
+        <!-- Cheeks -->
+        <ellipse cx="-22" cy="40" rx="9" ry="5" fill="#FFB99A" opacity=".7"/>
+        <ellipse cx="22" cy="40" rx="9" ry="5" fill="#FFB99A" opacity=".7"/>
+        <!-- Eyes whites -->
+        <circle cx="-14" cy="22" r="7" fill="#FFFFFF"/>
+        <circle cx="16" cy="22" r="7" fill="#FFFFFF"/>
+        <!-- Pupils -->
+        <circle cx="-13" cy="23" r="4" fill="#0B1220"/>
+        <circle cx="17" cy="23" r="4" fill="#0B1220"/>
+        <!-- Eye shine -->
+        <circle cx="-11.5" cy="21" r="1.3" fill="#FFFFFF"/>
+        <circle cx="18.5" cy="21" r="1.3" fill="#FFFFFF"/>
+        <!-- Brows -->
+        <path d="M-24 10 Q-14 6 -4 10" fill="none" stroke="#1B2230" stroke-width="3" stroke-linecap="round"/>
+        <path d="M6 10 Q16 6 26 10" fill="none" stroke="#1B2230" stroke-width="3" stroke-linecap="round"/>
+        <!-- Ear -->
+        <path d="M-40 24 Q-50 30 -46 44 Q-38 42 -36 34 Z" fill="#F6B991"/>
+        <path d="M38 24 Q48 30 44 44 Q36 42 34 34 Z" fill="#F6B991"/>
+        <!-- Nose -->
+        <path d="M2 30 Q-1 40 4 44" fill="none" stroke="#D89A73" stroke-width="2" stroke-linecap="round"/>
+        <!-- Mouth smile -->
+        <path d="M-18 52 Q0 68 20 52 Q8 60 -4 60 Q-12 60 -18 52 Z" fill="#7B2031"/>
+        <!-- Teeth -->
+        <path d="M-14 54 Q0 62 16 54 L12 58 Q0 62 -10 58 Z" fill="#FFFFFF"/>
+        <!-- Lip highlight -->
+        <path d="M-14 52 Q0 58 18 52" fill="none" stroke="#FFD0DC" stroke-opacity=".8" stroke-width="1.5" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>

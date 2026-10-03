@@ -43,7 +43,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php if ($isStore): ?>
 <div class="card">
-    <div class="card-header"><h2>📮 Submit promo for approval</h2></div>
+    <div class="card-header"><h2>Submit Promo for Approval</h2></div>
     <div class="card-body">
         <div class="alert alert-info">
             Motobook management staff will review discount requests before they go live on the app. This prevents unapproved discounts from affecting platform commissions.
@@ -60,7 +60,7 @@ include __DIR__ . '/includes/header.php';
                 <label>Full mechanics, terms & description (required)</label>
                 <textarea class="form-control" id="fullDescription" name="description" rows="3" required placeholder="Include: validity dates, SKU exclusions, minimum purchase, how to redeem…"></textarea>
             </div>
-            <button class="btn btn-primary" type="submit">📤 Submit for Motobook approval</button>
+            <button class="btn btn-primary" type="submit">Submit for Motobook Approval</button>
         </form>
     </div>
 </div>
@@ -68,7 +68,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h2>📋 <?= $isStore ? 'My submitted promos' : 'Promo approval queue' ?></h2>
+        <h2><?= $isStore ? 'My Submitted Promos' : 'Promo Approval Queue' ?></h2>
         <?php if (isPlatformStaff()): ?>
             <small class="text-muted">Approve only after verifying mechanics won't break global commission rules.</small>
         <?php endif; ?>
@@ -113,7 +113,7 @@ include __DIR__ . '/includes/header.php';
 <?php if (isPlatformStaff()): ?>
 <div class="card" id="reviewCard" style="display:none">
     <div class="card-header">
-        <h2>✅ Approve / Reject promo request</h2>
+        <h2>Approve / Reject Promo Request</h2>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('reviewCard').style.display='none'">Close</button>
     </div>
     <div class="card-body">
@@ -125,8 +125,8 @@ include __DIR__ . '/includes/header.php';
             <div class="form-group">
                 <label>Decision</label>
                 <select class="form-control" name="status" required>
-                    <option value="approved">✅ Approve — goes live on app</option>
-                    <option value="rejected">❌ Reject — send notes back</option>
+                    <option value="approved">Approve &mdash; goes live on app</option>
+                    <option value="rejected">Reject &mdash; send notes back</option>
                 </select>
             </div>
             <div class="form-group">

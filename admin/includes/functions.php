@@ -28,23 +28,63 @@ function currentAdmin(): ?array
 
 function loginAdmin(string $email, string $password): bool
 {
+    $res = tryLoginAdmin($email, $password);
+    return $res['ok'];
+}
+
+function tryLoginAdmin(string $email, string $password): array
+{
+    $email = trim($email);
+    $password = (string)$password;
+    if ($email === '' || $password === '') {
+        return ['ok' => false, 'message' => 'Please enter email and password.'];
+    }
+
     $pdo = getDBConnection();
     $stmt = $pdo->prepare('SELECT id, name, email, password FROM super_admins WHERE email = ?');
     $stmt->execute([$email]);
     $admin = $stmt->fetch();
 
-    if (!$admin || !password_verify($password, $admin['password'])) {
-        return false;
+    if ($admin) {
+        if (!password_verify($password, $admin['password'])) {
+            return ['ok' => false, 'message' => 'Incorrect super-admin password. Remember: passwords are case-sensitive.'];
+        }
+        $_SESSION['admin_id']   = $admin['id'];
+        $_SESSION['admin_name'] = $admin['name'];
+        $_SESSION['admin_email']= $admin['email'];
+        $update = $pdo->prepare('UPDATE super_admins SET last_login_at = NOW() WHERE id = ?');
+        $update->execute([$admin['id']]);
+        return ['ok' => true];
     }
 
-    $_SESSION['admin_id'] = $admin['id'];
-    $_SESSION['admin_name'] = $admin['name'];
-    $_SESSION['admin_email'] = $admin['email'];
+    $hint = '';
+    try {
+        $checkStaff = $pdo->prepare('SELECT COUNT(*) AS c FROM staff WHERE email = ? LIMIT 1');
+        $checkStaff->execute([$email]);
+        $staffCount = (int)($checkStaff->fetch()['c'] ?? 0);
+        if ($staffCount > 0) {
+            $hint = 'That email is registered as a Management Staff account, not a Super Admin. '
+                  . 'Sign in at the Management Staff Panel instead: /IM-101/motobook/A-management/login.php';
+        } else {
+            $checkOwner = $pdo->prepare('SELECT COUNT(*) AS c FROM partnership_stores WHERE owner_email = ? LIMIT 1');
+            $checkOwner->execute([$email]);
+            $ownerCount = (int)($checkOwner->fetch()['c'] ?? 0);
+            if ($ownerCount > 0) {
+                $hint = 'That email is registered as a Partnership Store owner account, not a Super Admin. '
+                      . 'Sign in at the Management Staff Panel instead: /IM-101/motobook/A-management/login.php';
+            }
+        }
+    } catch (Throwable $e) {
+        // ignore — hint is optional
+    }
 
-    $update = $pdo->prepare('UPDATE super_admins SET last_login_at = NOW() WHERE id = ?');
-    $update->execute([$admin['id']]);
-
-    return true;
+    $message = 'No super-admin account matches that email on this control center.';
+    if (!$hint) {
+        $hint = 'Only Super Admin accounts can sign in here. If you are a Motobook management staff, store staff, '
+              . 'or store owner, please use the Management Staff Panel at /IM-101/motobook/A-management/login.php '
+              . 'or the Point-of-Sale / Inventory app at http://127.0.0.1:8000/login (admin@example.com / cashier@example.com).';
+    }
+    return ['ok' => false, 'message' => $message, 'hint' => $hint];
 }
 
 function logoutAdmin(): void
@@ -173,16 +213,17 @@ function renderStars(float $rating): string
     $full = (int) floor($rating);
     $half = ($rating - $full) >= 0.5 ? 1 : 0;
     $empty = 5 - $full - $half;
-    $html = '<span class="stars">';
+    $html = '<span class="stars" aria-label="Rating: ' . number_format($rating, 1) . ' out of 5">';
+    $starSvg = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 
     for ($i = 0; $i < $full; $i++) {
-        $html .= '★';
+        $html .= str_replace('<svg', '<svg class="star-full"', $starSvg);
     }
     if ($half) {
-        $html .= '☆';
+        $html .= str_replace('<svg', '<svg class="star-half"', $starSvg);
     }
     for ($i = 0; $i < $empty; $i++) {
-        $html .= '☆';
+        $html .= str_replace('<svg', '<svg class="star-empty"', $starSvg);
     }
 
     $html .= ' <small>(' . number_format($rating, 1) . ')</small></span>';

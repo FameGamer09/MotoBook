@@ -32,7 +32,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="grid-2">
     <div class="card">
-        <div class="card-header"><h2>🛵 Rider shift status (Today)</h2></div>
+        <div class="card-header"><h2>Rider Shift Status (Today)</h2></div>
         <div class="card-body">
             <div class="table-responsive">
                 <table>
@@ -59,7 +59,7 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>📝 Log rider incident</h2></div>
+        <div class="card-header"><h2>Report Rider Incident</h2></div>
         <div class="card-body">
             <div class="alert alert-info">
                 Record late arrivals, broken bags, vehicle trouble, completed safety briefings, or other issues.
@@ -97,7 +97,7 @@ include __DIR__ . '/includes/header.php';
 </div>
 
 <div class="card">
-    <div class="card-header"><h2>📋 Rider incident log</h2></div>
+    <div class="card-header"><h2>Rider Incident Log</h2></div>
     <div class="card-body">
         <div class="table-responsive">
             <table>

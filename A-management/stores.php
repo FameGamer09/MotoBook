@@ -52,7 +52,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h2>🏪 <?= isStoreStaff() ? 'Your store information' : 'Partner stores directory' ?></h2>
+        <h2><?= isStoreStaff() ? 'Your Store Information' : 'Partner Stores Directory' ?></h2>
         <?php if (isPlatformStaff()): ?>
             <small class="text-muted">Help store owners with onboarding, pausing during rush, and profile setup.</small>
         <?php endif; ?>
@@ -111,7 +111,10 @@ include __DIR__ . '/includes/header.php';
 <?php if (isPlatformStaff()): ?>
 <div class="card" id="onboardCard" style="display:none">
     <div class="card-header">
-        <h2>🚀 Store onboarding assistance</h2>
+        <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Store Onboarding Assistance
+        </h2>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('onboardCard').style.display='none'">Close</button>
     </div>
     <div class="card-body">

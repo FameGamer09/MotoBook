@@ -17,7 +17,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h2>🛡️ Global delivery fees & bulking rules</h2>
+        <h2>Global Platform Rules</h2>
         <span class="badge badge-info">Read-only for Management</span>
     </div>
     <div class="card-body">
@@ -41,7 +41,7 @@ include __DIR__ . '/includes/header.php';
                                 <?= (!empty($s['is_locked_for_staff']) && $readOnly) ? 'readonly disabled style="background:var(--gray-100)"' : '' ?>>
                         </div>
                         <?php if (!empty($s['is_locked_for_staff']) && $readOnly): ?>
-                            <small class="text-muted" style="margin-top:.3rem;display:block">🔒 Locked — Super Admin only (Global Settings panel)</small>
+                            <small class="text-muted" style="margin-top:.3rem;display:block"><span class="badge badge-muted">Locked</span> &mdash; Super Admin only (Global Settings panel)</small>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -50,22 +50,22 @@ include __DIR__ . '/includes/header.php';
 
         <hr style="margin:1.5rem 0;border:1px solid var(--cyan-100)">
 
-        <h2 style="font-size:1rem;color:var(--cyan-900);margin-bottom:.75rem">📖 Responsibility matrix</h2>
+        <h2 style="font-size:1rem;color:var(--cyan-900);margin-bottom:.75rem">Responsibility Matrix</h2>
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr><th>Operational task</th><th>Super Admin</th><th>Motobook Management</th><th>Store Manager</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><strong>Global delivery fees & bulking rules</strong></td><td>✅ Full Control</td><td>👁️ Read Only</td><td>👁️ Read Only</td></tr>
-                    <tr><td><strong>Creating / removing staff accounts</strong></td><td>✅ Full Control</td><td>🚫 No Access</td><td>🚫 No Access</td></tr>
-                    <tr><td><strong>Daily cash collection / POS remittance</strong></td><td>📊 Final audit & reports</td><td>💵 Daily hands-on processing</td><td>🚫 No Access</td></tr>
-                    <tr><td><strong>Order reassignment & live tracking</strong></td><td>👁️ Executive view</td><td>🎛️ Active operational control</td><td>👁️ Their store only</td></tr>
-                    <tr><td><strong>Customer complaints & refunds</strong></td><td>📊 High-level audit</td><td>⚖️ Daily ticket resolution (within cap)</td><td>📮 Reference only</td></tr>
-                    <tr><td><strong>Merchant menu & item availability</strong></td><td>👁️ Oversees platform</td><td>🤝 Assists store managers</td><td>✅ Toggles own store</td></tr>
-                    <tr><td><strong>Store pause / busy override</strong></td><td>✅ Any store</td><td>✅ Any store (phone-in help)</td><td>✅ Own store only</td></tr>
-                    <tr><td><strong>Store promo approvals</strong></td><td>👁️ Audit trail</td><td>✅ Approves / rejects</td><td>📮 Submits requests</td></tr>
-                    <tr><td><strong>Banner graphics upload</strong></td><td>✅ Full access</td><td>✅ Executes approved art</td><td>🚫 No Access</td></tr>
+                    <tr><td><strong>Global delivery fees &amp; bulking rules</strong></td><td><span class="badge badge-success">Full Control</span></td><td><span class="badge badge-info">Read Only</span></td><td><span class="badge badge-info">Read Only</span></td></tr>
+                    <tr><td><strong>Creating / removing staff accounts</strong></td><td><span class="badge badge-success">Full Control</span></td><td><span class="badge badge-danger">No Access</span></td><td><span class="badge badge-danger">No Access</span></td></tr>
+                    <tr><td><strong>Daily cash collection / POS remittance</strong></td><td><span class="badge badge-info">Final Audit &amp; Reports</span></td><td><span class="badge badge-success">Active Processing</span></td><td><span class="badge badge-danger">No Access</span></td></tr>
+                    <tr><td><strong>Order reassignment &amp; live tracking</strong></td><td><span class="badge badge-info">Executive View</span></td><td><span class="badge badge-success">Active Control</span></td><td><span class="badge badge-info">Store-Scoped View</span></td></tr>
+                    <tr><td><strong>Customer complaints &amp; refunds</strong></td><td><span class="badge badge-info">High-Level Audit</span></td><td><span class="badge badge-warning">Daily Resolution</span></td><td><span class="badge badge-muted">Reference Only</span></td></tr>
+                    <tr><td><strong>Merchant menu &amp; item availability</strong></td><td><span class="badge badge-info">Platform Oversight</span></td><td><span class="badge badge-info">Assisted Support</span></td><td><span class="badge badge-success">Own Store Control</span></td></tr>
+                    <tr><td><strong>Store pause / busy override</strong></td><td><span class="badge badge-success">Any Store</span></td><td><span class="badge badge-success">Any Store (Support)</span></td><td><span class="badge badge-success">Own Store Only</span></td></tr>
+                    <tr><td><strong>Store promo approvals</strong></td><td><span class="badge badge-info">Audit Trail</span></td><td><span class="badge badge-success">Approves / Rejects</span></td><td><span class="badge badge-muted">Submits Requests</span></td></tr>
+                    <tr><td><strong>Banner graphics upload</strong></td><td><span class="badge badge-success">Full Access</span></td><td><span class="badge badge-success">Executes Approved Art</span></td><td><span class="badge badge-danger">No Access</span></td></tr>
                 </tbody>
             </table>
         </div>

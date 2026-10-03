@@ -49,7 +49,12 @@ include __DIR__ . '/includes/header.php';
 
 <?php if ($isStore): ?>
 <div class="card">
-    <div class="card-header"><h2>📞 Submit support request</h2></div>
+    <div class="card-header">
+        <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Submit Support Request
+        </h2>
+    </div>
     <div class="card-body">
         <div class="alert alert-info">
             Report order delays, app glitches, menu update assistance, or account questions here. Motobook management staff will respond on this ticket.
@@ -81,7 +86,7 @@ include __DIR__ . '/includes/header.php';
 <?php endif; ?>
 
 <div class="card">
-    <div class="card-header"><h2>📋 <?= $isStore ? 'My support tickets' : 'All merchant tickets' ?></h2></div>
+    <div class="card-header"><h2><?= $isStore ? 'My Support Tickets' : 'All Merchant Tickets' ?></h2></div>
     <div class="card-body">
         <div class="table-responsive">
             <table>
@@ -118,7 +123,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php if ($detail): ?>
 <div class="card" id="<?= isPlatformStaff() ? 'reply' : 'detail' ?>">
-    <div class="card-header"><h2>💬 Ticket: <?= e($detail['ticket_number']) ?></h2></div>
+    <div class="card-header"><h2>Ticket: <?= e($detail['ticket_number']) ?></h2></div>
     <div class="card-body">
         <div class="grid-2">
             <div>

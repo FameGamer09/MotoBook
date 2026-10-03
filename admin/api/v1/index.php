@@ -183,7 +183,44 @@ if (preg_match('#^orders/(\d+)$#', $route, $m) && $method === 'GET') {
     $gps->execute([$id]);
     $events = $pdo->prepare('SELECT event_type, notes, actor_email, created_at FROM order_events WHERE order_id = ? ORDER BY created_at DESC');
     $events->execute([$id]);
-    apiJson(['success' => true, 'order' => decorateOrder($order, delayThreshold($pdo)), 'chats' => $chats->fetchAll(), 'gps' => $gps->fetchAll(), 'events' => $events->fetchAll()]);
+    $riderOrder = null;
+    $riderPod = null;
+    $riderLatestTelemetry = null;
+    $riderIncidents = [];
+    if (hasRiderSchema($pdo)) {
+        $roStmt = $pdo->prepare('SELECT id, rider_id, order_code, state, payout_amount, tip_amount, cod_amount,
+            offer_received_at, accepted_at, pickup_arrived_at, verified_at, dropoff_arrived_at, completed_at,
+            merchant_name, merchant_address, dropoff_name, dropoff_address, dropoff_phone, special_notes
+            FROM rider_orders WHERE shared_order_id = ? LIMIT 1');
+        $roStmt->execute([$id]);
+        $riderOrder = $roStmt->fetch() ?: null;
+        if ($riderOrder) {
+            $roId = (int)$riderOrder['id'];
+            $podStmt = $pdo->prepare('SELECT proof_image_path, proof_image_lat, proof_image_lng, proof_captured_at,
+                cod_collected_amt, cod_change_due, cod_confirmed, signature_path, signature_name, dropoff_notes, handoff_mode, created_at
+                FROM rider_pod_records WHERE rider_order_id = ? LIMIT 1');
+            $podStmt->execute([$roId]);
+            $riderPod = $podStmt->fetch() ?: null;
+            $telStmt = $pdo->prepare('SELECT lat, lng, heading, speed_kmh, accuracy_m, motion_state, is_offline_batch, recorded_at
+                FROM rider_location_logs WHERE rider_order_id = ? ORDER BY recorded_at DESC LIMIT 1');
+            $telStmt->execute([$roId]);
+            $riderLatestTelemetry = $telStmt->fetch() ?: null;
+            $incStmt = $pdo->prepare('SELECT incident_code, detail, created_at FROM rider_order_incidents WHERE rider_order_id = ? ORDER BY id DESC LIMIT 10');
+            $incStmt->execute([$roId]);
+            $riderIncidents = $incStmt->fetchAll();
+        }
+    }
+    apiJson([
+        'success' => true,
+        'order' => decorateOrder($order, delayThreshold($pdo)),
+        'chats' => $chats->fetchAll(),
+        'gps' => $gps->fetchAll(),
+        'events' => $events->fetchAll(),
+        'rider_order' => $riderOrder,
+        'rider_pod' => $riderPod,
+        'rider_telemetry_latest' => $riderLatestTelemetry,
+        'rider_incidents' => $riderIncidents,
+    ]);
 }
 
 if (preg_match('#^orders/(\d+)/reassign$#', $route, $m) && $method === 'POST') {
@@ -199,10 +236,40 @@ if (preg_match('#^orders/(\d+)/reassign$#', $route, $m) && $method === 'POST') {
     if (!$riderRow) {
         apiJson(['success' => false, 'message' => 'Rider is not available for assignment.'], 422);
     }
-    $pdo->prepare("UPDATE orders SET rider_id = ?, order_status = 'driver_assigned', assigned_at = NOW() WHERE id = ?")->execute([$riderId, $orderId]);
-    $pdo->prepare("UPDATE riders SET duty_status = 'on_trip', status = 'on_duty' WHERE id = ?")->execute([$riderId]);
-    logOrderEvent($pdo, $orderId, 'reassign', $reason . ' → ' . $riderRow['full_name'], $user['actor_email']);
-    apiJson(['success' => true, 'message' => 'Order reassigned to ' . $riderRow['full_name'] . '.']);
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("UPDATE orders SET rider_id = ?, order_status = 'driver_assigned', assigned_at = NOW() WHERE id = ?")->execute([$riderId, $orderId]);
+        $pdo->prepare("UPDATE riders SET duty_status = 'on_trip', status = 'on_duty' WHERE id = ?")->execute([$riderId]);
+        logOrderEvent($pdo, $orderId, 'reassign', $reason . ' → ' . $riderRow['full_name'], $user['actor_email']);
+        $riderSync = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string)$user['actor_email']);
+        $pdo->commit();
+        apiJson(['success' => true, 'message' => 'Order reassigned to ' . $riderRow['full_name'] . '.', 'rider_sync' => $riderSync]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        apiJson(['success' => false, 'message' => 'Failed to reassign order: ' . $e->getMessage()], 500);
+    }
+}
+
+if (preg_match('#^orders/(\d+)/rider-sync$#', $route, $m) && $method === 'POST') {
+    if (!$isPlatform) {
+        apiJson(['success' => false, 'message' => 'Only Motobook management staff can sync orders to the rider system.'], 403);
+    }
+    $orderId = (int)$m[1];
+    $riderId = (int)($body['rider_id'] ?? 0);
+    if ($riderId <= 0) {
+        $probe = $pdo->prepare('SELECT rider_id FROM orders WHERE id = ? LIMIT 1');
+        $probe->execute([$orderId]);
+        $riderId = (int)($probe->fetchColumn() ?: 0);
+    }
+    if ($riderId <= 0) {
+        apiJson(['success' => false, 'message' => 'No rider assigned to this legacy order. Assign a rider first.'], 422);
+    }
+    $synced = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string)($user['actor_email'] ?? ''));
+    if (!$synced || empty($synced['rider_order_id'])) {
+        apiJson(['success' => false, 'message' => 'Rider schema not installed or order not found — run A-rider/migrations/001_init_rider_schema.sql first.'], 422);
+    }
+    logOrderEvent($pdo, $orderId, 'rider_sync', 'Explicit sync → rider_orders #' . $synced['rider_order_id'], (string)($user['actor_email'] ?? ''));
+    apiJson(['success' => true, 'rider_sync' => $synced]);
 }
 
 if ($route === 'riders/active') {

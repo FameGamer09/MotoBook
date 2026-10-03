@@ -40,7 +40,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h2>💰 Rider remittance POS counter</h2>
+        <h2>Rider Remittance POS Counter</h2>
         <div>
             <label class="text-muted" style="font-size:.8rem;margin-right:.5rem">Change date:</label>
             <input type="date" class="form-control" style="width:auto;display:inline" value="<?= e($date) ?>" onchange="location.href='?date='+this.value">
@@ -74,7 +74,10 @@ include __DIR__ . '/includes/header.php';
                                         <?= csrfField() ?>
                                         <input type="hidden" name="action" value="collect">
                                         <input type="hidden" name="collection_id" value="<?= (int) $c['id'] ?>">
-                                        <button class="btn btn-success btn-sm" type="submit">✔ Confirm & Collect Cash</button>
+                                        <button class="btn btn-success btn-sm" type="submit">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Confirm &amp; Collect Cash
+                                        </button>
                                     </form>
                                 <?php else: ?>
                                     <span class="text-muted">Done</span>

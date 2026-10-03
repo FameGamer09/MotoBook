@@ -81,11 +81,11 @@ function openRiderModal(riderId) {
         .then(function (data) {
             if (!data.success) return;
 
-            const rider = data.rider;
-            document.getElementById('riderModalTitle').textContent = rider.full_name;
-            document.getElementById('riderOverview').innerHTML = data.overview_html;
-            document.getElementById('riderReviews').innerHTML = data.reviews_html;
-            document.getElementById('riderEarnings').innerHTML = data.earnings_html;
+            const rider = data.rider || {};
+            document.getElementById('riderModalTitle').textContent = data.title || rider.full_name || 'Rider Profile';
+            document.getElementById('riderOverview').innerHTML = data.overview_html || '';
+            document.getElementById('riderReviews').innerHTML = data.reviews_html || '<p class="text-muted">Reviews panel not available for new riders.</p>';
+            document.getElementById('riderEarnings').innerHTML = data.earnings_html || '<p class="text-muted">Earnings panel not available for new riders.</p>';
             document.getElementById('riderModal').classList.add('active');
 
             document.querySelectorAll('#riderModal .tab-btn').forEach(function (b, i) {

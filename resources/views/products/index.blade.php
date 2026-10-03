@@ -1,82 +1,130 @@
 @extends('layouts.app')
 
+@section('title', 'Products')
+
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Products</h1>
-        <a href="{{ route('products.create') }}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-            + Add Product
+<div class="space-y-5">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h2 class="text-lg font-semibold text-ink tracking-tight">Products</h2>
+            <p class="text-sm text-ink-subtle mt-1">Manage inventory catalog, pricing, and stock levels.</p>
+        </div>
+        <a href="{{ route('products.create') }}" class="btn-primary" aria-label="Add new product">
+            <i data-lucide="plus" class="w-4 h-4 -ml-0.5"></i>
+            Add Product
         </a>
     </div>
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-4 border-b border-gray-200">
-            <form method="GET" action="{{ route('products.index') }}" class="flex gap-4">
-                <input type="text" name="search" value="{{ $search }}" placeholder="Search products..." 
-                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                <select name="category" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                    <option value="">All Categories</option>
-                    @foreach($categories as $category)
-                        <option value="{{ $category->id }}" {{ $categoryId == $category->id ? 'selected' : '' }}>
-                            {{ $category->name }}
-                        </option>
-                    @endforeach
-                </select>
-                <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">Filter</button>
+    <div class="card">
+        <div class="card-header !py-3">
+            <form method="GET" action="{{ route('products.index') }}" class="w-full flex flex-col lg:flex-row gap-3" role="search">
+                <label class="sr-only" for="search">Search</label>
+                <div class="relative flex-1 lg:max-w-md">
+                    <i data-lucide="search" class="w-4 h-4 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input id="search" type="text" name="search" value="{{ $search }}" placeholder="Search by name or SKU..."
+                           class="input !pl-9" aria-label="Search products">
+                </div>
+                <div class="flex gap-3">
+                    <label class="sr-only" for="category">Category</label>
+                    <select id="category" name="category" class="select w-full lg:w-44" aria-label="Filter by category">
+                        <option value="">All Categories</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" {{ $categoryId == $category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="btn-secondary" aria-label="Apply filters">
+                        <i data-lucide="filter" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Filter</span>
+                    </button>
+                    <a href="{{ route('products.index') }}" class="btn-ghost" aria-label="Reset filters">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </a>
+                </div>
             </form>
         </div>
 
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @forelse($products as $product)
-                <tr class="{{ $product->isLowStock() ? 'bg-red-50' : '' }}">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $product->sku }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $product->name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $product->category->name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">${{ number_format($product->price, 2) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        <span class="{{ $product->isLowStock() ? 'text-red-600 font-bold' : 'text-gray-900' }}">
-                            {{ $product->quantity }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                        @if($product->is_active)
-                            <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Active</span>
-                        @else
-                            <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Inactive</span>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <a href="{{ route('products.show', $product) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">View</a>
-                        <a href="{{ route('products.edit', $product) }}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
-                        <form action="{{ route('products.destroy', $product) }}" method="POST" class="inline">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Delete this product?')">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">No products found.</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-
-        <div class="px-6 py-4 border-t border-gray-200">
-            {{ $products->links() }}
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">SKU</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Category</th>
+                        <th scope="col" class="text-right">Price</th>
+                        <th scope="col" class="text-right">Qty</th>
+                        <th scope="col" class="text-center">Status</th>
+                        <th scope="col" class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($products as $product)
+                    <tr class="{{ $product->isLowStock() ? 'bg-status-danger-soft/40' : '' }}">
+                        <td class="font-mono text-xs text-ink-muted">{{ $product->sku }}</td>
+                        <td class="font-medium text-ink">{{ $product->name }}</td>
+                        <td class="text-ink-muted">{{ $product->category->name }}</td>
+                        <td class="text-right font-semibold tabular-nums text-ink">${{ number_format($product->price, 2) }}</td>
+                        <td class="text-right">
+                            <span class="inline-flex items-center gap-1 tabular-nums font-semibold {{ $product->isLowStock() ? 'text-status-danger' : 'text-ink' }}">
+                                @if($product->isLowStock())
+                                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                                @endif
+                                {{ $product->quantity }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            @if($product->is_active)
+                                <span class="badge-success">
+                                    <i data-lucide="check" class="w-3 h-3"></i>Active
+                                </span>
+                            @else
+                                <span class="badge-neutral">
+                                    <i data-lucide="pause" class="w-3 h-3"></i>Inactive
+                                </span>
+                            @endif
+                        </td>
+                        <td class="text-right">
+                            <div class="inline-flex items-center gap-0.5">
+                                <a href="{{ route('products.show', $product) }}" class="btn-sm btn-ghost !px-2" aria-label="View product">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                </a>
+                                <a href="{{ route('products.edit', $product) }}" class="btn-sm btn-ghost !px-2 text-brand-700 hover:text-brand-800 hover:bg-brand-50" aria-label="Edit product">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </a>
+                                <form action="{{ route('products.destroy', $product) }}" method="POST" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn-sm btn-ghost !px-2 text-status-danger hover:text-status-danger hover:bg-status-danger-soft"
+                                            aria-label="Delete product"
+                                            onclick="return confirm('Delete this product?');">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="7" class="py-12 text-center">
+                            <div class="inline-flex flex-col items-center gap-2">
+                                <div class="w-11 h-11 rounded-full bg-surface-subtle text-ink-muted grid place-items-center">
+                                    <i data-lucide="package-search" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-sm font-medium text-ink">No products found</div>
+                                <div class="text-xs text-ink-subtle">Try adjusting your filters or add a new product.</div>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
+
+        @if($products->hasPages())
+        <div class="card-footer">
+            {{ $products->onEachSide(1)->links() }}
+        </div>
+        @endif
     </div>
 </div>
 @endsection

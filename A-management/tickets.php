@@ -91,7 +91,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h2>🎫 Complaint ticket queue</h2>
+        <h2>Complaint Ticket Queue</h2>
         <div>
             <a class="btn btn-outline btn-sm <?= !$statusFilter ? 'btn-primary' : '' ?>" href="<?= APP_URL ?>/tickets.php">All</a>
             <a class="btn btn-outline btn-sm <?= $statusFilter === 'open' ? 'btn-primary' : '' ?>" href="?status=open">Open</a>
@@ -130,7 +130,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php if ($ticket): $t = $ticket; ?>
 <div class="card" id="detail">
-    <div class="card-header"><h2>🔍 Ticket evidence review · <?= e($t['ticket_number']) ?></h2></div>
+    <div class="card-header"><h2>Ticket Evidence Review &middot; <?= e($t['ticket_number']) ?></h2></div>
     <div class="card-body">
         <div class="grid-2">
             <div>
@@ -162,7 +162,7 @@ include __DIR__ . '/includes/header.php';
                     <?php endforeach; ?>
                 <?php endif; ?>
 
-                <h3 style="font-size:.95rem;margin:1rem 0 .5rem">💬 Order chat</h3>
+                <h3 style="font-size:.95rem;margin:1rem 0 .5rem">Order Messages</h3>
                 <?php if (empty($chats)): ?>
                     <p class="text-muted">No chat history.</p>
                 <?php else: ?>
@@ -171,7 +171,10 @@ include __DIR__ . '/includes/header.php';
                     <?php endforeach; ?>
                 <?php endif; ?>
 
-                <h3 style="font-size:.95rem;margin:1rem 0 .5rem">📍 Last GPS point</h3>
+                <h3 style="font-size:.95rem;margin:1rem 0 .5rem">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;color:var(--slate-500)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Last GPS Coordinates
+                </h3>
                 <?php if (empty($gps)): ?>
                     <p class="text-muted">No GPS track.</p>
                 <?php else: ?>
@@ -183,7 +186,7 @@ include __DIR__ . '/includes/header.php';
 
         <?php if (($t['status'] ?? '') !== 'resolved' && ($t['status'] ?? '') !== 'rejected'): ?>
             <div class="card" style="margin-top:1.25rem;border:2px solid var(--cyan-200)">
-                <div class="card-header"><h2>⚖️ Resolve ticket (within Super Admin limits)</h2></div>
+                <div class="card-header"><h2>Resolve Ticket (within Super Admin limits)</h2></div>
                 <div class="card-body">
                     <div class="alert alert-info">
                         Max operational refund cap: <strong><?= formatMoney($maxRefund) ?></strong>. Exceeding this amount requires Super Admin approval.
@@ -197,9 +200,9 @@ include __DIR__ . '/includes/header.php';
                                 <label>Resolution action</label>
                                 <select class="form-control" id="resolution" name="resolution" required onchange="document.getElementById('refundField').style.display=this.value==='refund'?'block':'none'">
                                     <option value="resolve">Resolve with notes (no refund)</option>
-                                    <option value="refund">✅ Approve refund (up to cap)</option>
-                                    <option value="replacement">🔄 Issue replacement order</option>
-                                    <option value="reject">❌ Reject complaint</option>
+                                    <option value="refund">Approve Refund (up to cap)</option>
+                                    <option value="replacement">Issue Replacement Order</option>
+                                    <option value="reject">Reject Complaint</option>
                                 </select>
                             </div>
                             <div class="form-group" id="refundField" style="display:none">
