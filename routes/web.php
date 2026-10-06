@@ -3,19 +3,21 @@
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataController;
+use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
+use App\Models\Order;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
 
 Route::get('/SD/oliva', [DataController::class, 'handleSerialization']);
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -45,21 +47,29 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::get('/rider/orders/{order}/navigation', function (App\Models\Order $order) {
+    Route::get('/rider/orders/{order}/navigation', function (Order $order) {
         if (auth()->user()->isRider() && auth()->id() !== $order->rider_id) {
             abort(403);
         }
-        if (!auth()->user()->isRider() && !auth()->user()->isAdmin()) {
+        if (! auth()->user()->isRider() && ! auth()->user()->isAdmin()) {
             abort(403);
         }
+
         return view('rider.navigation', compact('order'));
     })->name('rider.orders.navigation');
 
-    Route::get('/customer/orders/{order}/track', function (App\Models\Order $order) {
+    Route::get('/customer/orders/{order}/track', function (Order $order) {
         $user = auth()->user();
-        if (!$user->isAdmin() && $user->id !== $order->customer_id && $user->id !== $order->rider_id) {
+        if (! $user->isAdmin() && $user->id !== $order->customer_id && $user->id !== $order->rider_id) {
             abort(403);
         }
+
         return view('customer.track', compact('order'));
     })->name('customer.orders.track');
+
+    Route::post('/orders/{order}/location', [OrderTrackingController::class, 'updateLocation'])
+        ->name('orders.location.update');
+
+    Route::get('/orders/{order}/tracking', [OrderTrackingController::class, 'showTracking'])
+        ->name('orders.tracking.show');
 });

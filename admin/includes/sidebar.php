@@ -41,6 +41,6 @@
         </a>
     </nav>
     <div class="sidebar-footer">
-        <small>API v1 &middot; <a href="/IM-101/motobook/A-management/login.php" style="color:#67e8f9">Management panel</a></small>
+        <small>API v1 &middot; <a href="<?= APP_URL ?>/login.php" style="color:#67e8f9">Shared sign in</a></small>
     </div>
 </aside>

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 if (session_status() === PHP_SESSION_NONE) {
     if (PHP_VERSION_ID >= 70300) {
@@ -6,9 +7,9 @@ if (session_status() === PHP_SESSION_NONE) {
             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
         session_set_cookie_params([
             'lifetime' => 86400,
-            'path'     => '/',
-            'domain'   => '',
-            'secure'   => $isHttps,
+            'path' => '/',
+            'domain' => '',
+            'secure' => $isHttps,
             'httponly' => true,
             'samesite' => 'Lax',
         ]);
@@ -23,12 +24,12 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 define('APP_NAME', 'MotoBook Rider');
-define('APP_ROOT', realpath(__DIR__ . '/..'));
+define('APP_ROOT', realpath(__DIR__.'/..'));
 define('APP_BUILD_TAG', '20260930-01');
 
 $scriptName = $_SERVER['SCRIPT_NAME'] ?? '/IM-101/motobook/A-rider/index.php';
-$scriptDir  = str_replace('\\', '/', dirname($scriptName));
-$scriptDir  = ($scriptDir === '.' || $scriptDir === '\\') ? '' : rtrim($scriptDir, '/');
+$scriptDir = str_replace('\\', '/', dirname($scriptName));
+$scriptDir = ($scriptDir === '.' || $scriptDir === '\\') ? '' : rtrim($scriptDir, '/');
 
 if (basename($scriptDir) === 'A-rider') {
     $projectBase = rtrim(str_replace('\\', '/', dirname($scriptDir)), '/');
@@ -37,18 +38,20 @@ if (basename($scriptDir) === 'A-rider') {
 }
 $projectBase = ($projectBase === '.' || $projectBase === '') ? '' : $projectBase;
 
-define('APP_URL_BASE', ($projectBase === '' ? '' : $projectBase) . '/A-rider');
-define('PROJECT_URL_BASE', $projectBase === '' ? '/' : $projectBase . '/');
+define('APP_URL_BASE', ($projectBase === '' ? '' : $projectBase).'/A-rider');
+define('PROJECT_URL_BASE', $projectBase === '' ? '/' : $projectBase.'/');
 
 define('UNIFIED_LOGIN_URL', (function () use ($projectBase): string {
     $proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
-    $host  = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return sprintf('%s://%s%s/login.php', $proto, $host, $projectBase === '' ? '' : $projectBase);
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    return sprintf('%s://%s%s/admin/login.php', $proto, $host, $projectBase === '' ? '' : $projectBase);
 })());
 define('UNIFIED_LOGOUT_URL', (function () use ($projectBase): string {
     $proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
-    $host  = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return sprintf('%s://%s%s/logout.php', $proto, $host, $projectBase === '' ? '' : $projectBase);
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    return sprintf('%s://%s%s/admin/logout.php?pool=rider', $proto, $host, $projectBase === '' ? '' : $projectBase);
 })());
 
 date_default_timezone_set('Asia/Manila');

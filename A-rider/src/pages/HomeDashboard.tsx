@@ -100,7 +100,7 @@ export function HomeDashboardPage() {
 
   return (
     <div className="min-h-full w-full bg-slate-950 text-white">
-      <header className="phone-top-sticky z-30 bg-slate-950/85 backdrop-blur-xl">
+      <header className="phone-top-sticky z-30 bg-slate-950/85 backdrop-blur-xl lg:hidden">
         <div className="phone-col px-4 pt-[44px] sm:pt-[52px] pb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
           <button
             type="button"
@@ -122,7 +122,7 @@ export function HomeDashboardPage() {
         </div>
       </header>
 
-      <main className="phone-col px-4 pt-3 pb-28 space-y-4">
+      <main className="phone-col space-y-5 px-4 pb-28 pt-3 lg:space-y-7 lg:px-8 lg:pb-10 lg:pt-8">
         {/* Greeting + Rider + Online badge */}
         <section className="px-1 grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <span
@@ -173,7 +173,7 @@ export function HomeDashboardPage() {
               View all <LucideIcon name="ChevronRight" size={14} strokeWidth={2} />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SummaryCard
               icon="Banknote"
               label="Earnings"
@@ -203,7 +203,7 @@ export function HomeDashboardPage() {
         </section>
 
         {/* Goal progress + Weather 2-column */}
-        <section className="grid grid-cols-[1fr_auto] gap-2.5">
+        <section className="grid grid-cols-[minmax(0,1fr)_124px] gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
           <div className="relative rounded-2xl border border-cyan-700/35 bg-gradient-to-br from-slate-900 to-[#0c1a22] p-3.5 overflow-hidden">
             <div aria-hidden="true" className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-500/10 blur-2xl" />
             <div className="flex items-center justify-between relative">
@@ -235,7 +235,7 @@ export function HomeDashboardPage() {
             </div>
           </div>
 
-          <div className="w-[124px] shrink-0 rounded-2xl border border-surface-border bg-surface-card p-3 flex flex-col items-center justify-center text-center">
+          <div className="shrink-0 rounded-2xl border border-surface-border bg-surface-card p-3 flex flex-col items-center justify-center text-center lg:p-5">
             <div className="h-10 w-10 rounded-2xl bg-cyan-500/12 border border-cyan-500/25 inline-flex items-center justify-center text-cyan-300">
               <LucideIcon name="Sun" size={22} strokeWidth={1.75} className="drop-shadow-[0_0_8px_rgba(6,182,212,0.45)]" />
             </div>
@@ -248,7 +248,7 @@ export function HomeDashboardPage() {
         {/* Quick Actions */}
         <section>
           <h3 className="px-0.5 mb-2 text-[12px] font-bold uppercase tracking-[0.1em] text-cyan-300">Quick Actions</h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:gap-3">
             {quickActions.map((a) => {
               const content = (
                 <button type="button" className="group w-full rounded-2xl border border-surface-border bg-surface-card/80 hover:border-cyan-500/40 hover:bg-surface-card transition-colors py-3.5 flex flex-col items-center gap-1.5 text-center">
@@ -396,7 +396,7 @@ function SummaryCard({
 }) {
   return (
     <div className={cn(
-      'relative rounded-2xl border p-2.5 overflow-hidden',
+      'relative min-h-[112px] rounded-2xl border p-3 overflow-hidden lg:min-h-[144px] lg:p-4',
       primary
         ? 'border-cyan-500/40 bg-gradient-to-br from-cyan-500/20 to-cyan-900/20 shadow-[0_0_28px_-12px_rgba(6,182,212,0.6)]'
         : 'border-surface-border bg-surface-card',
@@ -418,7 +418,7 @@ function SummaryCard({
       </div>
       <div className={cn(
         'relative mt-1.5 font-mono font-extrabold leading-tight tracking-tight whitespace-nowrap',
-        primary ? 'text-white text-[18px]' : 'text-white text-[16px]',
+        primary ? 'text-white text-[18px] lg:text-[22px]' : 'text-white text-[16px] lg:text-[20px]',
       )}>
         {value}
       </div>

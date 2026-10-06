@@ -71,7 +71,7 @@ try {
     if (empty($errors)) {
         $messages[] = 'Database motobook_admin created and seeded successfully.';
         $messages[] = 'Login: admin@motobook.com / password';
-        $messages[] = 'Management panel: /IM-101/motobook/A-management/login.php';
+        $messages[] = 'Shared login: /IM-101/motobook/admin/login.php';
         $messages[] = 'API: /IM-101/motobook/admin/api/v1/health';
     }
 } catch (PDOException $e) {

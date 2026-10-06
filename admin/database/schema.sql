@@ -15,6 +15,17 @@ CREATE TABLE IF NOT EXISTS super_admins (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sso_password_reset_tokens (
+    token_hash CHAR(64) NOT NULL PRIMARY KEY,
+    email VARCHAR(150) NOT NULL,
+    account_type VARCHAR(32) NOT NULL,
+    account_id BIGINT UNSIGNED NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX sso_password_reset_email_account_index (email, account_type, account_id),
+    INDEX sso_password_reset_expires_index (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Store Categories
 CREATE TABLE IF NOT EXISTS store_categories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

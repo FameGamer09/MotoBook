@@ -2,10 +2,11 @@
 
 use App\Models\User;
 
-test('login screen can be rendered', function () {
+test('login screen uses the Motobook single sign-in page', function () {
     $response = $this->get('/login');
 
-    $response->assertStatus(200);
+    $response->assertOk()
+        ->assertSee('One unified sign-in for every Motobook panel');
 });
 
 test('users can authenticate using the login screen', function () {

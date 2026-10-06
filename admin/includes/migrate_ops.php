@@ -15,7 +15,20 @@ function columnExists(PDO $pdo, string $table, string $column): bool
 
 function runOperationsMigration(PDO $pdo): void
 {
-    $opsSql = file_get_contents(dirname(__DIR__) . '/database/operations.sql');
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS sso_password_reset_tokens (
+            token_hash CHAR(64) NOT NULL PRIMARY KEY,
+            email VARCHAR(150) NOT NULL,
+            account_type VARCHAR(32) NOT NULL,
+            account_id BIGINT UNSIGNED NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX sso_password_reset_email_account_index (email, account_type, account_id),
+            INDEX sso_password_reset_expires_index (expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
+    $opsSql = file_get_contents(dirname(__DIR__).'/database/operations.sql');
     $opsSql = preg_replace('/^USE motobook_admin;\s*/m', '', $opsSql) ?? $opsSql;
     $opsSql = preg_replace('/--.*$/m', '', $opsSql) ?? $opsSql;
 
@@ -26,31 +39,31 @@ function runOperationsMigration(PDO $pdo): void
         $pdo->exec($statement);
     }
 
-    if (!columnExists($pdo, 'staff', 'staff_type')) {
+    if (! columnExists($pdo, 'staff', 'staff_type')) {
         $pdo->exec("ALTER TABLE staff ADD COLUMN staff_type ENUM('platform','store') NOT NULL DEFAULT 'platform' AFTER role");
     }
 
-    if (!columnExists($pdo, 'orders', 'customer_phone')) {
+    if (! columnExists($pdo, 'orders', 'customer_phone')) {
         $pdo->exec('ALTER TABLE orders ADD COLUMN customer_phone VARCHAR(30) NULL AFTER customer_name');
     }
 
-    if (!columnExists($pdo, 'orders', 'eta_minutes')) {
+    if (! columnExists($pdo, 'orders', 'eta_minutes')) {
         $pdo->exec('ALTER TABLE orders ADD COLUMN eta_minutes INT UNSIGNED NULL AFTER order_status');
     }
 
-    if (!columnExists($pdo, 'orders', 'assigned_at')) {
+    if (! columnExists($pdo, 'orders', 'assigned_at')) {
         $pdo->exec('ALTER TABLE orders ADD COLUMN assigned_at DATETIME NULL AFTER eta_minutes');
     }
 
-    if (!columnExists($pdo, 'orders', 'photo_path')) {
+    if (! columnExists($pdo, 'orders', 'photo_path')) {
         $pdo->exec('ALTER TABLE orders ADD COLUMN photo_path VARCHAR(255) NULL AFTER assigned_at');
     }
 
-    if (!columnExists($pdo, 'rider_daily_collections', 'collected_by_staff_id')) {
+    if (! columnExists($pdo, 'rider_daily_collections', 'collected_by_staff_id')) {
         $pdo->exec('ALTER TABLE rider_daily_collections ADD COLUMN collected_by_staff_id INT UNSIGNED NULL AFTER remitted_by');
     }
 
-    if (!columnExists($pdo, 'rider_daily_collections', 'collected_at')) {
+    if (! columnExists($pdo, 'rider_daily_collections', 'collected_at')) {
         $pdo->exec('ALTER TABLE rider_daily_collections ADD COLUMN collected_at DATETIME NULL AFTER collected_by_staff_id');
     }
 
@@ -75,25 +88,21 @@ function runOperationsMigration(PDO $pdo): void
         ['STF-MCD', 'Paolo McDo Manager', 'mcdo.manager@motobook.com', '09301110004', $hash, 2, 'store_operator', 'store', 'on_shift', 1],
     ];
 
-    $findStaff = $pdo->prepare('SELECT id FROM staff WHERE email = ?');
+    $findStaff = $pdo->prepare('SELECT id FROM staff WHERE email = ? OR staff_code = ? LIMIT 1');
     $insertStaff = $pdo->prepare('
         INSERT INTO staff (staff_code, full_name, email, phone, password, store_id, role, staff_type, shift_status, is_active, last_active_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ');
-    $updateStaff = $pdo->prepare('
-        UPDATE staff SET full_name = ?, phone = ?, password = ?, store_id = ?, role = ?, staff_type = ?, shift_status = ?, is_active = 1, last_active_at = NOW()
-        WHERE id = ?
-    ');
 
     foreach ($staffRows as $row) {
         [$code, $name, $email, $phone, $pass, $storeId, $role, $type, $shift, $active] = $row;
-        $findStaff->execute([$email]);
+        $findStaff->execute([$email, $code]);
         $existingId = $findStaff->fetchColumn();
         if ($existingId) {
-            $updateStaff->execute([$name, $phone, $pass, $storeId, $role, $type, $shift, $existingId]);
-        } else {
-            $insertStaff->execute([$code, $name, $email, $phone, $pass, $storeId, $role, $type, $shift, $active]);
+            continue;
         }
+
+        $insertStaff->execute([$code, $name, $email, $phone, $pass, $storeId, $role, $type, $shift, $active]);
     }
 
     $pdo->exec("UPDATE staff SET staff_type = 'store' WHERE store_id IS NOT NULL AND (staff_type IS NULL OR staff_type = 'platform') AND role = 'store_operator'");

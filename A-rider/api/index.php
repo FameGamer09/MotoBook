@@ -328,9 +328,10 @@ try {
         $stmt->execute($params);
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
-            if (isset($row['items_json'])) {
-                $row['items'] = json_decode((string) $row['items_json'], true) ?: [];
-            }
+            $items = isset($row['items_json'])
+                ? json_decode((string) $row['items_json'], true)
+                : [];
+            $row['items'] = is_array($items) ? $items : [];
             unset($row['items_json']);
         }
         $send(['orders' => $rows]);

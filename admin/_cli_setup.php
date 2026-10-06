@@ -60,7 +60,7 @@ try {
     echo PHP_EOL . '========== TRIAL ACCOUNTS (ALL USE PASSWORD: password) ==========' . PHP_EOL;
     echo PHP_EOL . 'SUPER ADMIN PANEL  ->  http://localhost/IM-101/motobook/admin/login.php' . PHP_EOL;
     echo '  [Super Admin]       admin@motobook.com            (Global control: fees, staff, rules, audit)' . PHP_EOL;
-    echo PHP_EOL . 'MANAGEMENT / STORE PANEL  ->  http://localhost/IM-101/motobook/A-management/login.php' . PHP_EOL;
+    echo PHP_EOL . 'MANAGEMENT / STORE PANEL -> http://localhost/IM-101/motobook/admin/login.php' . PHP_EOL;
     echo '  [Motobook Ops Mgr]  ops@motobook.com              (Orders, riders, remittance, tickets)' . PHP_EOL;
     echo '  [Motobook Support]  support@motobook.com          (Complaints, helpdesk, promos, banners)' . PHP_EOL;
     echo '  [Jollibee Manager]  jollibee.manager@motobook.com (Store: menu, helpdesk, promos, pause)' . PHP_EOL;
@@ -68,7 +68,7 @@ try {
     echo '  [Jollibee Owner]    owner.jollibee@email.com      (Store panel via owner login)' . PHP_EOL;
     echo PHP_EOL . 'API HEALTHCHECK  ->  http://localhost/IM-101/motobook/admin/api/v1/index.php?route=health' . PHP_EOL;
     echo PHP_EOL . 'Setup complete! Both panels are connected via the API v1 layer.' . PHP_EOL;
-    echo 'Single logout is panel-scoped: each has its own session so roles stay separate.' . PHP_EOL;
+    echo 'One shared sign-out clears admin, management, and rider sessions.' . PHP_EOL;
 } catch (PDOException $e) {
     echo 'MySQL ERROR: ' . $e->getMessage() . PHP_EOL;
     echo 'Start XAMPP MySQL service first, then visit: /admin/install.php' . PHP_EOL;

@@ -78,7 +78,7 @@ function userTypeLabel(): string
 function requireOpsLogin(): void
 {
     if (empty($_SESSION['ops_user_id']) || empty($_SESSION['ops_user'])) {
-        header('Location: '.APP_URL.'/login.php');
+        header('Location: '.ADMIN_URL.'/login.php');
         exit;
     }
 }

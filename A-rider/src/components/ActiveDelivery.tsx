@@ -135,7 +135,7 @@ export function ActiveDeliveryBottomSheet({
     "I've Arrived";
 
   return (
-    <div className="rounded-t-[28px] border-t border-x border-slate-800/80 bg-surface-card shadow-[0_-20px_60px_-24px_rgba(0,0,0,0.85)]">
+    <div className="rounded-t-[28px] border-t border-x border-slate-800/80 bg-surface-card shadow-[0_-20px_60px_-24px_rgba(0,0,0,0.85)] lg:rounded-3xl lg:border lg:shadow-card">
       <div className="w-14 h-1.5 bg-slate-700/80 rounded-full mx-auto mt-3" role="presentation" />
       <div className="px-5 pt-4 pb-5 space-y-4">
         {isAcceptedState ? (
@@ -156,6 +156,17 @@ export function ActiveDeliveryBottomSheet({
               </div>
             </div>
 
+            <details className="group overflow-hidden rounded-2xl border border-slate-800/80 bg-surface-panel/50">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.1em] text-cyan-300">Delivery details</span>
+                  <span className="mt-0.5 block truncate text-[12px] font-medium text-slate-400">
+                    {order.merchant_name} to {order.dropoff_name || 'Customer'}
+                  </span>
+                </span>
+                <LucideIcon name="ChevronDown" size={18} className="text-slate-400 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="space-y-3 border-t border-slate-800/80 p-3">
             <div className="rounded-2xl border border-slate-800/80 bg-surface-panel/70 divide-y divide-slate-800/70">
               <div className="px-4 py-3.5 grid grid-cols-[auto_1fr_auto] items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-primary/15 border border-primary/30 text-primary inline-flex items-center justify-center flex-shrink-0">
@@ -228,6 +239,8 @@ export function ActiveDeliveryBottomSheet({
                 <div className="text-[13px] font-semibold text-cyan-100 leading-snug">“{order.special_notes}”</div>
               </div>
             ) : null}
+              </div>
+            </details>
 
             <Button
               variant="primary"

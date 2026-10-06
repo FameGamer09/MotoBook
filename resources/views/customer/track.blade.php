@@ -634,7 +634,8 @@
     'use strict';
 
     const ORDER_ID = @json($order->id);
-    const API_BASE_URL = @json(url('/api'));
+    const API_BASE_URL = @json(url('/'));
+    const TRACKING_URL = `${API_BASE_URL}/orders/${ORDER_ID}/tracking`;
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 
     const INIT = {
@@ -655,6 +656,8 @@
         paymentStatus:@json($order->payment_status),
         dropoffAddr:  @json($order->dropoff_address),
         pickupAddr:   @json($order->pickup_address),
+        riderName:    @json(optional($order->rider)->name),
+        riderEmail:   @json(optional($order->rider)->email),
     };
 
     const POLL_INTERVAL_MOVING_MS = 3000;
@@ -836,8 +839,26 @@
             return;
         }
         riderCard.style.display = 'flex';
-        riderName.textContent = rider.name;
-        riderAvatar.textContent = (rider.name || 'R').trim().charAt(0).toUpperCase();
+        const fallbackName = INIT.riderName || rider.name || 'Motobook Rider';
+        const email = INIT.riderEmail || rider.email || '';
+        riderName.textContent = fallbackName;
+        riderAvatar.textContent = fallbackName.trim().charAt(0).toUpperCase();
+
+        const phone = (rider.phone || '').toString().trim();
+        if (!document.getElementById('riderContactBtn').dataset.wired) {
+            document.getElementById('riderContactBtn').dataset.wired = '1';
+            document.getElementById('riderContactBtn').addEventListener('click', function () {
+                if (phone) {
+                    window.location.href = 'tel:' + encodeURIComponent(phone);
+                    return;
+                }
+                if (email) {
+                    window.location.href = 'mailto:' + encodeURIComponent(email);
+                    return;
+                }
+                alert('Contact info is pending for this rider.');
+            });
+        }
     }
 
     function updateRouteLayer(fromLat, fromLng, toLat, toLng) {
@@ -956,13 +977,14 @@
 
     async function pollOnce() {
         try {
-            const res = await fetch(`${API_BASE_URL}/orders/${ORDER_ID}/tracking`, {
+            const res = await fetch(TRACKING_URL, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                credentials: 'include',
+                credentials: 'same-origin',
             });
 
             if (!res.ok) {

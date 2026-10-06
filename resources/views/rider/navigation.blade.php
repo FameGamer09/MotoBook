@@ -545,7 +545,9 @@
     'use strict';
 
     const ORDER_ID = @json($order->id);
-    const API_BASE_URL = @json(url('/api'));
+    const API_BASE_URL = @json(url('/'));
+    const TRACKING_URL = `${API_BASE_URL}/orders/${ORDER_ID}/tracking`;
+    const LOCATION_URL = `${API_BASE_URL}/orders/${ORDER_ID}/location`;
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 
     const CUSTOMER_LAT = {{ $order->customer_lat }};
@@ -880,15 +882,15 @@
         if (speed != null) payload.speed = Number(speed.toFixed(3));
 
         try {
-            await fetch(`${API_BASE_URL}/orders/${ORDER_ID}/location`, {
+            await fetch(LOCATION_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': CSRF_TOKEN,
-                    'Authorization': 'Bearer ' + (window.__SANCTUM_TOKEN || '')
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                credentials: 'include',
+                credentials: 'same-origin',
                 body: JSON.stringify(payload),
             });
         } catch (err) {
@@ -897,9 +899,24 @@
     }
 
     function startGpsWatch() {
+        function fallbackStart(msg) {
+            let fallbackLat = {{ $order->rider_lat ?? 'null' }};
+            let fallbackLng = {{ $order->rider_lng ?? 'null' }};
+            if (fallbackLat == null || fallbackLng == null) {
+                const dest = destinationPoint();
+                fallbackLat = dest.lat;
+                fallbackLng = dest.lng;
+            }
+            if (!map) initMap(fallbackLat, fallbackLng);
+            hideLoading();
+            if (msg) loadingText.textContent = msg;
+            setTimeout(() => hideLoading(), 800);
+            updateRiderPosition(fallbackLat, fallbackLng, 25, null, 0);
+        }
+
         if (!('geolocation' in navigator)) {
             setGpsError('NO GPS');
-            loadingText.textContent = 'Geolocation is not supported by this browser.';
+            fallbackStart('Geolocation is not supported by this browser.');
             return;
         }
 
@@ -919,9 +936,10 @@
                 console.error('[GPS] watch error:', err);
                 let msg = 'GPS ERROR';
                 switch (err.code) {
-                    case 1: msg = 'PERMISSION DENIED'; loadingText.textContent = 'Location permission is required for navigation.'; break;
-                    case 2: msg = 'POSITION UNAVAILABLE'; loadingText.textContent = 'GPS signal unavailable. Try moving outdoors.'; break;
-                    case 3: msg = 'GPS TIMEOUT'; loadingText.textContent = 'GPS timed out. Retrying...'; break;
+                    case 1: msg = 'PERMISSION DENIED'; fallbackStart('Location permission denied. Showing estimated position.'); break;
+                    case 2: msg = 'POSITION UNAVAILABLE'; fallbackStart('GPS signal unavailable. Showing estimated position.'); break;
+                    case 3: msg = 'GPS TIMEOUT'; fallbackStart('GPS timed out. Showing estimated position.'); break;
+                    default: fallbackStart('GPS unavailable. Showing estimated position.');
                 }
                 setGpsError(msg);
             },

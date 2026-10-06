@@ -54,6 +54,7 @@ function tryLoginAdmin(string $email, string $password): array
         $_SESSION['admin_email']= $admin['email'];
         $update = $pdo->prepare('UPDATE super_admins SET last_login_at = NOW() WHERE id = ?');
         $update->execute([$admin['id']]);
+
         return ['ok' => true];
     }
 
@@ -64,14 +65,14 @@ function tryLoginAdmin(string $email, string $password): array
         $staffCount = (int)($checkStaff->fetch()['c'] ?? 0);
         if ($staffCount > 0) {
             $hint = 'That email is registered as a Management Staff account, not a Super Admin. '
-                  . 'Sign in at the Management Staff Panel instead: /IM-101/motobook/A-management/login.php';
+                  . 'Use the shared MotoBook sign-in page for your Management account.';
         } else {
             $checkOwner = $pdo->prepare('SELECT COUNT(*) AS c FROM partnership_stores WHERE owner_email = ? LIMIT 1');
             $checkOwner->execute([$email]);
             $ownerCount = (int)($checkOwner->fetch()['c'] ?? 0);
             if ($ownerCount > 0) {
                 $hint = 'That email is registered as a Partnership Store owner account, not a Super Admin. '
-                      . 'Sign in at the Management Staff Panel instead: /IM-101/motobook/A-management/login.php';
+                      . 'Use the shared MotoBook sign-in page for your Management account.';
             }
         }
     } catch (Throwable $e) {
@@ -80,9 +81,8 @@ function tryLoginAdmin(string $email, string $password): array
 
     $message = 'No super-admin account matches that email on this control center.';
     if (!$hint) {
-        $hint = 'Only Super Admin accounts can sign in here. If you are a Motobook management staff, store staff, '
-              . 'or store owner, please use the Management Staff Panel at /IM-101/motobook/A-management/login.php '
-              . 'or the Point-of-Sale / Inventory app at http://127.0.0.1:8000/login (admin@example.com / cashier@example.com).';
+        $hint = 'Use the shared MotoBook sign-in page for admin, management, and rider accounts. '
+              . 'The Point-of-Sale / Inventory app uses its own login at http://127.0.0.1:8000/login.';
     }
     return ['ok' => false, 'message' => $message, 'hint' => $hint];
 }

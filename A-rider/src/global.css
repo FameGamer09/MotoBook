@@ -15,6 +15,14 @@ html, body, #rider-root {
   background-color: #020617;
 }
 
+.rider-app {
+  background-color: #070d14;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
 #rider-root {
   isolation: isolate;
 }
@@ -71,6 +79,9 @@ html {
       border-bottom-right-radius: 44px;
       padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
     }
+    .phone-bottom-bar .phone-col {
+      max-width: 430px;
+    }
   }
   .phone-top-sticky {
     position: sticky;
@@ -79,8 +90,18 @@ html {
   }
   @media (min-width: 560px) {
     .phone-top-sticky {
-      border-top-left-radius: 44px;
-      border-top-right-radius: 44px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  }
+  @media (min-width: 560px) and (max-width: 1023px) {
+    .phone-col {
+      max-width: 720px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .phone-col {
+      max-width: 1240px;
     }
   }
 }

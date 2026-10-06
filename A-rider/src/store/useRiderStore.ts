@@ -91,7 +91,7 @@ export const useRiderStore = create<RiderState>((set, get) => ({
       await fetchJson('/session/logout', { method: 'POST', body: '{}' });
     } catch { /* noop */ }
     set({ profile: null });
-    const url = window.__RIDER_BOOT__?.unifiedLogoutUrl ?? '/IM-101/motobook/logout.php';
+    const url = window.__RIDER_BOOT__?.unifiedLogoutUrl ?? '/IM-101/motobook/admin/logout.php';
     window.location.href = url;
   },
 }));

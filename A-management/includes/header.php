@@ -93,7 +93,7 @@ $currentScript = basename($_SERVER['PHP_SELF'] ?? 'dashboard.php');
                     <small><?= e(userTypeLabel()) ?><?= !empty($user['store_name']) ? ' · ' . e($user['store_name']) : '' ?></small>
                 </div>
                 <div class="avatar cyan" title="<?= e($user['name'] ?? 'Staff') ?>" aria-hidden="true"><?= strtoupper(substr($user['name'] ?? 'S', 0, 1)) ?></div>
-                <a class="btn btn-outline btn-sm" href="<?= APP_URL ?>/logout.php" title="Sign out" aria-label="Sign out">
+                <a class="btn btn-outline btn-sm" href="<?= ADMIN_URL ?>/logout.php" title="Sign out" aria-label="Sign out">
                     <i data-lucide="log-out"></i>
                     Sign Out
                 </a>

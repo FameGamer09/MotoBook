@@ -164,12 +164,12 @@ export function ActiveDeliveryPage() {
         </div>
       </header>
 
-      <main className="phone-col pt-3 space-y-3 pb-4">
-        <div className="px-4 min-h-[360px]">
+      <main className="phone-col space-y-3 pb-4 pt-3 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)] lg:items-start lg:gap-6 lg:px-8 lg:pb-8 lg:pt-6">
+        <div className="min-h-[360px] px-4 lg:min-h-[calc(100dvh-8rem)] lg:px-0">
           <ActiveDeliveryMapPlaceholder order={order} telemetry={tel} clientLocation={clientLocation} />
         </div>
 
-        <div className="px-4">
+        <div className="px-4 lg:sticky lg:top-6 lg:px-0">
           <ActiveDeliveryBottomSheet
             order={order}
             telemetry={tel}

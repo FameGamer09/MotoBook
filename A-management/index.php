@@ -9,5 +9,5 @@ if (!empty($_SESSION['ops_user_id']) && !empty($_SESSION['ops_user'])) {
     exit;
 }
 
-header('Location: ' . APP_URL . '/login.php');
+header('Location: ' . ADMIN_URL . '/login.php');
 exit;
