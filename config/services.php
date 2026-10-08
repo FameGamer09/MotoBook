@@ -39,4 +39,9 @@ return [
         'api_provider' => env('API_PROVIDER_URL'),
     ],
 
+    'semaphore' => [
+        'api_key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+    ],
+
 ];

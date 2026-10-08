@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@layer base { body { @apply bg-bg text-text font-sans; } }
+
+@layer components {
+    .order-detail-shell { @apply min-h-screen bg-surface font-sans pb-10; }
+    .order-detail-header { @apply flex items-center gap-3 px-5 pt-6 pb-4; }
+    .order-detail-back { @apply w-9 h-9 rounded-full bg-bg flex items-center justify-center text-text shrink-0; }
+    .order-detail-title { @apply text-lg font-extrabold; }
+    .order-detail-sub { @apply text-[12px] text-text-dim; }
+
+    .status-banner-big {
+        @apply mx-5 mb-5 rounded-2xl p-5 text-center;
+    }
+    .status-banner-big.active { @apply bg-accent text-white; }
+    .status-banner-big.done { @apply bg-green-50 text-green-700 border border-green-200; }
+    .status-banner-big.cancelled { @apply bg-danger/10 text-danger border border-danger/30; }
+    .status-banner-big-icon { @apply text-3xl mb-1.5; }
+    .status-banner-big-text { @apply font-bold text-[15px]; }
+
+    .timeline { @apply mx-5 mb-5 bg-bg rounded-2xl p-5; }
+    .timeline-step { @apply flex gap-3 relative pb-6; }
+    .timeline-step:last-child { @apply pb-0; }
+    .timeline-dot {
+        @apply w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 z-10;
+    }
+    .timeline-dot.complete { @apply bg-accent text-white; }
+    .timeline-dot.pending { @apply bg-border text-text-dim; }
+    .timeline-line {
+        @apply absolute left-3 top-6 bottom-0 w-0.5 -translate-x-1/2;
+    }
+    .timeline-line.complete { @apply bg-accent; }
+    .timeline-line.pending { @apply bg-border; }
+    .timeline-label { @apply text-[13.5px] font-semibold; }
+    .timeline-label.pending { @apply text-text-dim; }
+    .timeline-time { @apply text-[11.5px] text-text-dim mt-0.5; }
+
+    .rider-card { @apply flex items-center gap-3 mx-5 mb-5 bg-bg rounded-2xl p-4; }
+    .tracking-live { @apply mx-5 mb-5 rounded-xl bg-accent/10 px-4 py-3 text-[12px] font-semibold text-accent; }
+    .tracking-panel { @apply mx-5 mb-5 overflow-hidden rounded-2xl border border-border bg-bg; }
+    .tracking-panel-heading { @apply flex items-center justify-between px-4 pt-4 text-[13px] font-bold; }
+    .tracking-live-indicator { @apply h-2.5 w-2.5 rounded-full bg-green-500; box-shadow: 0 0 0 4px rgb(34 197 94 / 14%); }
+    .tracking-status { @apply px-4 pt-1 text-[11px] text-text-dim; }
+    .customer-live-map { width: 100%; height: 260px; margin-top: 10px; background: #e9f1f3; z-index: 0; }
+    .tracking-map-note { @apply block px-4 py-2 text-[10px] text-text-dim; }
+    .rider-avatar { @apply w-11 h-11 rounded-full bg-accent/10 text-accent flex items-center justify-center text-lg shrink-0; }
+    .rider-name { @apply text-[13.5px] font-bold; }
+    .rider-vehicle { @apply text-[11.5px] text-text-dim; }
+
+    .order-section { @apply bg-bg rounded-2xl mx-5 mb-4 p-4; }
+    .order-section-title { @apply text-[12px] font-bold text-text-dim uppercase tracking-wide mb-3; }
+    .order-item-row { @apply flex items-center justify-between text-[13px] py-1.5; }
+    .summary-row { @apply flex items-center justify-between text-[13px] text-text-dim mb-2; }
+    .summary-divider { @apply h-px bg-border my-2.5; }
+    .summary-total-row { @apply flex items-center justify-between; }
+    .summary-total-label { @apply text-[14px] font-extrabold; }
+    .summary-total-value { @apply text-[15px] font-extrabold text-accent; }
+}

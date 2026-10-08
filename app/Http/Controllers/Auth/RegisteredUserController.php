@@ -8,6 +8,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -30,22 +31,45 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
+            'role' => ['required', 'in:customer,merchant,rider'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $role = $validated['role'];
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'password' => Hash::make($validated['password']),
+                'role' => $role,
+                'status' => $role === 'customer' ? 'active' : 'inactive',
+            ]);
+
+            $user->wallet()->create(['balance' => 0]);
+
+            if ($role === 'rider') {
+                $user->riderProfile()->create([
+                    'vehicle_type' => 'motorcycle',
+                    'status' => 'offline',
+                ]);
+            }
+
+            return $user;
+        });
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return match ($user->role) {
+            'merchant' => redirect()->route('merchant.onboarding'),
+            'rider' => redirect()->route('rider.onboarding'),
+            default => redirect()->route('customer.restaurants'),
+        };
     }
 }

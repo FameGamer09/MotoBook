@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -14,8 +18,12 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'role',
+        'avatar',
+        'status',
+        'customer_settings',
     ];
 
     protected $hidden = [
@@ -27,8 +35,50 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
+            'customer_settings' => 'array',
             'password' => 'hashed',
         ];
+    }
+
+    public function store(): HasOne
+    {
+        return $this->hasOne(Store::class);
+    }
+
+    public function riderProfile(): HasOne
+    {
+        return $this->hasOne(Rider::class);
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    public function favoriteStores(): BelongsToMany
+    {
+        return $this->belongsToMany(Store::class, 'customer_favorites')->withTimestamps();
+    }
+
+    public function customerNotifications(): HasMany
+    {
+        return $this->hasMany(CustomerNotification::class);
+    }
+
+    public function customDeliveries(): HasMany
+    {
+        return $this->hasMany(CustomDelivery::class);
+    }
+
+    public function customerCart(): HasOne
+    {
+        return $this->hasOne(CustomerCart::class);
     }
 
     public function isAdmin(): bool
@@ -39,6 +89,11 @@ class User extends Authenticatable
     public function isRider(): bool
     {
         return $this->role === 'rider';
+    }
+
+    public function isMerchant(): bool
+    {
+        return $this->role === 'merchant';
     }
 
     public function isCustomer(): bool
@@ -56,38 +111,38 @@ class User extends Authenticatable
         return $this->role === $role;
     }
 
-    public function transactions()
-    {
-        return $this->hasMany(Transaction::class);
-    }
-
-    public function inventoryMovements()
-    {
-        return $this->hasMany(InventoryMovement::class);
-    }
-
-    public function ordersAsCustomer()
+    public function ordersAsCustomer(): HasMany
     {
         return $this->hasMany(Order::class, 'customer_id');
     }
 
-    public function ordersAsRider()
+    public function ordersAsRider(): HasManyThrough
     {
-        return $this->hasMany(Order::class, 'rider_id');
+        return $this->hasManyThrough(Order::class, Rider::class, 'user_id', 'rider_id');
     }
 
-    public function ordersAsMerchant()
+    public function ordersAsMerchant(): HasManyThrough
     {
-        return $this->hasMany(Order::class, 'merchant_id');
+        return $this->hasManyThrough(Order::class, Store::class, 'user_id', 'store_id');
     }
 
-    public function activeOrdersAsRider()
+    public function activeOrdersAsRider(): Builder
     {
         return $this->ordersAsRider()->active();
     }
 
-    public function activeOrdersAsCustomer()
+    public function activeOrdersAsCustomer(): Builder
     {
         return $this->ordersAsCustomer()->active();
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function inventoryMovements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class);
     }
 }

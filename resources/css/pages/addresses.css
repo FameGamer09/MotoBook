@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@layer base {
+    body {
+        @apply bg-bg text-text font-sans;
+    }
+}
+
+@layer components {
+    /* ---- shell ---- */
+    .auth-shell {
+        @apply min-h-screen bg-bg text-text font-sans flex flex-col;
+    }
+    .auth-screen {
+        @apply flex-1 flex flex-col px-6 pt-6 pb-8 max-w-md mx-auto w-full;
+    }
+    .back-btn {
+        @apply w-9 h-9 flex items-center justify-center rounded-full text-text mb-2 -ml-2;
+    }
+
+    /* ---- hero icon circle ---- */
+    .hero-icon {
+        @apply w-44 h-44 mx-auto my-6 flex items-center justify-center;
+    }
+
+    /* ---- headings ---- */
+    .auth-title {
+        @apply text-[26px] font-extrabold text-center tracking-tight mb-2;
+    }
+    .auth-subtitle {
+        @apply text-sm text-text-dim text-center leading-relaxed mb-8 px-2;
+    }
+
+    /* ---- fields ---- */
+    .auth-field {
+        @apply mb-4;
+    }
+    .auth-label {
+        @apply block text-[13px] font-semibold text-text mb-2;
+    }
+    .input-group {
+        @apply relative flex items-center;
+    }
+    .input-icon {
+        @apply absolute left-4 w-5 h-5 text-text-dim pointer-events-none;
+    }
+    .auth-input {
+        @apply w-full bg-bg border border-border rounded-xl pl-11 pr-4 py-3.5
+               text-[15px] text-text outline-none transition-colors
+               focus:border-accent placeholder:text-text-dim/70;
+    }
+    .auth-input-plain {
+        @apply pl-4;
+    }
+    .toggle-password {
+        @apply absolute right-4 w-5 h-5 text-text-dim cursor-pointer;
+    }
+    .auth-error-text {
+        @apply text-danger text-xs mt-1.5;
+    }
+
+    /* ---- buttons ---- */
+    .btn-primary {
+        @apply block w-full text-center rounded-full py-4 px-4
+               text-[15.5px] font-bold cursor-pointer no-underline
+               bg-accent text-white active:bg-accent-dark transition-colors;
+    }
+    .btn-outline {
+        @apply block w-full text-center rounded-full py-4 px-4
+               text-[15.5px] font-bold cursor-pointer no-underline
+               bg-bg text-accent border-2 border-accent active:bg-surface transition-colors;
+    }
+
+    /* ---- links / footer ---- */
+    .footer-link {
+        @apply text-center text-sm text-text-dim mt-auto pt-6;
+    }
+    .footer-link a, .auth-inline-link {
+        @apply text-accent font-bold no-underline;
+    }
+
+    /* ---- divider + social row ---- */
+    .auth-divider {
+        @apply flex items-center gap-3 text-text-dim text-xs my-6;
+    }
+    .auth-divider::before, .auth-divider::after {
+        content: "";
+        @apply flex-1 h-px bg-border;
+    }
+    .social-row {
+        @apply flex items-center justify-center gap-4;
+    }
+    .social-btn {
+        @apply w-12 h-12 rounded-full border border-border flex items-center justify-center
+               text-text bg-bg;
+    }
+
+    /* ---- checkbox row ---- */
+    .checkbox-row {
+        @apply flex items-start gap-2.5 mb-6 text-[13px] text-text-dim leading-relaxed;
+    }
+    .checkbox-row input[type="checkbox"] {
+        @apply mt-0.5 w-4 h-4 accent-accent rounded shrink-0;
+    }
+    .checkbox-row a {
+        @apply text-accent font-semibold no-underline;
+    }
+
+    /* ---- banners ---- */
+    .status-banner {
+        @apply bg-accent/10 border border-accent text-accent rounded-xl px-3.5 py-3 text-[13.5px] mb-4;
+    }
+    .error-banner {
+        @apply bg-danger/10 border border-danger text-danger rounded-xl px-3.5 py-3 text-[13.5px] mb-4;
+    }
+
+    /* ---- role picker ---- */
+    .role-select {
+        @apply flex gap-2.5 mb-5;
+    }
+    .role-option {
+        @apply flex-1 relative;
+    }
+    .role-option input {
+        @apply absolute opacity-0 inset-0 cursor-pointer;
+    }
+    .role-card {
+        @apply border border-border rounded-xl py-3 px-2 text-center
+               text-[13px] font-semibold text-text-dim transition-all
+               peer-checked:border-accent peer-checked:text-accent peer-checked:bg-accent/5;
+    }
+
+    /* ---- file upload (onboarding) ---- */
+    .file-upload {
+        @apply block w-full border-2 border-dashed border-border rounded-xl
+               py-6 px-4 text-center text-text-dim text-sm cursor-pointer
+               hover:border-accent transition-colors;
+    }
+    .file-upload input { @apply hidden; }
+}
+
+/* ---- page-specific: addresses ---- */
+@layer components {
+    .address-card {
+        @apply flex items-start gap-3 bg-bg border border-border rounded-2xl p-4 mb-3;
+    }
+    .address-card.is-default {
+        @apply border-accent bg-accent/5;
+    }
+    .address-icon {
+        @apply w-9 h-9 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0;
+    }
+    .address-label-row {
+        @apply flex items-center gap-2 mb-0.5;
+    }
+    .address-label {
+        @apply text-[13.5px] font-bold;
+    }
+    .address-default-tag {
+        @apply text-[10px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full;
+    }
+    .address-line {
+        @apply text-[12.5px] text-text-dim leading-snug;
+    }
+    .address-actions {
+        @apply flex items-center gap-3 mt-2 text-[12px];
+    }
+    .address-actions button {
+        @apply text-accent font-semibold bg-transparent border-0 cursor-pointer p-0;
+    }
+    .address-actions .danger {
+        @apply text-danger;
+    }
+}

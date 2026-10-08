@@ -1,0 +1,21 @@
+@import "../base.css";
+
+@tailwind base;
+@tailwind components;
+/* Page-specific: the 6-box OTP input row */
+@layer components {
+    .otp-row {
+        @apply flex gap-2.5 justify-between mb-2;
+    }
+    .otp-box {
+        @apply w-full aspect-square text-center text-xl font-bold
+               border border-border rounded-xl outline-none
+               focus:border-accent transition-colors;
+    }
+    .otp-resend {
+        @apply text-center text-sm text-text-dim mt-5;
+    }
+    .otp-resend button {
+        @apply text-accent font-bold bg-transparent border-0 cursor-pointer p-0;
+    }
+}

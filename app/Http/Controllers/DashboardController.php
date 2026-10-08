@@ -2,22 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\Transaction;
-use App\Models\Category;
-use App\Models\InventoryMovement;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user->isCustomer()) {
+            return redirect()->route('customer.restaurants');
+        }
+
+        if ($user->isMerchant()) {
+            return redirect()->route($user->store ? 'merchant.dashboard' : 'merchant.onboarding');
+        }
+
+        if ($user->isRider()) {
+            return redirect()->route($user->riderProfile ? 'rider.dashboard' : 'rider.onboarding');
+        }
+
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
         $period = $request->get('period', 'today');
-        
+
         $query = Transaction::query();
-        
+
         // Filter by period
         switch ($period) {
             case 'today':

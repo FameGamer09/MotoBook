@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@layer base { body { @apply bg-bg text-text font-sans; } }
+
+@layer components {
+    .orders-shell { @apply min-h-screen bg-surface font-sans pb-24; }
+    .orders-header { @apply text-center pt-6 pb-4; }
+    .orders-header h1 { @apply text-xl font-extrabold; }
+
+    .order-card {
+        @apply flex items-center gap-3 bg-bg rounded-2xl p-4 mx-5 mb-3 no-underline text-text;
+    }
+    .order-card-icon {
+        @apply w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center text-xl shrink-0;
+    }
+    .order-card-store { @apply text-[14.5px] font-bold; }
+    .order-card-meta { @apply text-[12px] text-text-dim mt-0.5; }
+    .order-card-status {
+        @apply text-[11px] font-bold px-2.5 py-1 rounded-full ml-auto shrink-0;
+    }
+    .order-card-status.in-progress { @apply bg-accent/10 text-accent; }
+    .order-card-status.done { @apply bg-green-100 text-green-700; }
+    .order-card-status.cancelled { @apply bg-danger/10 text-danger; }
+
+    /* ---- bottom nav ---- */
+    .bottom-nav { @apply fixed bottom-0 left-0 right-0 bg-bg border-t border-border flex justify-around items-center py-2.5 z-10; }
+    .nav-item { @apply flex flex-col items-center gap-1 text-text-dim no-underline text-[10px] font-semibold; }
+    .nav-item.active { @apply text-accent; }
+}

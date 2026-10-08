@@ -195,7 +195,7 @@ function updateCart() {
         html += `
             <div class="group flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-muted/60 border border-surface-border">
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-ink truncate">${item.name}</div>
+                    <div class="text-sm font-medium text-ink truncate">${escapeHtml(item.name)}</div>
                     <div class="text-xs text-ink-muted mt-0.5 tabular-nums">$${item.price.toFixed(2)} × ${item.quantity}</div>
                 </div>
                 <div class="flex items-center gap-1">
@@ -250,6 +250,16 @@ function addToCart(id, name, price, stock) {
     updateCart();
 }
 
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
+}
+
 function updateQuantity(index, change) {
     const item = cart[index];
     const newQty = item.quantity + change;
@@ -295,14 +305,15 @@ document.getElementById('searchProducts').addEventListener('input', function (e)
             html += `
                 <button type="button" role="option"
                     class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted border-b border-surface-border last:border-0 transition-colors text-left"
-                    onclick="addToCart(${card.dataset.id}, '${card.dataset.name.replace(/'/g, '&#39;')}', ${card.dataset.price}, ${card.dataset.stock});
-                             document.getElementById('searchResults').classList.add('hidden');
-                             document.getElementById('searchProducts').value = '';">
+                    data-product-id="${escapeHtml(card.dataset.id)}"
+                    data-product-name="${escapeHtml(card.dataset.name)}"
+                    data-product-price="${escapeHtml(card.dataset.price)}"
+                    data-product-stock="${escapeHtml(card.dataset.stock)}">
                     <div class="w-8 h-8 rounded-md bg-brand-50 text-brand-700 grid place-items-center shrink-0">
                         <i data-lucide="package" class="w-4 h-4"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-medium text-ink truncate">${card.dataset.name}</div>
+                        <div class="text-sm font-medium text-ink truncate">${escapeHtml(card.dataset.name)}</div>
                         <div class="text-[11px] text-ink-subtle tabular-nums">$${parseFloat(card.dataset.price).toFixed(2)} · Stock: ${card.dataset.stock}</div>
                     </div>
                     <i data-lucide="plus-circle" class="w-4 h-4 text-brand-600 shrink-0"></i>
@@ -315,7 +326,7 @@ document.getElementById('searchProducts').addEventListener('input', function (e)
     } else {
         resultsEl.innerHTML = `
             <div class="px-3 py-4 text-center text-sm text-ink-muted">
-                No products match &quot;${query}&quot;.
+                No products match &quot;${escapeHtml(query)}&quot;.
             </div>`;
         resultsEl.classList.remove('hidden');
     }
@@ -327,6 +338,21 @@ document.addEventListener('click', function (e) {
     if (search && results && !search.contains(e.target) && !results.contains(e.target)) {
         results.classList.add('hidden');
     }
+});
+
+document.getElementById('searchResults').addEventListener('click', function (event) {
+    const button = event.target.closest('[data-product-id]');
+
+    if (!button) return;
+
+    addToCart(
+        parseInt(button.dataset.productId),
+        button.dataset.productName,
+        parseFloat(button.dataset.productPrice),
+        parseInt(button.dataset.productStock)
+    );
+    this.classList.add('hidden');
+    document.getElementById('searchProducts').value = '';
 });
 
 document.querySelectorAll('.product-card').forEach(card => {
@@ -387,11 +413,23 @@ document.getElementById('completeSale').addEventListener('click', function () {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({ items, payment_method: paymentMethod, discount })
     })
-    .then(response => response.json())
+    .then(async response => {
+        const data = await response.json();
+
+        if (!response.ok) {
+            const validationMessages = Object.values(data.errors || {}).flatMap(messages =>
+                Array.isArray(messages) ? messages : [messages]
+            );
+            throw new Error(validationMessages.join('\n') || data.message || 'Unable to complete this sale.');
+        }
+
+        return data;
+    })
     .then(data => {
         if (data.success) {
             alert('Sale completed! Invoice: ' + data.transaction.invoice_number);

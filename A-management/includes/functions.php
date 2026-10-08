@@ -590,6 +590,11 @@ function syncLegacyOrderToRiderLocal(int $orderId, ?int $riderId, ?float $dropof
     if (! $legacy) {
         return null;
     }
+    if ($dropoffLat === null || $dropoffLng === null) {
+        $coordinates = parseGoogleMapsCoordinates((string) ($legacy['google_maps_location'] ?? ''));
+        $dropoffLat ??= $coordinates['lat'] ?? null;
+        $dropoffLng ??= $coordinates['lng'] ?? null;
+    }
     $stmtItems = $pdo->prepare('SELECT item_name_snapshot AS name, qty, unit_price_snapshot AS unit_price, subtotal_snapshot AS subtotal
         FROM order_items WHERE order_id = ? ORDER BY id');
     $stmtItems->execute([$orderId]);

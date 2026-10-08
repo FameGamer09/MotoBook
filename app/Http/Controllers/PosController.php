@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\Transaction;
-use App\Models\TransactionItem;
-use App\Models\InventoryMovement;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class PosController extends Controller
 {
@@ -20,7 +20,7 @@ class PosController extends Controller
             ->orderBy('name')
             ->get();
 
-        $categories = \App\Models\Category::with('products')->get();
+        $categories = Category::with('products')->get();
 
         return view('pos.index', compact('products', 'categories'));
     }
@@ -28,11 +28,11 @@ class PosController extends Controller
     public function search(Request $request)
     {
         $search = $request->get('q');
-        
+
         $products = Product::with('category')
             ->where('is_active', true)
             ->where('quantity', '>', 0)
-            ->where(function($query) use ($search) {
+            ->where(function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%");
             })
@@ -45,33 +45,50 @@ class PosController extends Controller
     public function processSale(Request $request)
     {
         $validated = $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'payment_method' => 'required|in:cash,card,digital',
-            'discount' => 'nullable|numeric|min:0',
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'payment_method' => ['required', 'in:cash,card,digital'],
+            'discount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
         ]);
 
-        $items = $validated['items'];
+        $items = collect($validated['items'])
+            ->groupBy('product_id')
+            ->map(fn ($rows, $productId) => [
+                'product_id' => (int) $productId,
+                'quantity' => $rows->sum('quantity'),
+            ])
+            ->sortKeys()
+            ->values();
         $paymentMethod = $validated['payment_method'];
         $discount = $validated['discount'] ?? 0;
 
         return DB::transaction(function () use ($items, $paymentMethod, $discount) {
             $subtotal = 0;
             $transactionItems = [];
+            $products = [];
 
-            // Validate stock and calculate subtotal
             foreach ($items as $item) {
-                $product = Product::findOrFail($item['product_id']);
-                
-                if ($product->quantity < $item['quantity']) {
-                    return response()->json([
-                        'error' => "Insufficient stock for {$product->name}. Available: {$product->quantity}"
-                    ], 422);
+                $product = Product::query()
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->find($item['product_id']);
+
+                if (! $product) {
+                    throw ValidationException::withMessages([
+                        'items' => 'One of the selected products is no longer available.',
+                    ]);
                 }
 
-                $itemSubtotal = $product->price * $item['quantity'];
+                if ($product->quantity < $item['quantity']) {
+                    throw ValidationException::withMessages([
+                        'items' => "Insufficient stock for {$product->name}. Available: {$product->quantity}",
+                    ]);
+                }
+
+                $itemSubtotal = round((float) $product->price * $item['quantity'], 2);
                 $subtotal += $itemSubtotal;
+                $products[$product->id] = $product;
 
                 $transactionItems[] = [
                     'product_id' => $product->id,
@@ -81,7 +98,16 @@ class PosController extends Controller
                 ];
             }
 
-            $tax = 0; // Can be configured
+            $subtotal = round($subtotal, 2);
+            $discount = round((float) $discount, 2);
+
+            if ($discount > $subtotal) {
+                throw ValidationException::withMessages([
+                    'discount' => 'The discount cannot exceed the sale subtotal.',
+                ]);
+            }
+
+            $tax = 0;
             $total = $subtotal - $discount + $tax;
 
             // Create transaction
@@ -98,7 +124,7 @@ class PosController extends Controller
 
             // Create transaction items and update inventory
             foreach ($transactionItems as $item) {
-                $product = Product::findOrFail($item['product_id']);
+                $product = $products[$item['product_id']];
                 $previousQuantity = $product->quantity;
 
                 // Create transaction item
@@ -123,7 +149,7 @@ class PosController extends Controller
             return response()->json([
                 'success' => true,
                 'transaction' => $transaction->load('items.product'),
-                'message' => 'Sale completed successfully!'
+                'message' => 'Sale completed successfully!',
             ]);
         });
     }

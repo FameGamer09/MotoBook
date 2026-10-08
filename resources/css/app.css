@@ -31,6 +31,34 @@
     }
 }
 
+body[data-theme="dark"] {
+    --color-bg: #101a25;
+    --color-bg-rgb: 16 26 37;
+    --color-surface: #192635;
+    --color-surface-rgb: 25 38 53;
+    --color-text: #eef6fb;
+    --color-text-rgb: 238 246 251;
+    --color-text-dim: #aab8c7;
+    --color-text-dim-rgb: 170 184 199;
+    --color-border: #29394a;
+    --color-border-rgb: 41 57 74;
+    background: #101a25;
+    color: #eef6fb;
+}
+
+body[data-theme="dark"] .profile-row,
+body[data-theme="dark"] .order-card,
+body[data-theme="dark"] .checkout-section,
+body[data-theme="dark"] .cart-item-card,
+body[data-theme="dark"] .order-section,
+body[data-theme="dark"] .address-card,
+body[data-theme="dark"] .store-card,
+body[data-theme="dark"] .item-info-card {
+    background: #192635;
+    color: #eef6fb;
+    border-color: #29394a;
+}
+
 @layer components {
     .card {
         @apply bg-surface border border-surface-border rounded-lg shadow-sm;

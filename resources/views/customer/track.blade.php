@@ -16,6 +16,7 @@
           crossorigin="" />
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite('resources/css/pages/customer-experience.css')
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <script>
@@ -487,7 +488,7 @@
         .poll-error.visible { display: inline-flex; }
     </style>
 </head>
-<body>
+<body data-theme="{{ (auth()->user()->customer_settings['dark_mode'] ?? false) ? 'dark' : 'light' }}">
 <div class="page">
     <header class="topbar">
         <div class="brand">
@@ -656,8 +657,8 @@
         paymentStatus:@json($order->payment_status),
         dropoffAddr:  @json($order->dropoff_address),
         pickupAddr:   @json($order->pickup_address),
-        riderName:    @json(optional($order->rider)->name),
-        riderEmail:   @json(optional($order->rider)->email),
+        riderName:    @json(optional($order->rider?->user)->name),
+        riderEmail:   @json(optional($order->rider?->user)->email),
     };
 
     const POLL_INTERVAL_MOVING_MS = 3000;

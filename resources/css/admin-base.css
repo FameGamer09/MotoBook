@@ -1,0 +1,153 @@
+:root {
+    --color-canvas: #F6F8FB;
+    --color-canvas-rgb: 246 248 251;
+    --color-surface: #FFFFFF;
+    --color-surface-rgb: 255 255 255;
+    --color-rail: #101826;
+    --color-rail-rgb: 16 24 38;
+    --color-rail-hover: #1B2537;
+    --color-rail-hover-rgb: 27 37 55;
+    --color-rail-text: #9AA5B8;
+    --color-rail-text-rgb: 154 165 184;
+    --color-text: #101826;
+    --color-text-rgb: 16 24 38;
+    --color-text-dim: #6B7686;
+    --color-text-dim-rgb: 107 118 134;
+    --color-border: #E4E8EF;
+    --color-border-rgb: 228 232 239;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-ok: #1FA971;
+    --color-ok-rgb: 31 169 113;
+    --color-pending: #E2A63B;
+    --color-pending-rgb: 226 166 59;
+    --color-danger: #E0505F;
+    --color-danger-rgb: 224 80 95;
+
+    --font-sans: "IBM Plex Sans", -apple-system, sans-serif;
+    --font-display: "Space Grotesk", -apple-system, sans-serif;
+}
+
+@layer base {
+    body { @apply bg-canvas text-text font-sans; }
+}
+
+@layer components {
+    /* ---- shell ---- */
+    .admin-shell {
+        @apply flex min-h-screen bg-canvas text-text font-sans;
+    }
+    .admin-rail {
+        @apply w-56 shrink-0 bg-rail px-3.5 py-5 flex flex-col;
+    }
+    .admin-rail-brand {
+        @apply text-white font-display text-[15px] font-medium mb-6 px-2.5;
+    }
+    .admin-rail-nav {
+        @apply flex flex-col gap-0.5;
+    }
+    .admin-rail-link {
+        @apply flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-rail-text text-[13px] no-underline transition-colors;
+    }
+    .admin-rail-link:hover { @apply bg-rail-hover text-white; }
+    .admin-rail-link.active { @apply bg-rail-hover text-white; }
+    .admin-rail-footer {
+        @apply mt-auto pt-4 border-t border-white/10;
+    }
+
+    .admin-main {
+        @apply flex-1 min-w-0;
+    }
+    .admin-topbar {
+        @apply flex items-center justify-between px-7 py-4 border-b border-border bg-surface;
+    }
+    .admin-page-title {
+        @apply font-display text-xl font-medium;
+    }
+    .admin-content {
+        @apply px-7 py-6;
+    }
+
+    /* mobile: rail collapses to a top bar, nav becomes a horizontal scroll strip */
+    @media (max-width: 768px) {
+        .admin-shell { @apply flex-col; }
+        .admin-rail { @apply w-full flex-row items-center gap-1 py-2.5 overflow-x-auto; }
+        .admin-rail-brand { @apply hidden; }
+        .admin-rail-nav { @apply flex-row; }
+        .admin-rail-link { @apply whitespace-nowrap; }
+        .admin-rail-footer { @apply hidden; }
+    }
+
+    /* ---- readout stats ---- */
+    .stat-row {
+        @apply grid grid-cols-2 md:grid-cols-4 gap-6 pb-5 mb-7 border-b border-border;
+    }
+    .stat-label {
+        @apply text-xs text-text-dim mb-1;
+    }
+    .stat-value {
+        @apply font-display text-[26px] font-medium;
+    }
+    .stat-value.pending { @apply text-pending; }
+
+    /* ---- section header ---- */
+    .section-header {
+        @apply flex items-center justify-between mb-3;
+    }
+    .section-title {
+        @apply text-sm font-medium;
+    }
+    .section-link {
+        @apply text-xs text-accent no-underline;
+    }
+
+    /* ---- ledger table ---- */
+    .ledger { @apply w-full text-left; }
+    .ledger thead th {
+        @apply text-[11px] text-text-dim font-medium pb-2.5 border-b border-border;
+    }
+    .ledger tbody tr {
+        @apply border-b border-border;
+    }
+    .ledger tbody td {
+        @apply py-3 text-[13px];
+    }
+    .status-dot {
+        @apply inline-block w-[7px] h-[7px] rounded-full mr-2;
+    }
+    .status-dot.ok { @apply bg-ok; }
+    .status-dot.pending { @apply bg-pending; }
+    .status-dot.danger { @apply bg-danger; }
+    .status-label { @apply text-text-dim text-xs; }
+    .status-label.ok { @apply text-ok; }
+    .status-label.pending { @apply text-pending; }
+    .status-label.danger { @apply text-danger; }
+
+    .table-link { @apply text-accent no-underline text-[13px]; }
+    .table-link.danger { @apply text-danger; }
+
+    /* ---- buttons ---- */
+    .admin-btn {
+        @apply inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium no-underline cursor-pointer border-0;
+    }
+    .admin-btn-primary { @apply bg-accent text-white; }
+    .admin-btn-danger { @apply bg-danger/10 text-danger; }
+    .admin-btn-ghost { @apply bg-surface border border-border text-text; }
+
+    /* ---- detail card ---- */
+    .detail-card {
+        @apply bg-surface border border-border rounded-xl p-6 max-w-2xl;
+    }
+    .detail-row {
+        @apply flex items-center justify-between py-2.5 border-b border-border text-[13px];
+    }
+    .detail-row:last-child { @apply border-b-0; }
+    .detail-label { @apply text-text-dim; }
+    .detail-value { @apply font-medium; }
+
+    .empty-state {
+        @apply text-center text-text-dim text-sm py-16;
+    }
+}

@@ -13,6 +13,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', ...defaultTheme.fontFamily.sans],
+                display: ['Space Grotesk', '-apple-system', 'sans-serif'],
             },
             colors: {
                 brand: {
@@ -28,8 +29,25 @@ export default {
                     900: '#164e63',
                     950: '#083344',
                 },
+                bg: 'rgb(var(--color-bg-rgb, 10 14 23) / <alpha-value>)',
+                canvas: 'rgb(var(--color-canvas-rgb, 246 248 251) / <alpha-value>)',
+                card: 'rgb(var(--color-card-rgb, 19 24 38) / <alpha-value>)',
+                field: 'rgb(var(--color-field-rgb, 27 34 51) / <alpha-value>)',
+                accent: 'rgb(var(--color-accent-rgb, 20 199 224) / <alpha-value>)',
+                'accent-dark': 'rgb(var(--color-accent-dark-rgb, 15 166 188) / <alpha-value>)',
+                danger: 'rgb(var(--color-danger-rgb, 255 92 108) / <alpha-value>)',
+                ok: 'rgb(var(--color-ok-rgb, 31 169 113) / <alpha-value>)',
+                pending: 'rgb(var(--color-pending-rgb, 226 166 59) / <alpha-value>)',
+                border: 'rgb(var(--color-border-rgb, 35 43 61) / <alpha-value>)',
+                rail: 'rgb(var(--color-rail-rgb, 16 24 38) / <alpha-value>)',
+                'rail-hover': 'rgb(var(--color-rail-hover-rgb, 27 37 55) / <alpha-value>)',
+                'rail-text': 'rgb(var(--color-rail-text-rgb, 154 165 184) / <alpha-value>)',
+                text: {
+                    DEFAULT: 'rgb(var(--color-text-rgb, 245 247 250) / <alpha-value>)',
+                    dim: 'rgb(var(--color-text-dim-rgb, 139 147 167) / <alpha-value>)',
+                },
                 surface: {
-                    DEFAULT: '#ffffff',
+                    DEFAULT: 'rgb(var(--color-surface-rgb, 255 255 255) / <alpha-value>)',
                     muted: '#f8fafc',
                     subtle: '#f1f5f9',
                     border: '#e2e8f0',

@@ -2637,3 +2637,24 @@ body.app-mode-store .card {
         grid-template-columns: 1fr;
     }
 }
+
+.management-store-logo {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #e5edf1;
+    border-radius: 12px;
+    background: #fff;
+    color: #087f99;
+    font-weight: 800;
+}
+
+.management-store-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+    object-fit: contain;
+}

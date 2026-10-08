@@ -62,12 +62,32 @@ include __DIR__ . '/includes/header.php';
             <table>
                 <thead>
                     <tr>
-                        <th>Store</th><th>Category</th><th>Branch</th><th>Contact</th><th>Hours</th><th>Status</th><th>Owner</th><th>Actions</th>
+                        <th>Logo</th><th>Store</th><th>Category</th><th>Branch</th><th>Contact</th><th>Hours</th><th>Status</th><th>Owner</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($stores as $s): ?>
+                        <?php
+                        $storeName = strtolower((string) $s['store_name']);
+                        $logoFile = match (true) {
+                            str_contains($storeName, 'jollibee') => 'jollibee.png',
+                            str_contains($storeName, 'mcdonald'), str_contains($storeName, 'mcdo') => 'mcdonalds.jpg',
+                            str_contains($storeName, 'mercury drug') => 'mercury-drug.jpg',
+                            str_contains($storeName, 'greenwich') => 'greenwich.png',
+                            str_contains($storeName, 'grocery') => 'local-grocery.webp',
+                            default => null,
+                        };
+                        ?>
                         <tr>
+                            <td>
+                                <span class="management-store-logo">
+                                    <?php if ($logoFile !== null): ?>
+                                        <img src="<?= e(APP_URL . '/assets/images/store-logos/' . $logoFile) ?>" alt="<?= e($s['store_name']) ?> logo" loading="lazy">
+                                    <?php else: ?>
+                                        <span aria-hidden="true"><?= e(strtoupper(substr((string) $s['store_name'], 0, 1))) ?></span>
+                                    <?php endif; ?>
+                                </span>
+                            </td>
                             <td><strong><?= e($s['store_name']) ?></strong><br><small>ID #<?= (int) $s['id'] ?> · <?= (int) ($s['total_orders'] ?? 0) ?> orders</small></td>
                             <td><?= e($s['category_name'] ?? '—') ?></td>
                             <td><?= e($s['branch_address']) ?></td>

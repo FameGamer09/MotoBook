@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@layer base { body { @apply bg-bg text-text font-sans; } }
+
+@layer components {
+    .cart-shell { @apply min-h-screen bg-surface font-sans pb-8; }
+    .cart-header { @apply flex items-center justify-between px-5 pt-6 pb-4; }
+    .cart-header-title { @apply text-xl font-extrabold; }
+    .cart-header-count { @apply text-xs font-semibold text-text-dim; }
+    .back-btn { @apply w-9 h-9 flex items-center justify-center rounded-full bg-bg text-text; }
+
+    .cart-item-card { @apply flex gap-3 bg-bg rounded-2xl p-3 mx-5 mb-3 relative; }
+    .cart-item-thumb { @apply w-20 h-20 rounded-xl bg-surface flex items-center justify-center text-3xl shrink-0; }
+    .cart-item-name { @apply text-[14px] font-bold pr-6; }
+    .cart-item-desc { @apply text-[11.5px] text-text-dim leading-snug mt-0.5 line-clamp-2; }
+    .cart-item-price { @apply text-[13.5px] font-bold text-accent mt-1.5; }
+    .cart-item-remove { @apply absolute top-3 right-3 text-text-dim bg-transparent border-0 cursor-pointer; }
+    .qty-stepper { @apply inline-flex items-center gap-3 bg-surface rounded-full px-1 py-1 mt-2; }
+    .qty-btn { @apply w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center font-bold text-sm border-0 cursor-pointer; }
+    .qty-value { @apply text-sm font-bold min-w-[16px] text-center; }
+
+    .cart-summary-card { @apply bg-bg rounded-2xl p-5 mx-5 mt-6; }
+    .summary-row { @apply flex items-center justify-between text-[13.5px] text-text-dim mb-2.5; }
+    .summary-divider { @apply h-px bg-border my-3; }
+    .summary-total-row { @apply flex items-center justify-between; }
+    .summary-total-label { @apply text-[15px] font-extrabold; }
+    .summary-total-value { @apply text-[18px] font-extrabold text-accent; }
+
+    .checkout-btn { @apply block mx-5 mt-5 text-center rounded-2xl py-4 bg-accent text-white font-bold text-[15.5px] no-underline; }
+    .cart-empty { @apply text-center text-text-dim text-sm py-24 px-8; }
+}

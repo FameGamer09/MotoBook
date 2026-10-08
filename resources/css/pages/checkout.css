@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@layer base { body { @apply bg-bg text-text font-sans; } }
+
+@layer components {
+    .checkout-shell { @apply min-h-screen bg-surface font-sans pb-32; }
+    .checkout-header { @apply flex items-center gap-3 px-5 pt-6 pb-4; }
+    .checkout-back-btn { @apply w-9 h-9 rounded-full bg-bg flex items-center justify-center text-text shrink-0; }
+    .checkout-title { @apply text-xl font-extrabold; }
+
+    .checkout-section { @apply bg-bg rounded-2xl mx-5 mb-4 p-4; }
+    .checkout-section-title { @apply text-[13px] font-bold text-text-dim uppercase tracking-wide mb-3; }
+
+    .address-option { @apply relative mb-2.5; }
+    .address-option input { @apply absolute opacity-0 inset-0 cursor-pointer; }
+    .address-option-card {
+        @apply border border-border rounded-xl p-3 text-[13px];
+    }
+    .address-option input:checked + .address-option-card {
+        @apply border-accent bg-accent/5;
+    }
+    .address-option-label { @apply font-bold; }
+    .address-option-line { @apply text-text-dim text-[12px] mt-0.5; }
+    .no-address-note { @apply text-[13px] text-text-dim; }
+    .no-address-note a { @apply text-accent font-bold no-underline; }
+
+    .payment-option { @apply relative mb-2.5; }
+    .payment-option input { @apply absolute opacity-0 inset-0 cursor-pointer; }
+    .payment-option-card {
+        @apply flex items-center justify-between border border-border rounded-xl p-3.5 text-[13.5px] font-semibold;
+    }
+    .payment-option input:checked + .payment-option-card {
+        @apply border-accent bg-accent/5 text-accent;
+    }
+    .payment-option input:disabled + .payment-option-card {
+        @apply opacity-50 cursor-not-allowed;
+    }
+    .payment-balance { @apply text-[11.5px] font-normal text-text-dim; }
+
+    .checkout-item-row { @apply flex items-center justify-between text-[13px] py-1.5; }
+    .checkout-item-row .qty { @apply text-text-dim; }
+
+    .summary-row { @apply flex items-center justify-between text-[13px] text-text-dim mb-2; }
+    .summary-divider { @apply h-px bg-border my-2.5; }
+    .summary-total-row { @apply flex items-center justify-between; }
+    .summary-total-label { @apply text-[14px] font-extrabold; }
+    .summary-total-value { @apply text-[16px] font-extrabold text-accent; }
+
+    .place-order-bar {
+        @apply fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-5 py-4;
+    }
+    .place-order-btn {
+        @apply block w-full text-center rounded-2xl py-4 bg-accent text-white font-bold text-[15px] border-0 cursor-pointer;
+    }
+    .place-order-btn:disabled { @apply opacity-50 cursor-not-allowed; }
+}

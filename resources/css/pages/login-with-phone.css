@@ -1,0 +1,17 @@
+@import "../base.css";
+
+@tailwind base;
+@tailwind components;
+/* Page-specific: country code selector attached to the phone input */
+@layer components {
+    .phone-input-row {
+        @apply flex gap-2.5;
+    }
+    .country-code {
+        @apply flex items-center gap-1.5 border border-border rounded-xl px-3
+               text-[15px] font-semibold text-text shrink-0 bg-surface;
+    }
+    .phone-input-row .auth-input {
+        @apply pl-4;
+    }
+}

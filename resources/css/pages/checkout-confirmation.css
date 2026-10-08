@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+:root {
+    --color-bg: #FFFFFF;
+    --color-bg-rgb: 255 255 255;
+    --color-surface: #F7F9FC;
+    --color-surface-rgb: 247 249 252;
+    --color-text: #1A1D29;
+    --color-text-rgb: 26 29 41;
+    --color-text-dim: #8A93A6;
+    --color-text-dim-rgb: 138 147 166;
+    --color-border: #E7EAF0;
+    --color-border-rgb: 231 234 240;
+    --color-accent: #14C7E0;
+    --color-accent-rgb: 20 199 224;
+    --color-accent-dark: #0FA6BC;
+    --color-accent-dark-rgb: 15 166 188;
+    --color-danger: #FF5C6C;
+    --color-danger-rgb: 255 92 108;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@layer base { body { @apply bg-bg text-text font-sans; } }
+
+@layer components {
+    .confirm-shell { @apply min-h-screen bg-bg font-sans flex flex-col items-center justify-center px-8 text-center; }
+    .confirm-icon { @apply w-20 h-20 rounded-full bg-accent/10 text-accent flex items-center justify-center text-4xl mb-5; }
+    .confirm-title { @apply text-xl font-extrabold mb-1.5; }
+    .confirm-subtitle { @apply text-sm text-text-dim mb-6; }
+    .confirm-card { @apply w-full bg-surface rounded-2xl p-5 text-left mb-6; }
+    .confirm-row { @apply flex items-center justify-between text-[13px] py-1.5; }
+    .confirm-row .label { @apply text-text-dim; }
+    .confirm-row .value { @apply font-semibold; }
+    .confirm-actions { @apply w-full flex flex-col gap-2.5; }
+}
