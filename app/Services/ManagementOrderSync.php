@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Order;
-use App\Models\MenuItemOption;
 use App\Models\CustomerNotification;
+use App\Models\MenuItemOption;
+use App\Models\Order;
 use App\Models\Rider;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -187,8 +187,34 @@ class ManagementOrderSync
                         $order->refresh();
                     }
                 }
-                $gps = DB::connection('management')->table('gps_tracks')
-                    ->where('order_id', $legacy->id)->latest('recorded_at')->first();
+                $managementDb = DB::connection('management');
+                $gps = null;
+
+                // The rider PWA writes telemetry against rider_orders.id. Resolve
+                // that row back to the shared management order for customer tracking.
+                try {
+                    $gps = $managementDb->table('rider_location_logs as locations')
+                        ->join('rider_orders', 'rider_orders.id', '=', 'locations.rider_order_id')
+                        ->where('locations.rider_id', $legacy->rider_id)
+                        ->where('rider_orders.shared_order_id', $legacy->id)
+                        ->where('locations.recorded_at', '>=', now()->subSeconds(90))
+                        ->latest('locations.recorded_at')
+                        ->first([
+                            'locations.lat as latitude',
+                            'locations.lng as longitude',
+                            'locations.recorded_at',
+                        ]);
+                } catch (Throwable $exception) {
+                    // Older installations may only have the legacy gps_tracks table.
+                }
+
+                if (! $gps) {
+                    $gps = $managementDb->table('gps_tracks')
+                        ->where('order_id', $legacy->id)
+                        ->where('recorded_at', '>=', now()->subSeconds(90))
+                        ->latest('recorded_at')
+                        ->first();
+                }
                 $rider = [
                     'name' => $riderRow->full_name ?? null,
                     'phone' => $riderRow->phone ?? null,

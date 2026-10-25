@@ -10,6 +10,7 @@ export interface TelemetryPointRow {
   speed_kmh?: number | null;
   accuracy_m?: number | null;
   motion?: 'MOVING' | 'IDLE' | 'STOPPED';
+  offline?: boolean;
   t_ms: number;
   synced?: 0 | 1;
 }

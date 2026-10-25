@@ -8,6 +8,22 @@ requirePlatform();
 
 $pageMode = 'dispatch';
 $tab = ($_GET['tab'] ?? 'kanban') === 'create' ? 'create' : 'kanban';
+$validStages = ['pending_dispatch', 'assigned', 'in_transit', 'completed'];
+$selectedStage = in_array($_GET['stage'] ?? '', $validStages, true) ? (string) $_GET['stage'] : 'pending_dispatch';
+$selectedStageLabel = $selectedStage === 'assigned' ? 'Assign to Rider' : [
+    'pending_dispatch' => 'Pending Dispatch',
+    'in_transit' => 'In Transit',
+    'completed' => 'Completed',
+][$selectedStage];
+$requestedDate = isset($_GET['completed_date']) && is_string($_GET['completed_date'])
+    ? $_GET['completed_date']
+    : date('Y-m-d');
+$completedDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate) === 1
+    && checkdate((int) substr($requestedDate, 5, 2), (int) substr($requestedDate, 8, 2), (int) substr($requestedDate, 0, 4))
+    ? $requestedDate
+    : date('Y-m-d');
+$stageBackUrl = APP_URL.'/orders.php?tab=kanban&stage='.rawurlencode($selectedStage)
+    .($selectedStage === 'completed' ? '&completed_date='.rawurlencode($completedDate) : '');
 $user = currentUser();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? null)) {
@@ -23,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         } else {
             flash('error', 'Please select a rider.');
         }
-        header('Location: '.APP_URL.'/orders.php?tab=kanban');
+        header('Location: '.$stageBackUrl);
         exit;
     }
 
@@ -33,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         $riderId = ! empty($_POST['rider_id']) ? (int) $_POST['rider_id'] : null;
         $ok = updateOrderStatus($orderId, $newStatus, currentUserId(), $riderId);
         flash($ok ? 'success' : 'error', $ok ? ('Order status set to '.$newStatus.'.') : 'Status update failed.');
-        header('Location: '.APP_URL.'/orders.php?tab=kanban');
+        header('Location: '.$stageBackUrl);
         exit;
     }
 
@@ -134,6 +150,14 @@ $kanbanCols = [
 ];
 
 $pdo = getOpsDB();
+$completedDailyCount = 0;
+if ($tab === 'kanban' && $selectedStage === 'completed') {
+    $completedCountStmt = $pdo->prepare("SELECT COUNT(*) FROM orders
+        WHERE order_status = 'delivered'
+            AND DATE(COALESCE(delivered_at, updated_at, created_at)) = ?");
+    $completedCountStmt->execute([$completedDate]);
+    $completedDailyCount = (int) $completedCountStmt->fetchColumn();
+}
 $allOrdersSql = 'SELECT o.*, ps.store_name, r.full_name AS rider_name, r.rider_code
     FROM orders o
     LEFT JOIN partnership_stores ps ON ps.id = o.store_id
@@ -142,6 +166,11 @@ $allOrdersSql = 'SELECT o.*, ps.store_name, r.full_name AS rider_name, r.rider_c
 $orderParams = [];
 if ($tab === 'kanban') {
     $allOrdersSql .= " AND o.order_status NOT IN ('cancelled') ";
+    if ($selectedStage === 'completed') {
+        $allOrdersSql .= " AND o.order_status = 'delivered'
+            AND DATE(COALESCE(o.delivered_at, o.updated_at, o.created_at)) = ? ";
+        $orderParams[] = $completedDate;
+    }
 }
 $allOrdersSql .= ' ORDER BY o.created_at DESC LIMIT 250';
 $stmt = $pdo->prepare($allOrdersSql);
@@ -256,151 +285,92 @@ include __DIR__.'/includes/header.php';
 </div>
 
 <?php if ($tab === 'kanban') { ?>
-<div class="card">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-        <div>
-            <h2 style="margin:0;">Live Dispatch Board</h2>
-            <small class="text-muted">4-stage logistics pipeline · Auto-refresh every 30s</small>
+<div class="card dispatch-stage-panel">
+    <div class="card-header dispatch-stage-toolbar">
+        <div class="dispatch-stage-heading">
+            <h2>Live Dispatch Board</h2>
+            <small class="text-muted">Select an order stage to review its details.</small>
         </div>
-        <a href="?tab=create" class="btn btn-primary btn-sm">+ Create Direct Order</a>
+        <div class="dispatch-stage-controls">
+            <form method="GET" class="dispatch-stage-filter">
+                <input type="hidden" name="tab" value="kanban">
+                <label for="dispatchStage">Order stage</label>
+                <select class="form-control" name="stage" id="dispatchStage" onchange="this.form.submit()">
+                    <?php foreach ($kanbanCols as $stageKey => $stageConfig) { ?>
+                        <option value="<?= e($stageKey) ?>" <?= $selectedStage === $stageKey ? 'selected' : '' ?>><?= e($stageKey === 'assigned' ? 'Assign to Rider' : $stageConfig['label']) ?></option>
+                    <?php } ?>
+                </select>
+                <?php if ($selectedStage === 'completed') { ?>
+                    <label for="completedDate">Completed on</label>
+                    <input class="form-control dispatch-date-input" type="date" name="completed_date" id="completedDate" value="<?= e($completedDate) ?>" onchange="this.form.submit()">
+                <?php } ?>
+                <noscript><button type="submit" class="btn btn-outline btn-sm">Apply</button></noscript>
+            </form>
+            <a href="?tab=create" class="btn btn-primary btn-sm">+ Create Direct Order</a>
+        </div>
     </div>
     <div class="card-body">
-        <div class="kanban dispatch-dense">
-            <?php foreach ($kanbanCols as $colKey => $colConf) { ?>
-            <div class="kanban-col kanban-<?= e($colKey) ?>" data-col="<?= e($colKey) ?>">
-                <div class="kanban-col-head">
-                    <h3><?= e($colConf['label']) ?></h3>
-                    <span class="courier-chip <?= e($colConf['chip_class']) ?>" style="margin-left:auto;"><?= count($bucketed[$colKey]) ?></span>
-                </div>
-                <div class="kanban-col-body">
-                    <?php if (empty($bucketed[$colKey])) { ?>
-                        <div class="courier-card courier-empty">
-                            <p class="text-muted" style="margin:0;text-align:center;padding:1rem 0.5rem;font-size:0.85rem;">No orders in this stage.</p>
-                        </div>
-                    <?php } ?>
-                    <?php foreach ($bucketed[$colKey] as $order) { ?>
-                    <?php
-                        $status = $order['order_status'] ?? '';
-                        $riderId = (int) ($order['rider_id'] ?? 0);
-                        if ($colKey === 'pending_dispatch') {
-                            $chip = 'unassigned';
-                        } elseif ($colKey === 'assigned') {
-                            $chip = 'assigned';
-                        } elseif ($colKey === 'in_transit') {
-                            $chip = 'enroute';
-                        } else {
-                            $chip = 'delivered';
-                        }
-                        $isDelayed = ! empty($order['is_delayed']) && $colKey !== 'completed';
-                        ?>
-                    <article class="courier-card<?= $isDelayed ? ' delayed' : '' ?>">
-                        <header class="courier-card-head">
-                            <div>
-                                <div class="courier-card-order">#<?= e($order['order_number']) ?></div>
-                                <div class="courier-card-store"><?= e($order['store_name'] ?? 'Store') ?></div>
-                            </div>
-                            <span class="courier-chip <?= $chip ?>"><?= e(ucwords(str_replace('_', ' ', $status))) ?></span>
-                        </header>
-                        <section class="courier-card-body">
-                            <p style="margin:0 0 0.25rem 0;"><strong><?= e($order['customer_name']) ?></strong> &middot; <?= e($order['customer_phone'] ?? '') ?></p>
-                            <?php if (! empty($order['delivery_address'])) { ?>
-                                <p class="text-muted" style="margin:0 0 0.35rem 0;font-size:0.8rem;line-height:1.35;"><?= e($order['delivery_address']) ?></p>
-                            <?php } ?>
-                            <?php if (! empty($order['notes'])) { ?>
-                                <p style="margin:0 0 0.35rem 0;font-size:0.78rem;"><em><?= e($order['notes']) ?></em></p>
-                            <?php } ?>
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;">
-                                <div>
-                                    <div class="courier-card-rider">
-                                        Rider: <?= $riderId ? e($order['rider_name'] ?? 'Assigned') : '<em>Unassigned</em>' ?>
-                                        <?php if ($riderId && ! empty($order['rider_code'])) { ?>
-                                            <span class="text-muted">(<?= e($order['rider_code']) ?>)</span>
-                                        <?php } ?>
-                                    </div>
-                                    <?php if ($isDelayed) { ?>
-                                        <span class="badge badge-danger" style="margin-top:0.25rem;">DELAY · <?= (int) ($order['age_minutes'] ?? 0) ?>m</span>
-                                    <?php } ?>
-                                </div>
-                                <div class="courier-card-total">₱<?= formatMoney((float) ($order['order_total'] ?? 0)) ?></div>
-                            </div>
-                        </section>
-                        <footer class="courier-card-foot">
-                            <?php if ($colKey !== 'completed') { ?>
-                                <form method="POST" class="rider-assign-form" style="margin:0 0 0.6rem 0;">
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="action" value="reassign">
-                                    <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                    <div style="display:flex;gap:0.3rem;align-items:center;">
-                                        <select class="form-control" name="rider_id" required style="flex:1;min-width:0;font-size:0.82rem;">
-                                            <option value=""><?= $riderId ? 'Reassign rider…' : 'Assign rider…' ?></option>
-                                            <?php foreach ($riders as $rd) { ?>
-                                                <option value="<?= (int) $rd['id'] ?>" <?= $riderId === (int) $rd['id'] ? 'selected' : '' ?>>
-                                                    <?= e($rd['full_name']) ?> (<?= e($rd['duty_status'] ?? 'on') ?>)
-                                                </option>
-                                            <?php } ?>
-                                        </select>
-                                        <button type="submit" class="btn btn-primary-outline btn-sm" title="<?= $riderId ? 'Reassign rider' : 'Assign rider' ?>">
-                                            <?php if ($riderId) { ?>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                                                <span class="sr-only">Reassign</span>
-                                            <?php } else { ?>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                                <span class="sr-only">Assign</span>
-                                            <?php } ?>
-                                        </button>
-                                    </div>
-                                    <input class="form-control" name="reason" placeholder="Reason (optional)" style="margin-top:0.3rem;font-size:0.78rem;">
-                                </form>
-                            <?php } ?>
-                            <div class="courier-card-actions">
-                                <?php if ($colKey === 'pending_dispatch' || $colKey === 'assigned') { ?>
-                                    <form method="POST" style="margin:0;">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="action" value="update_status">
-                                        <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                        <input type="hidden" name="new_status" value="out_for_delivery">
-                                        <button type="submit" class="btn btn-warning btn-sm">Mark In Transit</button>
-                                    </form>
-                                <?php } ?>
-                                <?php if ($colKey === 'in_transit') { ?>
-                                    <form method="POST" style="margin:0;">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="action" value="update_status">
-                                        <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                        <input type="hidden" name="new_status" value="delivered">
-                                        <button type="submit" class="btn btn-success btn-sm">Mark Delivered</button>
-                                    </form>
-                                <?php } ?>
-                                <?php if ($colKey === 'completed') { ?>
-                                    <span class="text-muted" style="font-size:0.8rem;">
-                                        Delivered at: <?= ! empty($order['delivered_at']) ? e(formatDateTime($order['delivered_at'])) : '—' ?>
-                                    </span>
-                                <?php } ?>
-                                <?php if ($colKey !== 'completed') { ?>
-                                <form method="POST" style="margin-left:auto;" onsubmit="return confirm('Cancel order #<?= e($order['order_number']) ?>?')">
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="action" value="update_status">
-                                    <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                    <input type="hidden" name="new_status" value="cancelled">
-                                    <button type="submit" class="btn btn-danger-outline btn-sm" title="Cancel order">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                        Cancel Order
-                                    </button>
-                                </form>
-                                <?php } ?>
-                            </div>
-                        </footer>
-                    </article>
-                    <?php } ?>
-                </div>
-            </div>
+        <div class="dispatch-stage-summary">
+            <div><strong><?= e($selectedStageLabel) ?></strong><span class="text-muted"> · <?= $selectedStage === 'completed' ? $completedDailyCount : count($bucketed[$selectedStage]) ?> orders</span></div>
+            <?php if ($selectedStage === 'completed') { ?>
+                <span class="text-muted">Completed on <?= e(date('F j, Y', strtotime($completedDate))) ?>: <strong><?= $completedDailyCount ?></strong></span>
             <?php } ?>
+        </div>
+        <div class="dispatch-stage-table-wrap">
+            <table class="dispatch-stage-table">
+                <thead><tr>
+                    <th>Order</th><th>Customer</th><th>Delivery address</th><th>Status</th><th>Rider</th><th>Total</th>
+                    <th><?= $selectedStage === 'completed' ? 'Delivered' : 'Placed' ?></th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                <?php if (empty($bucketed[$selectedStage])) { ?>
+                    <tr><td colspan="8" class="dispatch-stage-empty">No orders<?= $selectedStage === 'completed' ? ' completed on this date' : ' in this stage' ?>.</td></tr>
+                <?php } ?>
+                <?php foreach ($bucketed[$selectedStage] as $order) {
+                    $riderId = (int) ($order['rider_id'] ?? 0);
+                    $status = (string) ($order['order_status'] ?? '');
+                    $chip = $selectedStage === 'pending_dispatch' ? 'unassigned' : ($selectedStage === 'assigned' ? 'assigned' : ($selectedStage === 'in_transit' ? 'enroute' : 'delivered'));
+                    $orderDate = $selectedStage === 'completed'
+                        ? ($order['delivered_at'] ?? $order['updated_at'] ?? $order['created_at'] ?? null)
+                        : ($order['created_at'] ?? null);
+                    ?>
+                    <tr>
+                        <td><strong>#<?= e($order['order_number']) ?></strong><small><?= e($order['store_name'] ?? 'Store') ?></small></td>
+                        <td><strong><?= e($order['customer_name'] ?? 'Customer') ?></strong><small><?= e($order['customer_phone'] ?? '') ?></small></td>
+                        <td class="dispatch-address-cell"><?= e($order['delivery_address'] ?? '—') ?><?php if (! empty($order['notes'])) { ?><small><?= e($order['notes']) ?></small><?php } ?></td>
+                        <td><span class="courier-chip <?= e($chip) ?>"><?= e(ucwords(str_replace('_', ' ', $status))) ?></span><?php if (! empty($order['is_delayed']) && $selectedStage !== 'completed') { ?><small class="dispatch-delay-label">Delayed · <?= (int) ($order['age_minutes'] ?? 0) ?> min</small><?php } ?></td>
+                        <td><?= $riderId ? e($order['rider_name'] ?? 'Assigned') : '<span class="text-muted">Unassigned</span>' ?><?= $riderId && ! empty($order['rider_code']) ? '<small>'.e($order['rider_code']).'</small>' : '' ?></td>
+                        <td class="dispatch-amount">₱<?= formatMoney((float) ($order['order_total'] ?? 0)) ?></td>
+                        <td><?= $orderDate ? e(formatDateTime($orderDate)) : '—' ?></td>
+                        <td class="dispatch-actions-cell">
+                            <?php if ($selectedStage !== 'completed') { ?>
+                                <div class="dispatch-row-actions">
+                                    <form method="POST" class="dispatch-inline-form">
+                                        <?= csrfField() ?><input type="hidden" name="action" value="reassign"><input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                                        <select class="form-control" name="rider_id" required aria-label="Assign or reassign rider">
+                                            <option value=""><?= $riderId ? 'Reassign rider…' : 'Assign to rider…' ?></option>
+                                            <?php foreach ($riders as $rd) { ?><option value="<?= (int) $rd['id'] ?>" <?= $riderId === (int) $rd['id'] ? 'selected' : '' ?>><?= e($rd['full_name']) ?></option><?php } ?>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary-outline btn-sm"><?= $riderId ? 'Update' : 'Assign' ?></button>
+                                    </form>
+                                    <?php if ($selectedStage === 'pending_dispatch' || $selectedStage === 'assigned') { ?>
+                                        <form method="POST" class="dispatch-inline-form"><?= csrfField() ?><input type="hidden" name="action" value="update_status"><input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>"><input type="hidden" name="new_status" value="out_for_delivery"><button type="submit" class="btn btn-warning btn-sm">Mark in transit</button></form>
+                                    <?php } elseif ($selectedStage === 'in_transit') { ?>
+                                        <form method="POST" class="dispatch-inline-form"><?= csrfField() ?><input type="hidden" name="action" value="update_status"><input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>"><input type="hidden" name="new_status" value="delivered"><button type="submit" class="btn btn-success btn-sm">Mark delivered</button></form>
+                                    <?php } ?>
+                                    <form method="POST" class="dispatch-inline-form" onsubmit="return confirm('Cancel order #<?= e($order['order_number']) ?>?')"><?= csrfField() ?><input type="hidden" name="action" value="update_status"><input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>"><input type="hidden" name="new_status" value="cancelled"><button type="submit" class="btn btn-danger-outline btn-sm">Cancel</button></form>
+                                </div>
+                            <?php } else { ?><span class="text-muted">Delivered <?= $orderDate ? e(formatDateTime($orderDate)) : '' ?></span><?php } ?>
+                        </td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<?php } else { ?>
-<div class="notebook-panel" id="notebookPanel">
+<?php } else { ?><div class="notebook-panel" id="notebookPanel">
     <div class="notebook-left card">
         <div class="card-header">
             <h2>Direct Order Entry</h2>
@@ -477,12 +447,13 @@ include __DIR__.'/includes/header.php';
                         <button type="button" class="btn btn-primary-outline btn-sm" id="btnAddOrderLine">+ Add Item</button>
                     </div>
                     <div id="orderLinesContainer"></div>
+                    <p id="orderOptionsError" class="order-options-error" role="alert" hidden>Please select a menu item and complete its required options before creating the order.</p>
                 </div>
 
                 <template id="tplOrderLine">
                     <div class="order-line-row" data-line-idx="0">
                         <div class="order-line-head">
-                            <select class="form-control order-line-menu" required style="flex:1;min-width:0;">
+                            <select class="form-control order-line-menu" style="flex:1;min-width:0;">
                                 <option value="">Select an item…</option>
                             </select>
                             <div class="qty-stepper">
@@ -499,6 +470,7 @@ include __DIR__.'/includes/header.php';
                             <small class="text-muted order-line-unit">₱0.00 × 1</small>
                             <span class="order-line-subtotal">= ₱0.00</span>
                         </div>
+                        <div class="order-line-hidden" hidden></div>
                     </div>
                 </template>
 
@@ -546,9 +518,9 @@ include __DIR__.'/includes/header.php';
     </aside>
 </div>
 
-<script id="catalogGroupsData" type="application/json"><?= json_encode($catalogGroups) ?></script>
-<script id="catalogItemsData" type="application/json"><?= json_encode($catalog) ?></script>
+<script id="catalogGroupsData" type="application/json"><?= json_encode($catalogGroups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<script id="catalogItemsData" type="application/json"><?= json_encode($catalog, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
 <?php } ?>
 
-<meta http-equiv="refresh" content="30;url=<?= e(APP_URL) ?>/orders.php?tab=<?= e($tab) ?>">
+<meta http-equiv="refresh" content="30;url=<?= e(APP_URL) ?>/orders.php?tab=<?= e($tab) ?><?= $tab === 'kanban' ? '&amp;stage='.rawurlencode($selectedStage).($selectedStage === 'completed' ? '&amp;completed_date='.rawurlencode($completedDate) : '') : '' ?>">
 <?php include __DIR__.'/includes/footer.php'; ?>

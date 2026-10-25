@@ -72,7 +72,15 @@ if (panel && mapElement && statusElement) {
             const longitude = Number(rawLongitude);
 
             if (rawLatitude === null || rawLatitude === undefined || rawLongitude === null || rawLongitude === undefined || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                statusElement.textContent = 'Waiting for rider to share GPS location…';
+                statusElement.textContent = tracking.rider
+                    ? 'Rider is assigned. Waiting for a fresh GPS update…'
+                    : 'Waiting for a rider to be assigned…';
+                return;
+            }
+
+            const recordedAt = tracking.rider.updated_at ? new Date(tracking.rider.updated_at) : null;
+            if (!recordedAt || Number.isNaN(recordedAt.getTime()) || Date.now() - recordedAt.getTime() > 90_000) {
+                statusElement.textContent = 'Rider GPS is temporarily unavailable. Waiting for a fresh update…';
                 return;
             }
 
@@ -89,9 +97,7 @@ if (panel && mapElement && statusElement) {
                 riderMarker.setLatLng(riderPosition);
             }
 
-            const updatedAt = tracking.rider.updated_at
-                ? new Date(tracking.rider.updated_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                : 'just now';
+            const updatedAt = recordedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             statusElement.textContent = `${tracking.rider.name || 'Your rider'} · Updated ${updatedAt}`;
 
             if (!lastCoords || Math.abs(lastCoords[0] - latitude) + Math.abs(lastCoords[1] - longitude) > 0.0001) {

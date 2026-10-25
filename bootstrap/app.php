@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'auth/apple/callback',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

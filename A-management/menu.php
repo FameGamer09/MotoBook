@@ -2,49 +2,57 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__.'/includes/functions.php';
 requireOpsLogin();
 
 $pageMode = 'store';
-$user = currentUser();
 $myStoreId = currentUserStoreId() ?? 0;
-$storeId = (int)($_GET['store_id'] ?? $myStoreId);
+$storeId = (int) ($_GET['store_id'] ?? $myStoreId);
 $viewMode = ($_GET['view'] ?? 'grid') === 'table' ? 'table' : 'grid';
-$editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 
-if (isStoreStaff() && (!$myStoreId || $storeId !== $myStoreId)) {
-    if (!$myStoreId) {
+if (isStoreStaff() && (! $myStoreId || $storeId !== $myStoreId)) {
+    if (! $myStoreId) {
         flash('error', 'Your account is not assigned to a store.');
-        header('Location: ' . APP_URL . '/dashboard.php');
+        header('Location: '.APP_URL.'/dashboard.php');
         exit;
     }
     flash('error', 'You can only manage your own store menu.');
-    header('Location: ' . APP_URL . '/menu.php');
+    header('Location: '.APP_URL.'/menu.php');
     exit;
 }
 
-if (isStoreStaff() && !$storeId) {
+if (isStoreStaff() && ! $storeId) {
     flash('error', 'Your account is not assigned to a store.');
-    header('Location: ' . APP_URL . '/dashboard.php');
+    header('Location: '.APP_URL.'/dashboard.php');
     exit;
 }
 
-$canDelete = canDeleteMenu($user);
+$canManageMenu = isStoreStaff();
+$canDelete = $canManageMenu;
 
 function handleMenuUpload(?array $file): ?string
 {
-    if (!$file || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) return null;
+    if (! $file || empty($file['tmp_name']) || ! is_uploaded_file($file['tmp_name'])) {
+        return null;
+    }
     $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = (string)finfo_file($finfo, $file['tmp_name']);
+    $mime = (string) finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
-    if (!isset($allowed[$mime])) return null;
-    $uploadDir = dirname(__DIR__, 1) . '/admin/uploads/menu_items';
-    if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
-    if (!is_dir($uploadDir)) return null;
+    if (! isset($allowed[$mime])) {
+        return null;
+    }
+    $uploadDir = dirname(__DIR__, 1).'/admin/uploads/menu_items';
+    if (! is_dir($uploadDir)) {
+        @mkdir($uploadDir, 0777, true);
+    }
+    if (! is_dir($uploadDir)) {
+        return null;
+    }
     $ext = $allowed[$mime];
-    $name = 'mi_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-    $dest = $uploadDir . '/' . $name;
+    $name = 'mi_'.date('YmdHis').'_'.bin2hex(random_bytes(4)).'.'.$ext;
+    $dest = $uploadDir.'/'.$name;
     if ($ext === 'jpg') {
         $src = imagecreatefromjpeg($file['tmp_name']);
     } elseif ($ext === 'png') {
@@ -54,12 +62,15 @@ function handleMenuUpload(?array $file): ?string
     } else {
         $src = imagecreatefromwebp($file['tmp_name']);
     }
-    if (!$src) return null;
+    if (! $src) {
+        return null;
+    }
     [$origW, $origH] = getimagesize($file['tmp_name']) ?: [800, 600];
-    $maxW = 800; $maxH = 800;
+    $maxW = 800;
+    $maxH = 800;
     $ratio = min($maxW / $origW, $maxH / $origH, 1);
-    $newW = (int)round($origW * $ratio);
-    $newH = (int)round($origH * $ratio);
+    $newW = (int) round($origW * $ratio);
+    $newH = (int) round($origH * $ratio);
     $dst = imagecreatetruecolor(max(1, $newW), max(1, $newH));
     if ($ext === 'png') {
         imagealphablending($dst, false);
@@ -67,37 +78,52 @@ function handleMenuUpload(?array $file): ?string
     }
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
     $ok = false;
-    if ($ext === 'jpg') $ok = imagejpeg($dst, $dest, 85);
-    elseif ($ext === 'png') $ok = imagepng($dst, $dest, 7);
-    elseif ($ext === 'gif') $ok = imagegif($dst, $dest);
-    else $ok = imagewebp($dst, $dest, 85);
-    imagedestroy($src); imagedestroy($dst);
-    return $ok ? ('uploads/menu_items/' . $name) : null;
+    if ($ext === 'jpg') {
+        $ok = imagejpeg($dst, $dest, 85);
+    } elseif ($ext === 'png') {
+        $ok = imagepng($dst, $dest, 7);
+    } elseif ($ext === 'gif') {
+        $ok = imagegif($dst, $dest);
+    } else {
+        $ok = imagewebp($dst, $dest, 85);
+    }
+    imagedestroy($src);
+    imagedestroy($dst);
+
+    return $ok ? ('uploads/menu_items/'.$name) : null;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? null)) {
     $action = $_POST['action'] ?? '';
 
+    // Platform staff can inspect catalogs but only the store's own accounts can change them.
+    if (! $canManageMenu && $action !== 'fetch_item') {
+        http_response_code(403);
+        exit('Store menu changes are restricted to the store manager and staff.');
+    }
+
     if ($action === 'fetch_item' && is_numeric($_POST['item_id'] ?? '')) {
-        $itemId = (int)$_POST['item_id'];
+        $itemId = (int) $_POST['item_id'];
         $scope = isStoreStaff() ? $myStoreId : null;
         $item = fetchItemWithOptions($itemId);
-        if (!$item) {
+        if (! $item) {
             header('Content-Type: application/json');
             echo json_encode(['ok' => false, 'error' => 'Item not found.']);
             exit;
         }
-        if ($scope && (int)$item['store_id'] !== $scope) {
+        if ($scope && (int) $item['store_id'] !== $scope) {
             header('Content-Type: application/json');
             echo json_encode(['ok' => false, 'error' => 'Forbidden.']);
             exit;
         }
-        if (!empty($item['image_path'])) {
-            $item['image_url'] = rtrim(APP_URL, '/') . '/../admin/' . ltrim($item['image_path'], '/');
+        if (! empty($item['image_path'])) {
+            $item['image_url'] = rtrim(APP_URL, '/').'/../admin/'.ltrim($item['image_path'], '/');
         }
-        if (!empty($item['groups_json']) && is_string($item['groups_json'])) {
+        if (! empty($item['groups_json']) && is_string($item['groups_json'])) {
             $dec = json_decode($item['groups_json'], true);
-            if (is_array($dec)) $item['groups_json'] = $dec;
+            if (is_array($dec)) {
+                $item['groups_json'] = $dec;
+            }
         }
         header('Content-Type: application/json');
         echo json_encode(['ok' => true, 'item' => $item]);
@@ -105,14 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
     }
 
     if ($action === 'toggle_item' && is_numeric($_POST['item_id'] ?? '')) {
-        $itemId = (int)$_POST['item_id'];
+        $itemId = (int) $_POST['item_id'];
         $scope = isStoreStaff() ? $myStoreId : null;
         if ($scope) {
             $check = getOpsDB()->prepare('SELECT id FROM store_menu_items WHERE id = ? AND store_id = ?');
             $check->execute([$itemId, $scope]);
-            if (!$check->fetch()) {
+            if (! $check->fetch()) {
                 flash('error', 'Item not found in your store.');
-                header('Location: ' . APP_URL . '/menu.php');
+                header('Location: '.APP_URL.'/menu.php');
                 exit;
             }
         }
@@ -123,29 +149,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
             exit;
         }
         flash($ok ? 'success' : 'error', $ok ? 'Item availability updated.' : 'Update failed.');
-        header('Location: ' . APP_URL . '/menu.php' . (isStoreStaff() ? '' : '?store_id=' . $storeId));
+        header('Location: '.APP_URL.'/menu.php'.(isStoreStaff() ? '' : '?store_id='.$storeId));
         exit;
     }
 
     if ($action === 'save_item') {
-        $itemId = !empty($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
-        $category = trim((string)($_POST['category'] ?? ''));
+        $itemId = ! empty($_POST['item_id']) ? (int) $_POST['item_id'] : 0;
+        $category = trim((string) ($_POST['category'] ?? ''));
         if ($category === '__custom__') {
-            $category = trim((string)($_POST['category_custom'] ?? ''));
+            $category = trim((string) ($_POST['category_custom'] ?? ''));
         }
         $itemData = [
             'id' => $itemId,
-            'item_name' => trim((string)($_POST['item_name'] ?? '')),
+            'item_name' => trim((string) ($_POST['item_name'] ?? '')),
             'category' => $category === '' ? 'Uncategorized' : $category,
-            'price' => (float)($_POST['price'] ?? 0),
-            'description' => (string)($_POST['description'] ?? ''),
+            'price' => (float) ($_POST['price'] ?? 0),
+            'description' => (string) ($_POST['description'] ?? ''),
             'is_available' => isset($_POST['is_available']) ? 1 : 0,
         ];
         $imgRel = handleMenuUpload($_FILES['item_image'] ?? null);
         if ($imgRel) {
             $itemData['image_path'] = $imgRel;
-        } elseif (!empty($_POST['existing_image_path'])) {
-            $itemData['image_path'] = (string)$_POST['existing_image_path'];
+        } elseif (! empty($_POST['existing_image_path'])) {
+            $itemData['image_path'] = (string) $_POST['existing_image_path'];
         } else {
             $itemData['image_path'] = null;
         }
@@ -153,29 +179,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         $groups = [];
         if (is_array($groupsRaw)) {
             foreach ($groupsRaw as $gIdx => $g) {
-                if (!is_array($g)) continue;
+                if (! is_array($g)) {
+                    continue;
+                }
                 $group = [
-                    'group_name' => trim((string)($g['group_name'] ?? '')),
+                    'group_name' => trim((string) ($g['group_name'] ?? '')),
                     'selection_type' => ($g['selection_type'] ?? 'radio') === 'checkbox' ? 'checkbox' : 'radio',
-                    'min_select' => max(0, (int)($g['min_select'] ?? 0)),
-                    'max_select' => max(1, (int)($g['max_select'] ?? 1)),
-                    'is_required' => !empty($g['is_required']) ? 1 : 0,
+                    'min_select' => max(0, (int) ($g['min_select'] ?? 0)),
+                    'max_select' => max(1, (int) ($g['max_select'] ?? 1)),
+                    'is_required' => ! empty($g['is_required']) ? 1 : 0,
                     'options' => [],
                 ];
-                if ($group['group_name'] === '') continue;
+                if ($group['group_name'] === '') {
+                    continue;
+                }
                 $opts = $g['options'] ?? [];
                 if (is_array($opts)) {
                     foreach ($opts as $o) {
-                        if (!is_array($o)) continue;
-                        $optName = trim((string)($o['option_name'] ?? ''));
-                        if ($optName === '') continue;
+                        if (! is_array($o)) {
+                            continue;
+                        }
+                        $optName = trim((string) ($o['option_name'] ?? ''));
+                        if ($optName === '') {
+                            continue;
+                        }
                         $avail = 1;
                         if (array_key_exists('is_available', $o)) {
-                            $avail = !empty($o['is_available']) ? 1 : 0;
+                            $avail = ! empty($o['is_available']) ? 1 : 0;
                         }
                         $group['options'][] = [
                             'option_name' => $optName,
-                            'price_delta' => (float)($o['price_delta'] ?? 0),
+                            'price_delta' => (float) ($o['price_delta'] ?? 0),
                             'is_available' => $avail,
                         ];
                     }
@@ -189,18 +223,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         } else {
             flash('error', 'Save failed. Ensure name, category, and price are valid.');
         }
-        $qs = isStoreStaff() ? '' : '?store_id=' . $storeId;
-        header('Location: ' . APP_URL . '/menu.php' . $qs);
+        $qs = isStoreStaff() ? '' : '?store_id='.$storeId;
+        header('Location: '.APP_URL.'/menu.php'.$qs);
         exit;
     }
 
     if ($action === 'delete_item' && $canDelete && is_numeric($_POST['item_id'] ?? '')) {
-        $itemId = (int)$_POST['item_id'];
+        $itemId = (int) $_POST['item_id'];
         $scope = isStoreStaff() ? $myStoreId : null;
         $ok = deleteMenuItem($itemId, $scope);
         flash($ok ? 'success' : 'error', $ok ? 'Menu item deleted.' : 'Delete failed or forbidden.');
-        $qs = isStoreStaff() ? '' : '?store_id=' . $storeId;
-        header('Location: ' . APP_URL . '/menu.php' . $qs);
+        $qs = isStoreStaff() ? '' : '?store_id='.$storeId;
+        header('Location: '.APP_URL.'/menu.php'.$qs);
         exit;
     }
 }
@@ -212,84 +246,89 @@ if ($storeId) {
 }
 $categories = [];
 foreach ($menu as $m) {
-    $c = (string)($m['category'] ?? 'Uncategorized');
-    if (!in_array($c, $categories, true)) $categories[] = $c;
+    $c = (string) ($m['category'] ?? 'Uncategorized');
+    if (! in_array($c, $categories, true)) {
+        $categories[] = $c;
+    }
 }
 $storeName = '';
 foreach ($stores as $s) {
-    if ((int)$s['id'] === $storeId) { $storeName = $s['store_name']; break; }
+    if ((int) $s['id'] === $storeId) {
+        $storeName = $s['store_name'];
+        break;
+    }
 }
 
 $editItem = null;
 if ($editId > 0) {
     $editItem = fetchItemWithOptions($editId);
-    if ($editItem && isStoreStaff() && (int)$editItem['store_id'] !== $myStoreId) {
+    if ($editItem && (! $canManageMenu || (int) $editItem['store_id'] !== $myStoreId)) {
         $editItem = null;
     }
 }
 
-$pageTitle = 'Menu Manager · ' . ($storeName ?: 'Store');
-include __DIR__ . '/includes/header.php';
+$pageTitle = 'Menu Manager · '.($storeName ?: 'Store');
+include __DIR__.'/includes/header.php';
 ?>
 
 <div class="page-header-row card" style="margin-bottom:1rem;padding:1rem 1.25rem;display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap;">
     <div>
         <h2 style="margin:0;font-size:1.35rem;"><?= e($storeName) ?> Menu Manager</h2>
         <p class="text-muted" style="margin:0.25rem 0 0 0;font-size:0.85rem;">
-            Manage item availability, pricing, and variant groups (sides, drinks, add-ons).
+            <?= $canManageMenu ? 'Manage item availability, pricing, and variants for your store.' : 'View store items, pricing, variants, and availability.' ?>
         </p>
     </div>
     <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-        <?php if (!isStoreStaff()): ?>
+        <?php if (! isStoreStaff()) { ?>
         <select class="form-control" style="width:auto;min-width:240px;" onchange="location.href='?store_id='+this.value+'&view=<?= e($viewMode) ?>'">
             <option value="">Select store…</option>
-            <?php foreach ($stores as $s): ?>
-                <option value="<?= (int)$s['id'] ?>" <?= (int)$s['id'] === $storeId ? 'selected' : '' ?>><?= e($s['store_name']) ?></option>
-            <?php endforeach; ?>
+            <?php foreach ($stores as $s) { ?>
+                <option value="<?= (int) $s['id'] ?>" <?= (int) $s['id'] === $storeId ? 'selected' : '' ?>><?= e($s['store_name']) ?></option>
+            <?php } ?>
         </select>
-        <?php endif; ?>
+        <?php } ?>
         <div class="btn-group" role="group" aria-label="View mode">
-            <a class="btn btn-outline btn-sm<?= $viewMode === 'grid' ? ' active' : '' ?>" href="?<?= http_build_query(array_merge($_GET, ['view'=>'grid'])) ?>">Grid View</a>
-            <a class="btn btn-outline btn-sm<?= $viewMode === 'table' ? ' active' : '' ?>" href="?<?= http_build_query(array_merge($_GET, ['view'=>'table'])) ?>">Table View</a>
+            <a class="btn btn-outline btn-sm<?= $viewMode === 'grid' ? ' active' : '' ?>" href="?<?= http_build_query(array_merge($_GET, ['view' => 'grid'])) ?>">Grid View</a>
+            <a class="btn btn-outline btn-sm<?= $viewMode === 'table' ? ' active' : '' ?>" href="?<?= http_build_query(array_merge($_GET, ['view' => 'table'])) ?>">Table View</a>
         </div>
-        <?php if ($storeId): ?>
+        <?php if ($storeId && $canManageMenu) { ?>
         <button type="button" class="btn btn-primary btn-sm" id="openAddItemBtn" data-drawer="itemDrawer">
             + New Item
         </button>
-        <?php endif; ?>
+        <?php } ?>
     </div>
 </div>
 
-<?php if (!$storeId): ?>
+<?php if (! $storeId) { ?>
 <div class="card">
     <div class="card-body">
-        <p class="text-muted">Select a partner store to manage their menu catalog.</p>
+        <p class="text-muted"><?= $canManageMenu ? 'Your store catalog will appear here.' : 'Select a partner store to view its menu catalog.' ?></p>
     </div>
 </div>
-<?php else: ?>
+<?php } else { ?>
 
-<?php if ($viewMode === 'grid'): ?>
+<?php if ($viewMode === 'grid') { ?>
 <div class="menu-grid" id="menuGrid">
-    <?php foreach ($menu as $item): ?>
+    <?php foreach ($menu as $item) { ?>
     <?php
         $imgSrc = '';
-        if (!empty($item['image_path'])) {
-            $imgSrc = rtrim(APP_URL, '/') . '/../admin/' . ltrim($item['image_path'], '/');
+        if (! empty($item['image_path'])) {
+            $imgSrc = rtrim(APP_URL, '/').'/../admin/'.ltrim($item['image_path'], '/');
         }
-        $totalVariations = (int)($item['group_count'] ?? 0) + (int)($item['option_count'] ?? 0);
-    ?>
-    <article class="menu-card<?= empty($item['is_available']) ? ' is-unavailable' : '' ?>" data-item-id="<?= (int)$item['id'] ?>">
+        $totalVariations = (int) ($item['group_count'] ?? 0) + (int) ($item['option_count'] ?? 0);
+        ?>
+    <article class="menu-card<?= empty($item['is_available']) ? ' is-unavailable' : '' ?>" data-item-id="<?= (int) $item['id'] ?>">
         <div class="menu-card-thumb">
-            <?php if ($imgSrc): ?>
+            <?php if ($imgSrc) { ?>
                 <img src="<?= e($imgSrc) ?>" alt="<?= e($item['item_name']) ?>" loading="lazy">
-            <?php else: ?>
+            <?php } else { ?>
                 <div class="menu-card-thumb-placeholder">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
                 </div>
-            <?php endif; ?>
-            <label class="upload-btn" title="Upload new image" data-upload-for="<?= (int)$item['id'] ?>">
+            <?php } ?>
+            <?php if ($canManageMenu) { ?><label class="upload-btn" title="Upload new image" data-upload-for="<?= (int) $item['id'] ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </label>
+            </label><?php } ?>
         </div>
         <div class="menu-card-body">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.35rem;">
@@ -297,99 +336,127 @@ include __DIR__ . '/includes/header.php';
                     <span class="category-pill"><?= e($item['category'] ?? 'Uncategorized') ?></span>
                     <h3 class="menu-card-title" title="<?= e($item['item_name']) ?>"><?= e($item['item_name']) ?></h3>
                 </div>
-                <div class="menu-card-price">₱<?= formatMoney((float)$item['price']) ?></div>
+                <div class="menu-card-price">₱<?= formatMoney((float) $item['price']) ?></div>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin:0.6rem 0 0.8rem 0;gap:0.5rem;">
                 <span class="variations-badge" title="Modifier groups / sub-options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    <?= (int)($item['group_count'] ?? 0) ?> groups &middot; <?= (int)($item['option_count'] ?? 0) ?> options
+                    <?= (int) ($item['group_count'] ?? 0) ?> groups &middot; <?= (int) ($item['option_count'] ?? 0) ?> options
                 </span>
-                <label class="switch" title="Toggle availability">
-                    <input type="checkbox" class="avail-toggle" data-item-id="<?= (int)$item['id'] ?>"<?= !empty($item['is_available']) ? ' checked' : '' ?>>
+                <?php if ($canManageMenu) { ?><label class="switch" title="Toggle availability">
+                    <input type="checkbox" class="avail-toggle" data-item-id="<?= (int) $item['id'] ?>"<?= ! empty($item['is_available']) ? ' checked' : '' ?>>
                     <span class="slider round"></span>
-                </label>
+                </label><?php } else { ?><?= statusBadge(! empty($item['is_available']) ? 'active' : 'inactive') ?><?php } ?>
             </div>
-            <form method="POST" class="inline-toggle-form" data-item-id="<?= (int)$item['id'] ?>" style="display:none;">
+            <?php if ($canManageMenu) { ?>
+            <form method="POST" class="inline-toggle-form" data-item-id="<?= (int) $item['id'] ?>" style="display:none;">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="toggle_item">
-                <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
             </form>
+            <?php } ?>
+            <?php if (! empty($item['description']) || ! empty($item['groups_json'])) { ?>
+            <details style="margin:.25rem 0 .8rem;color:var(--slate-600);font-size:.85rem;">
+                <summary style="cursor:pointer;font-weight:600;color:var(--slate-700);">View item details</summary>
+                <?php if (! empty($item['description'])) { ?><p><?= nl2br(e($item['description'])) ?></p><?php } ?>
+                <?php foreach (($item['groups_json'] ?? []) as $group) { ?>
+                    <div><strong><?= e($group['group_name'] ?? 'Options') ?>:</strong> <?= e(implode(', ', array_map(static fn ($option) => (string) ($option['option_name'] ?? ''), $group['options'] ?? []))) ?></div>
+                <?php } ?>
+            </details>
+            <?php } ?>
+            <?php if ($canManageMenu) { ?>
             <div class="menu-card-actions">
-                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int)$item['id'] ?>" data-item-json='<?= e(json_encode(['id' => (int)$item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float)$item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int)($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Edit</button>
-                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int)$item['id'] ?>" data-focus-groups="1" data-item-json='<?= e(json_encode(['id' => (int)$item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float)$item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int)($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Variants</button>
-                <?php if ($canDelete): ?>
+                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int) $item['id'] ?>" data-item-json='<?= e(json_encode(['id' => (int) $item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float) $item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int) ($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Edit</button>
+                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int) $item['id'] ?>" data-focus-groups="1" data-item-json='<?= e(json_encode(['id' => (int) $item['id'], 'item_name' => $item['item_name'], 'category' => $item['category'], 'price' => (float) $item['price'], 'description' => $item['description'] ?? '', 'image_path' => $item['image_path'] ?? null, 'is_available' => (int) ($item['is_available'] ?? 1), 'groups_json' => $item['groups_json'] ?? null], JSON_UNESCAPED_UNICODE)) ?>' data-drawer="itemDrawer">Variants</button>
+                <?php if ($canDelete) { ?>
                 <form method="POST" style="margin:0;display:inline;" onsubmit="return confirm('Permanently delete \'<?= e($item['item_name']) ?>\' and all its variants? This cannot be undone.')">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="delete_item">
-                    <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                    <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
                     <button type="submit" class="btn btn-danger-outline btn-sm" title="Delete item">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                 </form>
-                <?php endif; ?>
+                <?php } ?>
             </div>
+            <?php } ?>
         </div>
     </article>
-    <?php endforeach; ?>
-    <?php if (empty($menu)): ?>
+    <?php } ?>
+    <?php if (empty($menu)) { ?>
     <div class="card" style="grid-column:1/-1;padding:2rem;text-align:center;">
-        <p class="text-muted" style="margin:0 0 0.75rem 0;">No menu items yet. Click <strong>+ New Item</strong> to add your first catalog entry.</p>
+        <p class="text-muted" style="margin:0 0 0.75rem 0;">No menu items are currently listed for this store.</p>
     </div>
-    <?php endif; ?>
+    <?php } ?>
 </div>
-<?php else: ?>
+<?php } else { ?>
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
             <table>
                 <thead><tr>
-                    <th>Item</th><th>Category</th><th>Price</th><th>Variants</th><th>Available</th><th>Actions</th>
+                    <th>Item</th><th>Category</th><th>Price</th><th>Variants</th><th>Available</th><th><?= $canManageMenu ? 'Actions' : 'Access' ?></th>
                 </tr></thead>
                 <tbody>
-                    <?php foreach ($menu as $item): ?>
+                    <?php foreach ($menu as $item) { ?>
                     <tr class="<?= empty($item['is_available']) ? 'row-muted' : '' ?>">
-                        <td><strong><?= e($item['item_name']) ?></strong></td>
-                        <td><span class="category-pill"><?= e($item['category'] ?? 'Uncategorized') ?></span></td>
-                        <td>₱<?= formatMoney((float)$item['price']) ?></td>
-                        <td><?= (int)($item['group_count'] ?? 0) ?> groups · <?= (int)($item['option_count'] ?? 0) ?> options</td>
                         <td>
-                            <label class="switch" title="Toggle availability">
-                                <input type="checkbox" class="avail-toggle" data-item-id="<?= (int)$item['id'] ?>"<?= !empty($item['is_available']) ? ' checked' : '' ?>>
+                            <strong><?= e($item['item_name']) ?></strong>
+                            <?php if (! $canManageMenu && (! empty($item['description']) || ! empty($item['groups_json']))) { ?>
+                            <details style="margin-top:.3rem;color:var(--slate-600);font-size:.82rem;">
+                                <summary style="cursor:pointer;font-weight:600;color:var(--slate-700);">View item details</summary>
+                                <?php if (! empty($item['description'])) { ?><p><?= nl2br(e($item['description'])) ?></p><?php } ?>
+                                <?php foreach (($item['groups_json'] ?? []) as $group) { ?>
+                                    <div><strong><?= e($group['group_name'] ?? 'Options') ?>:</strong> <?= e(implode(', ', array_map(static fn ($option) => (string) ($option['option_name'] ?? ''), $group['options'] ?? []))) ?></div>
+                                <?php } ?>
+                            </details>
+                            <?php } ?>
+                        </td>
+                        <td><span class="category-pill"><?= e($item['category'] ?? 'Uncategorized') ?></span></td>
+                        <td>₱<?= formatMoney((float) $item['price']) ?></td>
+                        <td><?= (int) ($item['group_count'] ?? 0) ?> groups · <?= (int) ($item['option_count'] ?? 0) ?> options</td>
+                        <td>
+                            <?php if ($canManageMenu) { ?><label class="switch" title="Toggle availability">
+                                <input type="checkbox" class="avail-toggle" data-item-id="<?= (int) $item['id'] ?>"<?= ! empty($item['is_available']) ? ' checked' : '' ?>>
                                 <span class="slider round"></span>
                             </label>
-                            <form method="POST" class="inline-toggle-form" data-item-id="<?= (int)$item['id'] ?>" style="display:none;">
+                            <form method="POST" class="inline-toggle-form" data-item-id="<?= (int) $item['id'] ?>" style="display:none;">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="action" value="toggle_item">
-                                <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
                             </form>
+                            <?php } else { ?><?= statusBadge(! empty($item['is_available']) ? 'active' : 'inactive') ?><?php } ?>
                         </td>
                         <td>
+                            <?php if ($canManageMenu) { ?>
                             <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
-                                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int)$item['id'] ?>" data-drawer="itemDrawer">Edit</button>
-                                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int)$item['id'] ?>" data-focus-groups="1" data-drawer="itemDrawer">Variants</button>
-                                <?php if ($canDelete): ?>
+                                <button type="button" class="btn btn-outline btn-sm btn-edit-item" data-item-id="<?= (int) $item['id'] ?>" data-drawer="itemDrawer">Edit</button>
+                                <button type="button" class="btn btn-outline btn-sm btn-edit-groups" data-item-id="<?= (int) $item['id'] ?>" data-focus-groups="1" data-drawer="itemDrawer">Variants</button>
+                                <?php if ($canDelete) { ?>
                                 <form method="POST" style="margin:0;display:inline;" onsubmit="return confirm('Delete item?')">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="action" value="delete_item">
-                                    <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                                    <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
                                     <button type="submit" class="btn btn-danger-outline btn-sm">Delete</button>
                                 </form>
-                                <?php endif; ?>
+                                <?php } ?>
                             </div>
+                            <?php } else { ?>View only<?php } ?>
                         </td>
                     </tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($menu)): ?>
+                    <?php } ?>
+                    <?php if (empty($menu)) { ?>
                     <tr><td colspan="6" class="text-muted">No menu items yet.</td></tr>
-                    <?php endif; ?>
+                    <?php } ?>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-<?php endif; ?>
-<?php endif; ?>
+<?php } ?>
+<?php } ?>
 
+<?php if ($canManageMenu) { ?>
 <div class="drawer-overlay" id="itemDrawerOverlay" data-drawer-overlay="itemDrawer">
 <aside class="drawer-right" id="itemDrawer" aria-labelledby="itemDrawerTitle" role="dialog" aria-modal="true">
     <div class="drawer-header">
@@ -426,7 +493,7 @@ include __DIR__ . '/includes/header.php';
                         <div class="form-group">
                             <label for="fCategory">Category <span class="req">*</span></label>
                             <select id="fCategory" class="form-control" name="category" required style="padding:.6rem .75rem;">
-                                <?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php endforeach; ?>
+                                <?php foreach ($categories as $c) { ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php } ?>
                                 <option value="__custom__" <?= $categories ? '' : 'selected' ?>>+ Add new category…</option>
                             </select>
                             <input type="text" id="fCategoryCustom" class="form-control" name="category_custom" maxlength="80" placeholder="Enter new category name (e.g. Burgers)" style="display:none;margin-top:0.5rem;">
@@ -531,7 +598,8 @@ include __DIR__ . '/includes/header.php';
     </div>
 </aside>
 </div>
+<?php } ?>
 
 <script id="menuEditData" type="application/json"><?= json_encode($editItem) ?></script>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<?php include __DIR__.'/includes/footer.php'; ?>

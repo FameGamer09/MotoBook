@@ -91,14 +91,22 @@ export function ActiveDeliveryMapPlaceholder({
           <span className="text-[13px] font-semibold capitalize text-white">{telemetry.motionState.toLowerCase()}</span>
         </div>
         <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-dark/85 backdrop-blur border border-surface-border/80">
-          <StatusDot state={telemetry.error ? 'offline' : 'online'} size={9} />
+          <StatusDot state={gpsState(telemetry) === 'live' ? 'online' : gpsState(telemetry) === 'waiting' ? 'warning' : 'offline'} size={9} />
           <span className="text-[13px] font-semibold text-white">
-            {focus?.label ? `Bound for ${focus.label.slice(0, 22)}` : 'Idle'}
+            {gpsState(telemetry) === 'live'
+              ? (focus?.label ? `Bound for ${focus.label.slice(0, 22)}` : 'GPS live')
+              : gpsState(telemetry) === 'waiting' ? 'Waiting for GPS fix' : 'GPS unavailable'}
           </span>
         </div>
       </div>
     </div>
   );
+}
+
+function gpsState(telemetry: TelemetryHandle): 'live' | 'waiting' | 'unavailable' {
+  if (telemetry.error || !telemetry.watchActive) return 'unavailable';
+  if (!telemetry.lastPoint || Date.now() - telemetry.lastPoint.t_ms > 30_000) return 'waiting';
+  return 'live';
 }
 
 function formatDistanceMeters(meters: number | null, fallbackKm?: number): string {

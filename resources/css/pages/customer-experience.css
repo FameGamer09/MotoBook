@@ -186,3 +186,21 @@ body[data-theme=dark] .store-brand-fallback { color: #466273; }
   .store-card-image.store-logo-tile { height: 128px; padding: 12px; }
   .store-brand-logo { height: min(100%, 104px); }
 }
+
+/* Keep customer screens within the usable viewport, including narrow phones. */
+html, body.cx-page, body.cart-shell, body.checkout-shell, body.item-shell, body.detail-shell, body.order-detail-shell { width: 100%; max-width: 100%; }
+body.cx-page, body.cart-shell, body.checkout-shell, body.item-shell, body.detail-shell, body.order-detail-shell { overflow-x: clip; }
+.cx-wrap, .cx-card, .cx-row, .cx-notice, .home-header, .store-grid, .detail-shell,
+.cart-shell, .orders-shell, .order-detail-shell, .checkout-shell { min-width: 0; }
+.cx-bottom { width: 100%; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
+img, video, iframe { max-width: 100%; }
+@media (max-width: 380px) {
+  body.cx-page { padding-right: 12px; padding-left: 12px; }
+  .cx-two { grid-template-columns: minmax(0, 1fr); }
+  .cx-card { padding: 15px; }
+  .cx-bottom a { font-size: 9px; }
+  .cx-bottom a span { font-size: 17px; }
+}
+@media (max-width: 700px) {
+  body.cx-page input, body.cx-page select, body.cx-page textarea { font-size: 16px; }
+}

@@ -26,6 +26,7 @@ interface OrderStoreState {
   clientLastPollAt: Record<number, number>;
   visibilityHiddenAtMs: number | null;
   loadList: () => Promise<void>;
+  clearError: () => void;
   selectActive: (id: number | null) => void;
   transition: (id: number, state: OrderState) => Promise<void>;
   submitPOD: (id: number, payload: PoDPayload) => Promise<{ proof_path?: string | null; signature_path?: string | null }>;
@@ -157,7 +158,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   visibilityHiddenAtMs: null,
 
   async loadList() {
-    set({ loading: true, error: null });
+    set({ loading: true });
     try {
       const { data, ok } = await fetchJson<{ orders: OrderEntity[] }>('/orders/list');
       if (ok && Array.isArray(data?.orders)) {
@@ -174,6 +175,10 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     set({ activeOrderId: id });
   },
 
+  clearError() {
+    set({ error: null });
+  },
+
   async transition(id, state) {
     const cur = get().list.find((o) => o.id === id);
     if (cur && !canTransition(cur.state, state)) {
@@ -181,16 +186,20 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       return;
     }
     try {
-      const { data, ok } = await fetchJson<{ ok: boolean; order: OrderEntity }>(`/orders/${id}/transition`, {
+      const { data, ok } = await fetchJson<{ ok?: boolean; order?: OrderEntity; message?: string }>(`/orders/${id}/transition`, {
         method: 'POST',
         body: JSON.stringify({ state }),
       });
       if (ok && data?.ok && data.order) {
-        set((s) => ({ list: s.list.map((o) => (o.id === id ? data.order : o)) }));
+        const updatedOrder = data.order;
+        set((s) => ({ list: s.list.map((o) => (o.id === id ? updatedOrder : o)) }));
+      } else if (data && typeof data === 'object' && 'message' in data) {
+        set({ error: String(data.message) });
       }
     } catch (e: any) {
       set({ error: e?.message ?? 'TRANSITION_FAILED' });
     }
+    if (state === 'ACCEPTED') await get().loadList();
   },
 
   async submitPOD(id, payload) {

@@ -12,7 +12,6 @@ const LONG_IDLE_THRESHOLD_MS = 5 * 60 * 1000;
 const SYNC_INTERVAL_MS = 5_000;
 const PICKUP_RADIUS_M = 50;
 const DROPOFF_RADIUS_M = 30;
-const MIN_SIGNAL_DELTA_MS = 500;
 const RAF_THROTTLE_MS = 50;
 const GEOFENCE_DWELL_READS = 5;
 
@@ -49,9 +48,11 @@ export function useLocationTelemetry(
   const [queueDepth, setQueueDepth] = useState<number>(0);
   const [lastSentAtMs, setLastSentAtMs] = useState<number | null>(null);
   const [watchActive, setWatchActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const lastSentRef = useRef<number>(0);
   const lastPointRef = useRef<GeolocationPosition | null>(null);
+  const motionStateRef = useRef<MotionState>(motionState);
   const sentInsideRef = useRef<Set<GeofencePoint['label']>>(new Set());
   const dwellRef = useRef<Map<string, number>>(new Map());
   const longIdleRef = useRef<boolean>(false);
@@ -80,17 +81,19 @@ export function useLocationTelemetry(
   const [distDropoff, setDistDropoff] = useState<number | null>(null);
   const [insideFence, setInsideFence] = useState<GeofencePoint['label'] | null>(null);
 
-  const syncIntervalMs = useMemo(() => {
-    if (longIdleRef.current) return LONG_IDLE_INTERVAL_MS;
-    return motionState === 'MOVING' ? MOVING_INTERVAL_MS : IDLE_INTERVAL_MS;
-  }, [motionState]);
+  const latestRef = useRef({ riderId, activeOrder, geofences, onEnterGeofence, motionState });
+  useEffect(() => {
+    latestRef.current = { riderId, activeOrder, geofences, onEnterGeofence, motionState };
+    motionStateRef.current = motionState;
+  }, [activeOrder, geofences, motionState, onEnterGeofence, riderId]);
 
   const ingestPosition = useCallback((pos: GeolocationPosition, offlineFallback = false) => {
+    const current = latestRef.current;
     const speed = typeof pos.coords.speed === 'number' ? pos.coords.speed : null;
     const speedKmh = speed != null ? speed * 3.6 : null;
     const motion: MotionState = speedKmh != null
       ? (speedKmh > MOVING_SPEED_KMH ? 'MOVING' : speedKmh > 1.0 ? 'IDLE' : 'STOPPED')
-      : motionState;
+      : current.motionState;
     const point: LocationPoint = {
       lat: pos.coords.latitude,
       lng: pos.coords.longitude,
@@ -104,15 +107,17 @@ export function useLocationTelemetry(
     lastPointRef.current = pos;
     setLastPoint(point);
     setMotionState(motion);
+    motionStateRef.current = motion;
+    setGeoError(null);
 
-    setDistPickup(activeOrder?.merchant_lat != null && activeOrder?.merchant_lng != null
-      ? haversineMeters(point.lat, point.lng, activeOrder.merchant_lat, activeOrder.merchant_lng)
+    setDistPickup(current.activeOrder?.merchant_lat != null && current.activeOrder?.merchant_lng != null
+      ? haversineMeters(point.lat, point.lng, current.activeOrder.merchant_lat, current.activeOrder.merchant_lng)
       : null);
-    setDistDropoff(activeOrder?.dropoff_lat != null && activeOrder?.dropoff_lng != null
-      ? haversineMeters(point.lat, point.lng, activeOrder.dropoff_lat, activeOrder.dropoff_lng)
+    setDistDropoff(current.activeOrder?.dropoff_lat != null && current.activeOrder?.dropoff_lng != null
+      ? haversineMeters(point.lat, point.lng, current.activeOrder.dropoff_lat, current.activeOrder.dropoff_lng)
       : null);
 
-    for (const fence of geofences) {
+    for (const fence of current.geofences) {
       const d = haversineMeters(point.lat, point.lng, fence.lat, fence.lng);
       const key = `${fence.label}-${fence.lat.toFixed(4)}-${fence.lng.toFixed(4)}`;
       if (d <= fence.radiusMeters) {
@@ -122,7 +127,7 @@ export function useLocationTelemetry(
         if (next >= GEOFENCE_DWELL_READS && !sentInsideRef.current.has(fence.label)) {
           sentInsideRef.current.add(fence.label);
           setInsideFence(fence.label);
-          onEnterGeofence(fence.label);
+          current.onEnterGeofence(fence.label);
         }
       } else if (d > fence.radiusMeters * 1.5) {
         dwellRef.current.delete(key);
@@ -132,21 +137,22 @@ export function useLocationTelemetry(
       }
     }
 
-    if (riderId) {
+    if (current.riderId) {
       void enqueueTelemetry([{
-        riderId,
-        riderOrderId: activeOrder?.id ?? null,
+        riderId: current.riderId,
+        riderOrderId: current.activeOrder?.id ?? null,
         lat: point.lat,
         lng: point.lng,
         heading: point.heading ?? null,
         speed_kmh: point.speed_kmh ?? null,
         accuracy_m: point.accuracy_m ?? null,
         motion: point.motion,
+        offline: offlineFallback,
         t_ms: point.t_ms,
-      }]);
+      }]).catch(() => setSyncError('TELEMETRY_STORAGE_UNAVAILABLE'));
     }
-    void countUnsortedTelemetry().then(setQueueDepth);
-  }, [activeOrder, geofences, motionState, onEnterGeofence, riderId]);
+    void countUnsortedTelemetry().then(setQueueDepth).catch(() => setSyncError('TELEMETRY_STORAGE_UNAVAILABLE'));
+  }, []);
 
   const throttledIngest = useCallback((pos: GeolocationPosition, offlineFallback = false) => {
     pendingPosRef.current = { pos, offline: offlineFallback };
@@ -170,21 +176,22 @@ export function useLocationTelemetry(
 
   useEffect(() => {
     if (riderId == null || !('geolocation' in navigator)) {
-      setError(riderId == null ? 'NO_RIDER' : 'GEO_UNSUPPORTED');
+      setGeoError(riderId == null ? 'NO_RIDER' : 'GEO_UNSUPPORTED');
       return;
     }
+    setGeoError(null);
     let watchId: number | null = null;
     try {
       watchId = navigator.geolocation.watchPosition(
         (pos) => throttledIngest(pos, false),
         (err) => {
-          setError(`GEO_ERROR_${err.code}`);
+          setGeoError(`GEO_ERROR_${err.code}`);
           if (lastPointRef.current) throttledIngest(lastPointRef.current, true);
         },
         { enableHighAccuracy: true, maximumAge: 2_000, timeout: 10_000 },
       );
       setWatchActive(true);
-    } catch (e: any) { setError(e?.message ?? 'GEO_WATCH_FAIL'); }
+    } catch (e: any) { setGeoError(e?.message ?? 'GEO_WATCH_FAIL'); }
 
     let idleDetector: IdleDetectorLike | null = null;
     let idleChangeListener: ((e: any) => void) | null = null;
@@ -209,30 +216,43 @@ export function useLocationTelemetry(
     })();
 
     const syncTick = setInterval(async () => {
-      const count = await countUnsortedTelemetry();
-      setQueueDepth(count);
+      let count: number;
+      try {
+        count = await countUnsortedTelemetry();
+        setQueueDepth(count);
+      } catch {
+        setSyncError('TELEMETRY_STORAGE_UNAVAILABLE');
+        return;
+      }
       const now = Date.now();
       const intervalMs = longIdleRef.current
         ? LONG_IDLE_INTERVAL_MS
-        : (motionState === 'MOVING' ? MOVING_INTERVAL_MS : IDLE_INTERVAL_MS);
-      if (now - lastSentRef.current < Math.min(intervalMs, MIN_SIGNAL_DELTA_MS)) return;
-      const rows = await peekUnsortedTelemetry(400);
+        : (motionStateRef.current === 'MOVING' ? MOVING_INTERVAL_MS : IDLE_INTERVAL_MS);
+      if (now - lastSentRef.current < intervalMs) return;
+      let rows: Awaited<ReturnType<typeof peekUnsortedTelemetry>>;
+      try {
+        rows = await peekUnsortedTelemetry(400);
+      } catch {
+        setSyncError('TELEMETRY_STORAGE_UNAVAILABLE');
+        return;
+      }
       if (!rows.length) return;
       try {
         const hasNetwork = navigator.onLine !== false;
         if (!hasNetwork) return;
-        const { data, ok } = await fetchJson<{ ok: boolean; stored: number; server_ts_ms: number }>('/telemetry/batch', {
+        const { data, ok, status } = await fetchJson<{ ok: boolean; stored: number; server_ts_ms: number; error?: string; message?: string }>('/telemetry/batch', {
           method: 'POST',
           body: JSON.stringify({
-            rider_order_id: activeOrder?.id ?? null,
+            rider_order_id: latestRef.current.activeOrder?.id ?? null,
             points: rows.map((r) => ({
+              rider_order_id: r.riderOrderId ?? null,
               lat: r.lat,
               lng: r.lng,
               heading: r.heading ?? null,
               speed_kmh: r.speed_kmh ?? null,
               accuracy_m: r.accuracy_m ?? null,
               motion: r.motion ?? 'IDLE',
-              offline: 0,
+              offline: r.offline ? 1 : 0,
               t_ms: r.t_ms,
             })),
           }),
@@ -240,14 +260,17 @@ export function useLocationTelemetry(
         if (ok && data?.ok) {
           lastSentRef.current = now;
           setLastSentAtMs(now);
+          setSyncError(null);
           const ids = rows.map((r) => r.id!).filter((id): id is number => id != null);
           await markSynced(ids);
           void countUnsortedTelemetry().then(setQueueDepth);
+        } else {
+          setSyncError(data?.message ?? data?.error ?? `TELEMETRY_SYNC_HTTP_${status}`);
         }
-      } catch {
-        // offline queued, retry on next tick
+      } catch (syncError) {
+        setSyncError(syncError instanceof Error ? syncError.message : 'TELEMETRY_SYNC_FAILED');
       }
-    }, SYNC_INTERVAL_MS);
+    }, Math.min(SYNC_INTERVAL_MS, longIdleRef.current ? LONG_IDLE_INTERVAL_MS : motionStateRef.current === 'MOVING' ? MOVING_INTERVAL_MS : IDLE_INTERVAL_MS));
 
     return () => {
       if (watchId != null) try { navigator.geolocation.clearWatch(watchId); } catch { /* noop */ }
@@ -260,7 +283,7 @@ export function useLocationTelemetry(
       pendingPosRef.current = null;
       setWatchActive(false);
     };
-  }, [riderId, throttledIngest, motionState, activeOrder?.id]);
+  }, [riderId, throttledIngest]);
 
   const flush = useCallback(async () => {
     const rows = await peekUnsortedTelemetry(500);
@@ -269,12 +292,13 @@ export function useLocationTelemetry(
       const { data, ok } = await fetchJson<{ ok: boolean; stored: number }>('/telemetry/batch', {
         method: 'POST',
         body: JSON.stringify({
-          rider_order_id: activeOrder?.id ?? null,
+          rider_order_id: latestRef.current.activeOrder?.id ?? null,
           points: rows.map((r) => ({
+            rider_order_id: r.riderOrderId ?? null,
             lat: r.lat, lng: r.lng,
             heading: r.heading ?? null, speed_kmh: r.speed_kmh ?? null, accuracy_m: r.accuracy_m ?? null,
             motion: r.motion ?? 'IDLE',
-            offline: 0, t_ms: r.t_ms,
+            offline: r.offline ? 1 : 0, t_ms: r.t_ms,
           })),
         }),
       });
@@ -291,8 +315,8 @@ export function useLocationTelemetry(
     if (!('geolocation' in navigator)) return;
     try {
       navigator.geolocation.getCurrentPosition(
-        (p) => throttledIngest(p, true),
-        () => lastPointRef.current && throttledIngest(lastPointRef.current, true),
+        (p) => throttledIngest(p, navigator.onLine === false),
+        () => lastPointRef.current && throttledIngest(lastPointRef.current, navigator.onLine === false),
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
       );
     } catch { /* noop */ }
@@ -307,7 +331,7 @@ export function useLocationTelemetry(
     distanceToPickupMeters: distPickup,
     distanceToDropoffMeters: distDropoff,
     watchActive,
-    error,
+    error: geoError ?? syncError,
     flush,
     requestSingleFix,
   };

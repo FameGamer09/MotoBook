@@ -46,3 +46,46 @@
     .nav-item { @apply flex flex-col items-center gap-1 text-text-dim no-underline text-[10px] font-semibold; }
     .nav-item.active { @apply text-accent; }
 }
+
+/* Customer order history, aligned with the shared MotoBook customer shell. */
+.orders-content { width: min(100%, 760px); margin: 0 auto; padding: 8px 16px 32px; }
+.orders-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 2px 20px; text-align: left; }
+.orders-heading-copy { min-width: 0; }
+.orders-header h1 { margin: 5px 0 0; color: var(--cx-ink); font-size: 27px; line-height: 1.1; letter-spacing: -.045em; }
+.orders-header p { margin: 7px 0 0; color: var(--cx-muted); font-size: 13px; line-height: 1.45; }
+.orders-browse-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 13px; border: 1px solid var(--cx-line); border-radius: 13px; background: var(--cx-card); color: var(--cx-cyan-dark); font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; box-shadow: 0 3px 12px rgba(23,45,65,.045); }
+.orders-browse-link svg, .orders-empty-cta svg { width: 17px; height: 17px; flex: none; }
+.orders-browse-link:hover { border-color: var(--cx-cyan); background: var(--cx-soft); }
+.orders-empty { display: flex; flex-direction: column; align-items: center; max-width: 610px; min-height: 300px; margin: 14px auto 30px; padding: 34px 26px; text-align: center; }
+.orders-empty-icon { display: grid; width: 72px; height: 72px; margin-bottom: 20px; place-items: center; border: 1px solid rgba(8,185,215,.16); border-radius: 23px; background: linear-gradient(145deg,#e8fbfe,#f4fcfd); color: var(--cx-cyan-dark); }
+.orders-empty-icon svg { width: 42px; height: 42px; }
+.orders-empty h2 { margin: 7px 0 0; color: var(--cx-ink); font-size: 22px; line-height: 1.2; letter-spacing: -.035em; }
+.orders-empty .cx-copy { max-width: 390px; margin: 10px 0 0; }
+.orders-empty-cta { width: auto; min-height: 48px; gap: 9px; margin-top: 22px; padding: 0 20px; font-size: 13px; }
+.orders-list { display: grid; gap: 12px; padding: 2px 0 24px; }
+.orders-list .orders-list-card { display: flex; min-width: 0; align-items: center; gap: 13px; margin: 0; padding: 15px; color: var(--cx-ink); text-decoration: none; }
+.orders-list-card .order-card-icon { display: grid; width: 48px; height: 48px; flex: none; place-items: center; border: 1px solid rgba(8,185,215,.13); border-radius: 16px; background: var(--cx-soft); color: var(--cx-cyan-dark); }
+.orders-list-card .order-card-icon svg { width: 24px; height: 24px; }
+.orders-list-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
+.orders-list-copy .order-card-store { overflow: hidden; color: var(--cx-ink); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.orders-list-copy .order-card-meta { overflow: hidden; margin: 0; color: var(--cx-muted); font-size: 11px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.orders-list-end { display: flex; flex: none; align-items: center; gap: 7px; }
+.orders-list-card .order-card-status { margin: 0; padding: 7px 10px; font-size: 10px; text-align: center; }
+.orders-list-card .order-card-status.in-progress { background: #e6f9fc; color: #0786a0; }
+.orders-list-arrow { width: 17px; height: 17px; color: #93a1ae; }
+body[data-theme="dark"] .orders-empty-icon { border-color: rgba(8,185,215,.25); background: linear-gradient(145deg,#173a46,#1a2e3b); }
+body[data-theme="dark"] .orders-list-card .order-card-status.in-progress { background: #173a46; color: #75e1ef; }
+@media (max-width: 480px) {
+  .orders-content { padding: 4px 14px 24px; }
+  .orders-header { align-items: flex-start; padding: 9px 1px 17px; }
+  .orders-header h1 { font-size: 24px; }
+  .orders-header p { max-width: 230px; font-size: 12px; }
+  .orders-browse-link { min-height: 38px; gap: 4px; padding: 0 9px; font-size: 11px; }
+  .orders-browse-link svg { width: 15px; height: 15px; }
+  .orders-empty { min-height: 280px; margin-top: 8px; padding: 30px 20px; }
+  .orders-empty h2 { font-size: 20px; }
+  .orders-list .orders-list-card { gap: 10px; padding: 12px; }
+  .orders-list-card .order-card-icon { width: 43px; height: 43px; border-radius: 14px; }
+  .orders-list-card .order-card-status { max-width: 112px; white-space: normal; }
+  .orders-list-arrow { display: none; }
+}

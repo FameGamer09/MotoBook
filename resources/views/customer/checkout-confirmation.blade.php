@@ -11,12 +11,12 @@
 
     <div class="confirm-icon">✅</div>
     <div class="confirm-title">Order Placed!</div>
-    <p class="confirm-subtitle">{{ $store->name }} has received your order and will start preparing it shortly.</p>
+    <p class="confirm-subtitle">{{ $store->name }} has received your order. Management can track preparation, and a rider is assigned when it is ready for pickup.</p>
 
     <div class="confirm-card">
         <div class="confirm-row"><span class="label">Order Number</span><span class="value">{{ $order->order_number }}</span></div>
         <div class="confirm-row"><span class="label">Items</span><span class="value">{{ $order->items->sum('quantity') }}</span></div>
-        <div class="confirm-row"><span class="label">Payment Method</span><span class="value">{{ strtoupper($order->payment_method) }}</span></div>
+        <div class="confirm-row"><span class="label">Payment Method</span><span class="value">{{ match($order->payment_method) { 'cod' => 'Cash on Delivery', 'gcash' => 'GCash', 'wallet' => 'MotoBook Wallet', default => strtoupper($order->payment_method) } }}</span></div>
         <div class="confirm-row"><span class="label">Payment Status</span><span class="value">{{ ucfirst($order->payment_status) }}</span></div>
         <div class="confirm-row"><span class="label">Total</span><span class="value">₱{{ number_format($order->total_amount, 2) }}</span></div>
     </div>

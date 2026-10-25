@@ -1,59 +1,76 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# MotoBook
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+MotoBook contains three connected apps: the Laravel customer storefront, the PHP management system (`admin/` and `A-management/`), and the React rider PWA (`A-rider/`). The Laravel app uses two MySQL databases: its own customer/order database and the management database `motobook_admin`.
 
-## About Laravel
+## Local setup on Windows/XAMPP
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Install PHP 8.2+, Composer, Node.js/npm, and MySQL/MariaDB. Start Apache and MySQL in XAMPP, then open PowerShell in this repository.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+For Apple sign-in dependency installation, enable the bundled sodium extension in `C:\xampp\php\php.ini` (`extension=sodium`) and restart Apache. Composer must be able to reach Packagist to update the lock file when dependency requirements change.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. Create a primary database (the example environment uses `olivaian`) in phpMyAdmin.
+2. Import `admin/database/schema.sql` and then `admin/database/operations.sql`. These create the management database and its tables.
+3. Apply the rider schema to `motobook_admin`, in order:
 
-## Learning Laravel
+   In phpMyAdmin, select `motobook_admin` and import each SQL file in order. You can also run the redirection commands from **Command Prompt** (not PowerShell):
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+   ```bat
+   mysql -u root motobook_admin < A-rider\migrations\001_init_rider_schema.sql
+   mysql -u root motobook_admin < A-rider\migrations\002_rider_account_settings.sql
+   ```
+4. Install Laravel dependencies and prepare its environment:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+   ```powershell
+   composer install
+   Copy-Item .env.example .env
+   ```
 
-## Laravel Sponsors
+   Edit `.env`: set `APP_URL`, `DB_*` to the primary database, and `MANAGEMENT_DB_*` to `motobook_admin`. Keep `.env` private and out of Git.
+5. Initialize Laravel and build its frontend:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+   ```powershell
+   php artisan key:generate
+   php artisan migrate
+   npm install
+   npm run build
+   ```
 
-### Premium Partners
+6. Build the rider PWA:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+   ```powershell
+   Set-Location A-rider
+   npm install
+   npm run build
+   Set-Location ..
+   ```
 
-## Contributing
+   The rider build output is served from `A-rider/public/build/`. For local use, start the site through XAMPP or `php artisan serve` and open the customer/admin/rider URLs configured for this checkout.
+7. Run the read-only configuration check:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+   ```powershell
+   php artisan motobook:check
+   ```
 
-## Code of Conduct
+## Local operation
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- Run `php artisan schedule:work` so pending deliveries are retried every minute.
+- If queued jobs are enabled, run `php artisan queue:work` in a separate terminal.
+- Check `storage/logs/laravel.log` and the PHP/Apache logs when a screen fails.
+- Make a database backup before migrations or production updates. Example for a local MySQL install:
 
-## Security Vulnerabilities
+  ```powershell
+  mysqldump -u root olivaian > motobook-primary-backup.sql
+  mysqldump -u root motobook_admin > motobook-management-backup.sql
+  ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+  Store backups outside the public web root and verify that a backup can be restored before relying on it.
 
-## License
+## Integration and launch checks
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- Rider GPS is sent by the rider PWA while an active delivery is open. The browser/device must grant location permission. Customer tracking only displays recent rider fixes; it reports waiting/unavailable when the latest fix is older than 90 seconds. Browsers require HTTPS for location access outside localhost, and a phone test is required to confirm OS background-location behavior.
+- Customer order status alerts currently use the in-app notification system. SMS requires a configured, funded Semaphore account (`SEMAPHORE_API_KEY` and optional `SEMAPHORE_SENDER_NAME`). Browser notifications require browser permission. These provider settings are not included in Git.
+- GCash checkout records an order as pending. Do not treat a submitted order or a customer-provided reference as proof of payment; payment confirmation/reconciliation must be performed through an approved GCash integration or the configured management process.
+- Google/Facebook/Apple sign-in requires current Composer dependencies plus provider client IDs/secrets, exact callback URLs, and provider-side app configuration. Empty `.env` values are placeholders, not working credentials.
+- Before launch, use separate production database credentials, `APP_ENV=production`, `APP_DEBUG=false`, HTTPS, scheduled jobs, queue monitoring, real email/SMS/payment provider accounts, and a tested backup/restore procedure. Never publish `.env`, provider secrets, database dumps, or real customer data.
+
+`php artisan motobook:check` checks local configuration and database connectivity without changing records. It cannot validate provider-side credentials, deliver an SMS, confirm a real payment, or test GPS on a physical phone.

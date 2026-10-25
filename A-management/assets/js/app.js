@@ -578,100 +578,222 @@
         }
     };
 
-    // 6. Order line picker (direct-order notebook)
-    MB.orderPicker = {
-        init: function (root) {
-            root = root || document.querySelector('[data-order-notebook="1"]');
-            if (!root) return;
-            var addBtn = root.querySelector('[data-add-order-line]');
-            if (addBtn) {
-                addBtn.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    MB.orderPicker.addLine(root);
-                    MB.orderPicker.reindex(root);
-                    MB.orderPicker.recalc(root);
-                });
+    // 6. Direct order form. Option IDs are posted to PHP; the server looks up
+    // authoritative option prices before persisting the order total.
+    MB.directOrderForm = {
+        init: function () {
+            var form = document.getElementById('directOrderForm');
+            if (!form) return;
+
+            var lineList = document.getElementById('orderLinesContainer');
+            var template = document.getElementById('tplOrderLine');
+            var itemData = document.getElementById('catalogItemsData');
+            var groupData = document.getElementById('catalogGroupsData');
+            if (!lineList || !template || !itemData || !groupData) return;
+
+            var itemsById = {};
+            var groupsByItem = {};
+            try {
+                groupsByItem = JSON.parse(groupData.textContent || '{}');
+            } catch (_) {}
+
+            var categories;
+            try {
+                categories = JSON.parse(itemData.textContent || '{}');
+            } catch (_) {
+                categories = {};
             }
-            root.addEventListener('click', function (e) {
-                var t = e.target;
-                if (t.matches('[data-remove-line]')) {
-                    e.preventDefault();
-                    var row = t.closest('.order-line-row');
-                    if (row) {
-                        var siblings = root.querySelectorAll('.order-line-row');
-                        if (siblings.length > 1) row.parentNode.removeChild(row);
+            Object.keys(categories).forEach(function (category) {
+                (categories[category] || []).forEach(function (item) {
+                    itemsById[String(item.id)] = item;
+                });
+            });
+
+            var money = function (amount) {
+                return '₱' + (Number(amount) || 0).toFixed(2);
+            };
+
+            var updateRowFields = function (row, index) {
+                var hidden = row.querySelector('.order-line-hidden');
+                hidden.replaceChildren();
+                var itemSelect = row.querySelector('.order-line-menu');
+                var itemId = itemSelect.value;
+                if (!itemId) return;
+
+                var fields = [
+                    ['menu_item_id', itemId],
+                    ['qty', Math.max(1, parseInt(row.querySelector('.qty-input').value, 10) || 1)],
+                ];
+                fields.forEach(function (field) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'lines[' + index + '][' + field[0] + ']';
+                    input.value = String(field[1]);
+                    hidden.appendChild(input);
+                });
+                row.querySelectorAll('.order-option:checked').forEach(function (option) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'lines[' + index + '][selected_option_ids][]';
+                    input.value = option.value;
+                    hidden.appendChild(input);
+                });
+            };
+
+            var recalc = function () {
+                var subtotal = 0;
+                var allValid = true;
+                Array.from(lineList.querySelectorAll('.order-line-row')).forEach(function (row, index) {
+                    var itemSelect = row.querySelector('.order-line-menu');
+                    var item = itemsById[String(itemSelect.value)];
+                    var qty = Math.max(1, parseInt(row.querySelector('.qty-input').value, 10) || 1);
+                    var basePrice = item ? Number(item.price) || 0 : 0;
+                    var selected = Array.from(row.querySelectorAll('.order-option:checked'));
+                    var optionDelta = selected.reduce(function (sum, option) {
+                        return sum + (Number(option.dataset.priceDelta) || 0);
+                    }, 0);
+                    var unitPrice = basePrice + optionDelta;
+                    var lineTotal = item ? unitPrice * qty : 0;
+                    row.querySelector('.order-line-unit').textContent = money(unitPrice) + ' × ' + qty;
+                    row.querySelector('.order-line-subtotal').textContent = '= ' + money(lineTotal);
+                    subtotal += lineTotal;
+
+                    var rowValid = !!item;
+                    (groupsByItem[String(itemSelect.value)] || []).forEach(function (group) {
+                        var selectedInGroup = row.querySelectorAll('.order-option[data-group-id="' + group.group_id + '"]:checked').length;
+                        var min = Math.max(Number(group.min_select) || 0, Number(group.is_required) ? 1 : 0);
+                        var max = group.selection_type === 'radio' ? 1 : (Number(group.max_select) || 0);
+                        if (selectedInGroup < min || (max > 0 && selectedInGroup > max)) rowValid = false;
+
+                        var options = row.querySelectorAll('.order-option[data-group-id="' + group.group_id + '"]');
+                        options.forEach(function (option) {
+                            option.disabled = !option.checked && max > 0 && selectedInGroup >= max;
+                        });
+                    });
+                    row.classList.toggle('order-line-invalid', !rowValid);
+                    allValid = allValid && rowValid;
+                    updateRowFields(row, index);
+                });
+
+                var deliveryFee = Math.max(0, Number(document.getElementById('deliveryFeeInput').value) || 0);
+                document.getElementById('subtotalDisplay').textContent = money(subtotal);
+                document.getElementById('feeDisplay').textContent = money(deliveryFee);
+                document.getElementById('grandDisplay').textContent = money(subtotal + deliveryFee);
+                var hasItems = lineList.querySelector('.order-line-menu') !== null;
+                var error = document.getElementById('orderOptionsError');
+                if (error && allValid && hasItems) error.hidden = true;
+            };
+
+            var renderOptions = function (row) {
+                var itemSelect = row.querySelector('.order-line-menu');
+                var item = itemsById[String(itemSelect.value)];
+                var optionsRoot = row.querySelector('.order-line-opts');
+                optionsRoot.replaceChildren();
+                if (!item) {
+                    recalc();
+                    return;
+                }
+
+                (groupsByItem[String(item.id)] || []).forEach(function (group) {
+                    var section = document.createElement('fieldset');
+                    section.className = 'order-option-group';
+                    var legend = document.createElement('legend');
+                    legend.textContent = group.group_name + (Number(group.is_required) ? ' *' : '');
+                    section.appendChild(legend);
+                    var groupOptions = Array.isArray(group.options) ? group.options : [];
+                    groupOptions.forEach(function (option) {
+                        var label = document.createElement('label');
+                        label.className = 'order-option-choice';
+                        var input = document.createElement('input');
+                        input.type = group.selection_type === 'radio' ? 'radio' : 'checkbox';
+                        input.className = 'order-option';
+                        input.dataset.groupId = String(group.group_id);
+                        input.dataset.priceDelta = String(option.price_delta || 0);
+                        input.value = String(option.option_id);
+                        if (input.type === 'radio') {
+                            input.name = 'direct-order-option-' + row.dataset.lineKey + '-' + group.group_id;
+                        }
+                        var text = document.createElement('span');
+                        text.textContent = option.option_name + ' (' + (Number(option.price_delta) > 0 ? '+' : '') + money(option.price_delta) + ')';
+                        label.append(input, text);
+                        section.appendChild(label);
+                    });
+                    optionsRoot.appendChild(section);
+                });
+                recalc();
+            };
+
+            var addLine = function (itemId) {
+                if (itemId && itemsById[String(itemId)]) {
+                    var blankRow = Array.from(lineList.querySelectorAll('.order-line-row')).find(function (existingRow) {
+                        return !existingRow.querySelector('.order-line-menu').value;
+                    });
+                    if (blankRow) {
+                        blankRow.querySelector('.order-line-menu').value = String(itemId);
+                        renderOptions(blankRow);
+                        return blankRow;
                     }
-                    MB.orderPicker.reindex(root);
-                    MB.orderPicker.recalc(root);
                 }
-                if (t.matches('.qty-btn')) {
-                    e.preventDefault();
-                    var input = t.parentNode.querySelector('.qty-input');
-                    if (!input) return;
-                    var d = parseInt(t.getAttribute('data-d') || '0', 10);
-                    var nv = Math.max(1, (parseInt(input.value, 10) || 1) + d);
-                    input.value = String(nv);
-                    MB.orderPicker.recalc(root);
+                var row = template.content.firstElementChild.cloneNode(true);
+                row.dataset.lineKey = String(Date.now()) + '-' + String(Math.random()).slice(2);
+                var select = row.querySelector('.order-line-menu');
+                Object.keys(categories).forEach(function (categoryName) {
+                    var categoryItems = categories[categoryName] || [];
+                    if (!categoryItems.length) return;
+                    var group = document.createElement('optgroup');
+                    group.label = categoryName;
+                    categoryItems.forEach(function (item) {
+                        var option = document.createElement('option');
+                        option.value = String(item.id);
+                        option.textContent = item.item_name + ' (' + money(item.price) + ')';
+                        option.dataset.price = String(item.price || 0);
+                        group.appendChild(option);
+                    });
+                    select.appendChild(group);
+                });
+                if (itemId && itemsById[String(itemId)]) select.value = String(itemId);
+                lineList.appendChild(row);
+                select.addEventListener('change', function () { renderOptions(row); });
+                row.addEventListener('change', recalc);
+                row.addEventListener('input', recalc);
+                recalc();
+                if (itemId) renderOptions(row);
+                return row;
+            };
+
+            document.getElementById('btnAddOrderLine').addEventListener('click', function () { addLine(''); });
+            lineList.addEventListener('click', function (event) {
+                var target = event.target.closest('.qty-minus, .qty-plus, .btn-remove-line');
+                if (!target) return;
+                var row = target.closest('.order-line-row');
+                if (target.classList.contains('btn-remove-line')) {
+                    row.remove();
+                } else {
+                    var quantity = row.querySelector('.qty-input');
+                    var delta = target.classList.contains('qty-plus') ? 1 : -1;
+                    quantity.value = String(Math.max(1, (parseInt(quantity.value, 10) || 1) + delta));
+                }
+                recalc();
+            });
+            document.querySelectorAll('.catalog-item').forEach(function (button) {
+                button.addEventListener('click', function () { addLine(button.dataset.id); });
+            });
+            document.getElementById('deliveryFeeInput').addEventListener('input', recalc);
+            document.getElementById('pickupStoreSelect').addEventListener('change', function () {
+                var url = new URL(window.location.href);
+                url.searchParams.set('tab', 'create');
+                url.searchParams.set('store_id', this.value);
+                window.location.assign(url.toString());
+            });
+            form.addEventListener('submit', function (event) {
+                recalc();
+                if (lineList.querySelectorAll('.order-line-row').length === 0 || form.querySelector('.order-line-invalid')) {
+                    event.preventDefault();
+                    var error = document.getElementById('orderOptionsError');
+                    if (error) error.hidden = false;
                 }
             });
-            root.addEventListener('change', function () { MB.orderPicker.recalc(root); });
-            root.addEventListener('input', function () { MB.orderPicker.recalc(root); });
-        },
-        addLine: function (root, preset) {
-            preset = preset || {};
-            var list = root.querySelector('#orderLinesList, .order-lines');
-            if (!list) return;
-            var itemSelOpts = root.getAttribute('data-items-json') || '[]';
-            var items; try { items = JSON.parse(itemSelOpts); } catch (_) { items = []; }
-            var selHtml = '<option value="">Pick an item…</option>';
-            var curCat = '';
-            items.forEach(function (it) {
-                if (it.category !== curCat) { selHtml += '<optgroup label="' + MB.esc(it.category || 'Items') + '">'; curCat = it.category || ''; }
-                selHtml += '<option value="' + it.id + '" data-price="' + (it.price || 0) + '" data-groups=\'' + (it.groups_json || '[]') + '\'>' + MB.esc(it.item_name || it.name) + ' (₱' + (it.price || 0) + ')</option>';
-            });
-            var tr = document.createElement('div');
-            tr.className = 'order-line-row';
-            tr.style.cssText = 'display:grid;grid-template-columns:2fr 100px 1fr 80px 40px;gap:.5rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--gray-100)';
-            tr.innerHTML =
-                '<select class="form-control line-item" required>' + selHtml + '</select>' +
-                '<div class="qty-stepper" style="display:flex;align-items:center;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">' +
-                '<button type="button" class="qty-btn" data-d="-1" style="width:32px;height:32px;background:var(--gray-100);border:none;cursor:pointer;font-weight:700">−</button>' +
-                '<input type="number" min="1" class="qty-input" value="1" style="border:none;width:48px;text-align:center;font-weight:700">' +
-                '<button type="button" class="qty-btn" data-d="1" style="width:32px;height:32px;background:var(--gray-100);border:none;cursor:pointer;font-weight:700">+</button></div>' +
-                '<span class="line-options" style="color:var(--gray-500);font-size:.8rem"></span>' +
-                '<span class="line-total" style="font-weight:800;text-align:right">₱0.00</span>' +
-                '<button type="button" class="btn btn-danger btn-sm" data-remove-line title="Remove line">×</button>';
-            list.appendChild(tr);
-        },
-        reindex: function (root) {
-            root.querySelectorAll('.order-line-row').forEach(function (row, i) {
-                row.querySelectorAll('.line-item').forEach(function (sel) { sel.name = 'lines[' + i + '][item_id]'; });
-                row.querySelectorAll('.qty-input').forEach(function (inp) { inp.name = 'lines[' + i + '][qty]'; });
-                // Add hidden fields for price snapshot
-            });
-        },
-        recalc: function (root) {
-            var subtotal = 0;
-            root.querySelectorAll('.order-line-row').forEach(function (row) {
-                var sel = row.querySelector('.line-item');
-                var qtyEl = row.querySelector('.qty-input');
-                if (!sel || !qtyEl) return;
-                var opt = sel.options[sel.selectedIndex];
-                var unitP = opt ? parseFloat(opt.getAttribute('data-price') || '0') : 0;
-                var qty = Math.max(1, parseInt(qtyEl.value, 10) || 1);
-                // TODO: add selected option deltas
-                var line = unitP * qty;
-                var totEl = row.querySelector('.line-total');
-                if (totEl) totEl.textContent = '₱' + line.toFixed(2);
-                subtotal += line;
-            });
-            var feeEl = root.querySelector('[data-fee]');
-            var fee = feeEl ? parseFloat(feeEl.getAttribute('data-fee') || '0') : 0;
-            if (feeEl) feeEl.textContent = '₱' + fee.toFixed(2);
-            var subEl = root.querySelector('[data-subtotal]');
-            if (subEl) subEl.textContent = '₱' + subtotal.toFixed(2);
-            var grandEl = root.querySelector('[data-grandtotal]');
-            if (grandEl) grandEl.textContent = '₱' + (subtotal + fee).toFixed(2);
+            addLine('');
         }
     };
 
@@ -681,7 +803,7 @@
         MB.drawer.init();
         var optForm = document.querySelector('form[data-option-builder]');
         if (optForm) MB.optionBuilder.init(optForm);
-        MB.orderPicker.init();
+        MB.directOrderForm.init();
 
         // Attach toggle listeners
         document.querySelectorAll('.avail-toggle[data-item-id]').forEach(function (input) {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__.'/includes/functions.php';
 requirePlatform();
 
 $date = $_GET['date'] ?? date('Y-m-d');
@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
     $collectionId = (int) $_POST['collection_id'];
     $ok = markCollectionCollected($collectionId);
     flash($ok ? 'success' : 'error', $ok ? 'Cash remittance collected successfully.' : 'Collection failed.');
-    header('Location: ' . APP_URL . '/remittance.php?date=' . rawurlencode($date));
+    header('Location: '.APP_URL.'/remittance.php?date='.rawurlencode($date));
     exit;
 }
 
@@ -22,12 +22,16 @@ $totalCollected = 0;
 $totalAmount = 0;
 foreach ($collections as $c) {
     $totalAmount += (float) $c['total_collected'];
-    if (($c['remittance_status'] ?? '') === 'pending') { $totalPending++; }
-    if (($c['remittance_status'] ?? '') === 'collected' || ($c['remittance_status'] ?? '') === 'remitted') { $totalCollected++; }
+    if (($c['remittance_status'] ?? '') === 'pending') {
+        $totalPending++;
+    }
+    if (($c['remittance_status'] ?? '') === 'collected' || ($c['remittance_status'] ?? '') === 'remitted') {
+        $totalCollected++;
+    }
 }
 
 $pageTitle = 'Rider Cash Remittance Counter';
-include __DIR__ . '/includes/header.php';
+include __DIR__.'/includes/header.php';
 ?>
 
 <div class="stats-grid">
@@ -59,7 +63,7 @@ include __DIR__ . '/includes/header.php';
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($collections as $c): ?>
+                    <?php foreach ($collections as $c) { ?>
                         <tr>
                             <td><strong><?= e($c['full_name']) ?></strong></td>
                             <td><?= e($c['rider_code']) ?></td>
@@ -69,8 +73,8 @@ include __DIR__ . '/includes/header.php';
                             <td><?= statusBadge((string) $c['remittance_status']) ?></td>
                             <td><?= $c['collected_at'] ? formatDateTime($c['collected_at']) : '—' ?></td>
                             <td>
-                                <?php if (($c['remittance_status'] ?? '') === 'pending'): ?>
-                                    <form method="POST" onsubmit="return confirm('Confirm you have received <?= formatMoney((float) $c['total_collected']) ?> in cash from <?= e($c['full_name']) ?>?')">
+                                <?php if (($c['remittance_status'] ?? '') === 'pending') { ?>
+                                    <form method="POST" data-remittance-confirm data-rider="<?= e($c['full_name']) ?>" data-amount="<?= e(formatMoney((float) $c['total_collected'])) ?>">
                                         <?= csrfField() ?>
                                         <input type="hidden" name="action" value="collect">
                                         <input type="hidden" name="collection_id" value="<?= (int) $c['id'] ?>">
@@ -79,19 +83,75 @@ include __DIR__ . '/includes/header.php';
                                             Confirm &amp; Collect Cash
                                         </button>
                                     </form>
-                                <?php else: ?>
+                                <?php } else { ?>
                                     <span class="text-muted">Done</span>
-                                <?php endif; ?>
+                                <?php } ?>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($collections)): ?>
+                    <?php } ?>
+                    <?php if (empty($collections)) { ?>
                         <tr><td colspan="8" class="text-muted">No rider collections scheduled for this date.</td></tr>
-                    <?php endif; ?>
+                    <?php } ?>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<dialog class="remittance-confirm" id="remittanceConfirm" aria-labelledby="remittanceConfirmTitle" aria-describedby="remittanceConfirmDescription">
+    <div class="remittance-confirm-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <h2 id="remittanceConfirmTitle">Confirm cash received</h2>
+    <p id="remittanceConfirmDescription">Confirm that you received the cash from the rider.</p>
+    <div class="remittance-confirm-summary">
+        <span>Cash amount</span><strong id="remittanceConfirmAmount"></strong>
+        <span>Received from</span><strong id="remittanceConfirmRider"></strong>
+    </div>
+    <p class="remittance-confirm-note">This will mark the rider's cash handover as collected.</p>
+    <div class="remittance-confirm-actions">
+        <button type="button" class="btn btn-outline" data-remittance-cancel>Cancel</button>
+        <button type="button" class="btn btn-success" data-remittance-accept>Confirm received</button>
+    </div>
+</dialog>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var dialog = document.getElementById('remittanceConfirm');
+    if (!dialog) return;
+    var activeForm = null;
+    var amount = document.getElementById('remittanceConfirmAmount');
+    var rider = document.getElementById('remittanceConfirmRider');
+
+    document.querySelectorAll('form[data-remittance-confirm]').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (form.dataset.confirmed === 'true') {
+                delete form.dataset.confirmed;
+                return;
+            }
+            event.preventDefault();
+            activeForm = form;
+            amount.textContent = form.dataset.amount || '';
+            rider.textContent = form.dataset.rider || '';
+            if (typeof dialog.showModal === 'function') dialog.showModal();
+            else if (window.confirm('Confirm that you received ' + amount.textContent + ' in cash from ' + rider.textContent + '?')) form.submit();
+        });
+    });
+
+    dialog.querySelector('[data-remittance-cancel]').addEventListener('click', function () {
+        dialog.close();
+        activeForm = null;
+    });
+    dialog.querySelector('[data-remittance-accept]').addEventListener('click', function () {
+        if (!activeForm) return;
+        var form = activeForm;
+        activeForm = null;
+        dialog.close();
+        form.dataset.confirmed = 'true';
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        else form.submit();
+    });
+});
+</script>
+
+<?php include __DIR__.'/includes/footer.php'; ?>

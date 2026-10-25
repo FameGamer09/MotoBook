@@ -33,22 +33,29 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    public function authenticate(): void
+    public function authenticate(): bool
     {
         $this->ensureIsNotRateLimited();
 
         $identity = trim($this->string('email')->toString());
         $identityField = filter_var($identity, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
-        if (! Auth::attempt([$identityField => $identity, 'password' => $this->string('password')->toString()], $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+        if (Auth::attempt([$identityField => $identity, 'password' => $this->string('password')->toString()], $this->boolean('remember'))) {
+            RateLimiter::clear($this->throttleKey());
 
-            throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
-            ]);
+            return true;
         }
 
-        RateLimiter::clear($this->throttleKey());
+        return false;
+    }
+
+    public function failAuthentication(): never
+    {
+        RateLimiter::hit($this->throttleKey());
+
+        throw ValidationException::withMessages([
+            'email' => trans('auth.failed'),
+        ]);
     }
 
     public function ensureIsNotRateLimited(): void

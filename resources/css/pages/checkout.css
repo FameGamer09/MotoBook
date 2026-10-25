@@ -73,3 +73,30 @@
     }
     .place-order-btn:disabled { @apply opacity-50 cursor-not-allowed; }
 }
+
+/* Payment choices use familiar transaction symbols, clear selection, and touch targets. */
+.checkout-error { margin: 0 20px 12px; padding: 12px 14px; border: 1px solid rgba(220, 38, 38, .22); border-radius: 13px; color: #b42330; background: #fff0f0; font-size: 13px; line-height: 1.45; }
+.address-option-card { display: block; width: 100%; }
+.address-option-unavailable { opacity: .78; }
+.address-pin-warning { display: block; margin-top: 6px; color: #b42330; font-size: 11px; line-height: 1.4; }
+.address-pin-warning a { color: #078eaa; font-weight: 700; }
+.checkout-address-cta { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; margin-top: 8px; padding: 0 13px; border: 1px solid var(--color-accent); border-radius: 12px; color: var(--color-accent-dark); background: #effbfe; background: color-mix(in srgb, var(--color-accent) 7%, white); font-size: 13px; font-weight: 750; text-decoration: none; }
+.checkout-address-cta svg { width: 19px; height: 19px; }
+.payment-option-card { min-height: 58px; gap: 12px; }
+.payment-option-main { display: inline-flex; min-width: 0; align-items: center; gap: 10px; }
+.payment-method-icon { width: 21px; height: 21px; flex: 0 0 21px; color: var(--color-accent-dark); }
+.payment-option input:checked + .payment-option-card .payment-method-icon { color: currentColor; }
+.payment-option:focus-within .payment-option-card { outline: 3px solid color-mix(in srgb, var(--color-accent) 28%, transparent); outline-offset: 2px; }
+.payment-balance { max-width: 56%; text-align: right; line-height: 1.4; }
+.place-order-btn { min-height: 54px; }
+.place-order-btn:disabled { color: #64748b; background: #d7e1e8; box-shadow: none; }
+body[data-theme="dark"] .checkout-address-cta { color: #67e8f9; background: #12303a; }
+body[data-theme="dark"] .place-order-btn:disabled { color: #aab8c7; background: #263746; }
+@media (max-width: 520px) {
+    .checkout-section { margin-right: 12px; margin-left: 12px; padding: 14px; }
+    .checkout-header { padding-right: 14px; padding-left: 14px; }
+    .payment-option-card { align-items: flex-start; }
+    .payment-balance { max-width: 48%; font-size: 10px; }
+    .place-order-bar { padding-right: 12px; padding-left: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    .place-order-btn { padding: 14px 10px; font-size: 14px; }
+}

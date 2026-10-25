@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './global.css';
@@ -12,6 +12,12 @@ import { OrderHistoryPage } from '@/pages/OrderHistoryPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { useRiderStore } from '@/store/useRiderStore';
 import { BottomTabNav } from '@/components/BottomTabNav';
+import { RiderNoticeProvider } from '@/components/RiderNotice';
+import { RiderSupportProvider } from '@/components/RiderSupportDialog';
+import { HeatMapPage } from '@/pages/HeatMapPage';
+import { ScanQRPage } from '@/pages/ScanQRPage';
+import { useOrderStore } from '@/store/useOrderStore';
+import { playOfferAlert } from '@/hooks/usePushNotifications';
 
 function BootHydration() {
   const bootstrap = useRiderStore((s) => s.bootstrapFromServer);
@@ -19,18 +25,49 @@ function BootHydration() {
   return null;
 }
 
+function DispatchOfferMonitor() {
+  const loadOrders = useOrderStore((s) => s.loadList);
+  const orders = useOrderStore((s) => s.list);
+  const refreshedAt = useOrderStore((s) => s.listRefreshedAt);
+  const seenOfferIds = useRef<Set<number> | null>(null);
+
+  useEffect(() => {
+    void loadOrders();
+    const timer = window.setInterval(() => void loadOrders(), 5_000);
+    return () => window.clearInterval(timer);
+  }, [loadOrders]);
+
+  useEffect(() => {
+    if (refreshedAt === null) return;
+    const current = new Set(orders.filter((order) => order.state === 'OFFER_RECEIVED' && order.rider_id === null).map((order) => order.id));
+    if (seenOfferIds.current && [...current].some((id) => !seenOfferIds.current?.has(id))) {
+      playOfferAlert();
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('MotoBook delivery offer', { body: 'A new delivery is available. Open MotoBook to review it.' });
+      }
+    }
+    seenOfferIds.current = current;
+  }, [orders, refreshedAt]);
+
+  return null;
+}
+
 function PhoneShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rider-app min-h-[100dvh] w-full text-white antialiased text-[15px] font-sans [color-scheme:dark]">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1680px] lg:pl-[248px]">
-        <BottomTabNav />
-        <div className="min-w-0 flex-1">
-          <div className="relative min-h-[100dvh] w-full pb-[96px] lg:pb-0">
-            {children}
+    <RiderNoticeProvider>
+      <RiderSupportProvider>
+        <div className="rider-app min-h-[100dvh] w-full text-white antialiased text-[15px] font-sans [color-scheme:dark]">
+          <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1680px] lg:pl-[248px]">
+            <BottomTabNav />
+            <div className="min-w-0 flex-1">
+              <div className="relative min-h-[100dvh] w-full pb-[96px] lg:pb-0">
+                {children}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </RiderSupportProvider>
+    </RiderNoticeProvider>
   );
 }
 
@@ -40,6 +77,7 @@ function App() {
   return (
     <BrowserRouter basename={basename}>
       <BootHydration />
+      <DispatchOfferMonitor />
       <PhoneShell>
         <Routes>
           <Route path="/" element={<HomeDashboardPage />} />
@@ -49,6 +87,8 @@ function App() {
           <Route path="/earnings" element={<EarningsLedgerPage />} />
           <Route path="/deposit" element={<DepositPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
+          <Route path="/heatmap" element={<HeatMapPage />} />
+          <Route path="/scan" element={<ScanQRPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

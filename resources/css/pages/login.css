@@ -66,7 +66,7 @@
 .login-social-button {
     display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 8px;
     border: 1px solid #dce5ee; border-radius: 15px; color: #36475d; background: #fff;
-    font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: .18s ease;
+    font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: .18s ease;
 }
 .login-social-button:hover { border-color: #8eddeb; background: #f8fdff; box-shadow: 0 4px 12px rgba(23,61,86,.06); }
 .login-social-button svg { width: 21px; height: 21px; flex: 0 0 21px; }

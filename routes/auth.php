@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\PhoneOtpController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,22 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    foreach (['google', 'facebook', 'apple'] as $provider) {
+        Route::get("auth/{$provider}", [SocialLoginController::class, 'redirect'])
+            ->defaults('provider', $provider)
+            ->name("login.social.{$provider}");
+    }
+
+    Route::match(['get', 'post'], 'auth/apple/callback', [SocialLoginController::class, 'callback'])
+        ->defaults('provider', 'apple')
+        ->name('login.social.apple.callback');
+
+    foreach (['google', 'facebook'] as $provider) {
+        Route::get("auth/{$provider}/callback", [SocialLoginController::class, 'callback'])
+            ->defaults('provider', $provider)
+            ->name("login.social.{$provider}.callback");
+    }
 
     Route::get('login/phone', [PhoneOtpController::class, 'create'])
         ->name('login.phone');

@@ -114,6 +114,7 @@ export interface OrderEntity {
   state: OrderState;
   offer_received_at: string;
   offer_expires_at: string | null;
+  can_accept_offer?: boolean;
   accepted_at: string | null;
   pickup_arrived_at: string | null;
   verified_at: string | null;

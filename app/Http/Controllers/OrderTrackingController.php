@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\RiderLocationLog;
+use App\Services\ManagementOrderSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Services\ManagementOrderSync;
 
 class OrderTrackingController extends Controller
 {
@@ -64,7 +64,7 @@ class OrderTrackingController extends Controller
         ], 200);
     }
 
-    public function showTracking(Request $request, Order $order): JsonResponse
+    public function showTracking(Request $request, Order $order, ManagementOrderSync $managementOrders): JsonResponse
     {
         $user = $request->user();
         $riderUserId = $order->rider?->user_id;
@@ -79,6 +79,9 @@ class OrderTrackingController extends Controller
             abort(403, 'You are not authorized to view tracking for this order.');
         }
 
+        $managementTracking = $managementOrders->pull($order);
+        $order->refresh();
+
         $order->load([
             'customer:id,name,email',
             'rider.user:id,name,email',
@@ -86,8 +89,16 @@ class OrderTrackingController extends Controller
             'deliveryAddress',
         ]);
 
-        $riderLat = $order->rider_lat ?? $order->rider?->current_latitude;
-        $riderLng = $order->rider_lng ?? $order->rider?->current_longitude;
+        $managementRider = $managementTracking['rider'] ?? [];
+        // Only expose coordinates from recent telemetry. Profile and order
+        // coordinates have no per-fix timestamp and can be stale.
+        $localLocation = RiderLocationLog::query()
+            ->where('order_id', $order->id)
+            ->where('recorded_at', '>=', now()->subSeconds(90))
+            ->latest('recorded_at')
+            ->first();
+        $riderLat = $managementRider['latitude'] ?? $localLocation?->latitude;
+        $riderLng = $managementRider['longitude'] ?? $localLocation?->longitude;
         $customerLat = $order->customer_lat ?? $order->deliveryAddress?->latitude;
         $customerLng = $order->customer_lng ?? $order->deliveryAddress?->longitude;
         $merchantLat = $order->merchant_lat ?? $order->store?->latitude;
@@ -138,9 +149,10 @@ class OrderTrackingController extends Controller
                     'id' => $order->customer->id,
                     'name' => $order->customer->name,
                 ] : null,
-                'rider' => $order->rider ? [
-                    'id' => $order->rider->user_id,
-                    'name' => $order->rider->user?->name,
+                'rider' => ($order->rider || $managementRider) ? [
+                    'id' => $order->rider?->user_id,
+                    'name' => $managementRider['name'] ?? $order->rider?->user?->name,
+                    'phone' => $managementRider['phone'] ?? $order->rider?->user?->phone,
                 ] : null,
                 'locations' => [
                     'merchant' => $merchantLat !== null && $merchantLng !== null ? [
@@ -154,7 +166,7 @@ class OrderTrackingController extends Controller
                     'rider' => $riderLat !== null && $riderLng !== null ? [
                         'lat' => (float) $riderLat,
                         'lng' => (float) $riderLng,
-                        'updated_at' => $order->updated_at->toIso8601String(),
+                        'updated_at' => $managementRider['updated_at'] ?? $localLocation?->recorded_at?->toIso8601String(),
                     ] : null,
                 ],
                 'distances' => [

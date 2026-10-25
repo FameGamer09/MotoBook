@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Customer;
 
-use App\Http\Requests\Customer\SubmitOrderReviewRequest;
-use App\Http\Controllers\Controller;
 use App\Exceptions\OrderException;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Customer\SubmitOrderReviewRequest;
 use App\Models\Order;
 use App\Models\Review;
 use App\Models\Rider;
 use App\Models\RiderLocationLog;
 use App\Models\Store;
-use App\Services\OrderService;
 use App\Services\ManagementOrderSync;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -153,15 +153,22 @@ class OrderController extends Controller
             }
         }
 
+        $managementRider = $managementTracking['rider'] ?? null;
+        $rider = $managementRider;
+        if ($delivery?->rider) {
+            $rider = [
+                'name' => $managementRider['name'] ?? $delivery->rider->user?->name,
+                'phone' => $managementRider['phone'] ?? $delivery->rider->user?->phone,
+                'latitude' => $managementRider['latitude'] ?? ($location['latitude'] ?? null),
+                'longitude' => $managementRider['longitude'] ?? ($location['longitude'] ?? null),
+                'updated_at' => $managementRider['updated_at'] ?? ($location['recorded_at'] ?? null),
+            ];
+        }
+
         return response()->json([
             'status' => $order->status,
             'delivery_status' => $managementTracking['delivery_status'] ?? $delivery?->status,
-            'rider' => $managementTracking['rider'] ?? ($delivery?->rider ? [
-                'name' => $delivery->rider->user?->name,
-                'latitude' => $location['latitude'] ?? null,
-                'longitude' => $location['longitude'] ?? null,
-                'updated_at' => $location['recorded_at'] ?? null,
-            ] : null),
+            'rider' => $rider,
         ]);
     }
 }

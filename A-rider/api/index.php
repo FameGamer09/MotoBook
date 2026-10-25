@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/app.php';
 require_once __DIR__.'/../includes/db.php';
 require_once __DIR__.'/../includes/dispatch.php';
+require_once __DIR__.'/../../admin/includes/rider_support.php';
+require_once __DIR__.'/../../admin/includes/rider_telemetry.php';
 
 $pdo = riderAdminDB();
 $reqPath = preg_replace('#^.*/A-rider/api#', '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '');
@@ -271,6 +273,7 @@ try {
         if ($subject === '' || $message === '' || mb_strlen($subject) > 120 || mb_strlen($message) > 4000) {
             $send(['error' => 'INVALID_SUPPORT_REQUEST', 'message' => 'Enter a subject and a message under 4,000 characters.'], 422);
         }
+        ensureRiderSupportRequestTable($pdo);
         $recent = $pdo->prepare('SELECT COUNT(*) FROM rider_support_requests WHERE rider_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)');
         $recent->execute([$riderId]);
         if ((int) $recent->fetchColumn() >= 5) {
@@ -315,23 +318,49 @@ try {
     }
 
     if (preg_match('#^/orders/list$#', $reqPath) && $method === 'GET') {
-        autoAssignPendingRiderOrders($pdo);
         $filter = $_GET['state'] ?? null;
-        $sql = 'SELECT * FROM rider_orders WHERE rider_id = ?';
-        $params = [$riderId];
+        $sql = "SELECT * FROM rider_orders
+            WHERE rider_id = ?
+                OR (rider_id IS NULL AND state = 'OFFER_RECEIVED'
+                    AND EXISTS (SELECT 1 FROM riders me WHERE me.id = ? AND UPPER(me.status) IN ('ON_SHIFT','ON_DUTY')))";
+        $params = [$riderId, $riderId];
         if ($filter) {
-            $sql .= ' AND state = ? ';
+            $sql = 'SELECT * FROM ('.$sql.') listed_orders WHERE state = ?';
             $params[] = $filter;
         }
-        $sql .= ' ORDER BY CASE state WHEN \'ACCEPTED\' THEN 0 ELSE 1 END, offer_received_at DESC LIMIT 30';
+        $sql .= " ORDER BY CASE WHEN rider_id = ? AND state NOT IN ('OFFER_RECEIVED','OFFER_EXPIRED','OFFER_REJECTED','CANCELLED','COMPLETED') THEN 0 ELSE 1 END,
+            offer_received_at DESC LIMIT 30";
+        $params[] = $riderId;
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll();
+
+        // Equal-share rotation: among riders who are on shift and not already
+        // working a delivery, only the least-served riders can claim the next
+        // offer. Ties are first-confirmed-wins.
+        $eligible = $pdo->query("SELECT rider.id,
+                (SELECT COUNT(*) FROM rider_orders served
+                 WHERE served.rider_id = rider.id AND served.accepted_at >= CURDATE()) AS assigned_today
+            FROM riders rider
+            WHERE UPPER(rider.status) IN ('ON_SHIFT','ON_DUTY')
+              AND NOT EXISTS (SELECT 1 FROM rider_orders active_order WHERE active_order.rider_id = rider.id
+                AND active_order.state IN ('ACCEPTED','NAVIGATING_TO_PICKUP','ARRIVED_AT_PICKUP','ORDER_VERIFIED','NAVIGATING_TO_DROP_OFF','ARRIVED_AT_DROP_OFF','PROOF_SUBMITTED'))
+              AND NOT EXISTS (SELECT 1 FROM orders active_legacy_order WHERE active_legacy_order.rider_id = rider.id
+                AND active_legacy_order.order_status IN ('driver_assigned','out_for_delivery','picked_up'))")->fetchAll();
+        $lowestLoad = $eligible ? min(array_map(static fn ($r) => (int) $r['assigned_today'], $eligible)) : null;
+        $eligibleIds = array_map(static fn ($r) => (int) $r['id'], $eligible);
         foreach ($rows as &$row) {
             $items = isset($row['items_json'])
                 ? json_decode((string) $row['items_json'], true)
                 : [];
             $row['items'] = is_array($items) ? $items : [];
+            $isOffer = $row['rider_id'] === null && $row['state'] === 'OFFER_RECEIVED';
+            $offerAgeSeconds = max(0, time() - (strtotime((string) $row['offer_received_at']) ?: time()));
+            $priorityLoad = $lowestLoad === null ? null : $lowestLoad + intdiv($offerAgeSeconds, 20);
+            $row['can_accept_offer'] = $isOffer
+                && $priorityLoad !== null
+                && in_array($riderId, $eligibleIds, true)
+                && (int) ($eligible[array_search($riderId, $eligibleIds, true)]['assigned_today'] ?? PHP_INT_MAX) <= $priorityLoad;
             unset($row['items_json']);
         }
         $send(['orders' => $rows]);
@@ -346,10 +375,73 @@ try {
             $send(['error' => 'INVALID_STATE'], 400);
         }
         $pdo->beginTransaction();
+        if ($target === 'ACCEPTED') {
+            // Lock the rider roster in a stable order so simultaneous claims
+            // recalculate the fair-share counts after the previous claim commits.
+            $pdo->query("SELECT id FROM riders WHERE UPPER(status) IN ('ON_SHIFT','ON_DUTY') ORDER BY id FOR UPDATE")->fetchAll();
+        }
         $stmt = $pdo->prepare('SELECT * FROM rider_orders WHERE id = ? LIMIT 1 FOR UPDATE');
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
-        if (! $order || (int) $order['rider_id'] !== $riderId) {
+        if (! $order) {
+            $pdo->rollBack();
+            $send(['error' => 'ORDER_NOT_FOUND'], 404);
+        }
+        if ($target === 'ACCEPTED' && $order['rider_id'] === null && $order['state'] === 'OFFER_RECEIVED') {
+            $riderStmt = $pdo->prepare("SELECT id FROM riders WHERE id = ? AND UPPER(status) IN ('ON_SHIFT','ON_DUTY') FOR UPDATE");
+            $riderStmt->execute([$riderId]);
+            if (! $riderStmt->fetchColumn()) {
+                $pdo->rollBack();
+                $send(['error' => 'RIDER_NOT_AVAILABLE', 'message' => 'Go on shift before accepting a delivery.'], 409);
+            }
+            $busyStmt = $pdo->prepare("SELECT 1 FROM rider_orders WHERE rider_id = ?
+                AND state IN ('ACCEPTED','NAVIGATING_TO_PICKUP','ARRIVED_AT_PICKUP','ORDER_VERIFIED','NAVIGATING_TO_DROP_OFF','ARRIVED_AT_DROP_OFF','PROOF_SUBMITTED')
+                UNION ALL SELECT 1 FROM orders WHERE rider_id = ? AND order_status IN ('driver_assigned','out_for_delivery','picked_up') LIMIT 1");
+            $busyStmt->execute([$riderId, $riderId]);
+            if ($busyStmt->fetchColumn()) {
+                $pdo->rollBack();
+                $send(['error' => 'RIDER_BUSY', 'message' => 'Finish your current delivery before accepting another.'], 409);
+            }
+            $loadStmt = $pdo->query("SELECT rider.id,
+                    (SELECT COUNT(*) FROM rider_orders served WHERE served.rider_id = rider.id
+                        AND served.accepted_at >= CURDATE()) AS assigned_today
+                FROM riders rider WHERE UPPER(rider.status) IN ('ON_SHIFT','ON_DUTY')
+                  AND NOT EXISTS (SELECT 1 FROM rider_orders active_order WHERE active_order.rider_id = rider.id
+                    AND active_order.state IN ('ACCEPTED','NAVIGATING_TO_PICKUP','ARRIVED_AT_PICKUP','ORDER_VERIFIED','NAVIGATING_TO_DROP_OFF','ARRIVED_AT_DROP_OFF','PROOF_SUBMITTED'))
+                  AND NOT EXISTS (SELECT 1 FROM orders active_legacy_order WHERE active_legacy_order.rider_id = rider.id
+                    AND active_legacy_order.order_status IN ('driver_assigned','out_for_delivery','picked_up'))");
+            $eligibleLoads = $loadStmt->fetchAll();
+            $minimum = $eligibleLoads ? min(array_map(static fn ($r) => (int) $r['assigned_today'], $eligibleLoads)) : null;
+            $myLoad = null;
+            foreach ($eligibleLoads as $candidate) {
+                if ((int) $candidate['id'] === $riderId) {
+                    $myLoad = (int) $candidate['assigned_today'];
+                    break;
+                }
+            }
+            $offerAgeSeconds = max(0, time() - (strtotime((string) $order['offer_received_at']) ?: time()));
+            $priorityLoad = $minimum === null ? null : $minimum + intdiv($offerAgeSeconds, 20);
+            if ($priorityLoad === null || $myLoad === null || $myLoad > $priorityLoad) {
+                $pdo->rollBack();
+                $send(['error' => 'FAIR_SHARE_WAIT', 'message' => 'This delivery is being offered to riders with fewer deliveries first. Please wait for the next offer.'], 409);
+            }
+            $claim = $pdo->prepare("UPDATE rider_orders SET rider_id = ?, state = 'ACCEPTED', accepted_at = NOW(), offer_expires_at = NULL, updated_at = NOW()
+                WHERE id = ? AND rider_id IS NULL AND state = 'OFFER_RECEIVED'");
+            $claim->execute([$riderId, $orderId]);
+            if ($claim->rowCount() !== 1) {
+                $pdo->rollBack();
+                $send(['error' => 'OFFER_ALREADY_CLAIMED', 'message' => 'Another rider confirmed this delivery first.'], 409);
+            }
+            if (! empty($order['shared_order_id'])) {
+                $legacyClaim = $pdo->prepare("UPDATE orders SET rider_id = ?, order_status = 'driver_assigned', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
+                    WHERE id = ? AND rider_id IS NULL AND order_status NOT IN ('cancelled','delivered')");
+                $legacyClaim->execute([$riderId, (int) $order['shared_order_id']]);
+                if ($legacyClaim->rowCount() !== 1) {
+                    $pdo->rollBack();
+                    $send(['error' => 'OFFER_ALREADY_CLAIMED', 'message' => 'This order is no longer available.'], 409);
+                }
+            }
+        } elseif ((int) $order['rider_id'] !== $riderId) {
             $pdo->rollBack();
             $send(['error' => 'ORDER_NOT_FOUND'], 404);
         }
@@ -404,26 +496,39 @@ try {
         if (count($batch) > 500) {
             $send(['error' => 'BATCH_TOO_LARGE'], 400);
         }
+        ensureRiderLocationLogsTable($pdo);
         $sql = 'INSERT INTO rider_location_logs (rider_id, rider_order_id, lat, lng, heading, speed_kmh, accuracy_m, motion_state, is_offline_batch, recorded_at) VALUES ';
         $ph = [];
         $args = [];
-        $orderId = ! empty($body['rider_order_id']) ? (int) $body['rider_order_id'] : null;
+        $defaultOrderId = ! empty($body['rider_order_id']) ? (int) $body['rider_order_id'] : null;
         foreach ($batch as $p) {
-            $ph[] = '(?,?,?,?,?,?,?,?,?,FROM_UNIXTIME(?) * 1)';
-            $ts = (int) ($p['t_ms'] ?? floor(microtime(true) * 1000));
+            if (! is_array($p) || ! isset($p['lat'], $p['lng']) || ! is_numeric($p['lat']) || ! is_numeric($p['lng'])) {
+                continue;
+            }
+            $lat = (float) $p['lat'];
+            $lng = (float) $p['lng'];
+            if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+                continue;
+            }
+            $orderId = ! empty($p['rider_order_id']) ? (int) $p['rider_order_id'] : $defaultOrderId;
+            $ph[] = '(?,?,?,?,?,?,?,?,?,FROM_UNIXTIME(?))';
+            $tsMs = isset($p['t_ms']) && is_numeric($p['t_ms']) ? (int) $p['t_ms'] : (int) floor(microtime(true) * 1000);
             $args[] = $riderId;
             $args[] = $orderId;
-            $args[] = (float) ($p['lat'] ?? 0);
-            $args[] = (float) ($p['lng'] ?? 0);
+            $args[] = $lat;
+            $args[] = $lng;
             $args[] = isset($p['heading']) ? (float) $p['heading'] : null;
             $args[] = isset($p['speed_kmh']) ? (float) $p['speed_kmh'] : null;
             $args[] = isset($p['accuracy_m']) ? (float) $p['accuracy_m'] : null;
             $args[] = in_array($p['motion'] ?? 'IDLE', ['MOVING', 'IDLE', 'STOPPED'], true) ? ($p['motion'] ?? 'IDLE') : 'IDLE';
             $args[] = ! empty($p['offline']) ? 1 : 0;
-            $args[] = (int) floor($ts / 1000);
+            $args[] = (int) floor($tsMs / 1000);
+        }
+        if (! $ph) {
+            $send(['error' => 'INVALID_LOCATION_POINTS'], 422);
         }
         $pdo->prepare($sql.implode(',', $ph))->execute($args);
-        $send(['ok' => true, 'stored' => count($batch), 'server_ts_ms' => (int) (microtime(true) * 1000)], 201);
+        $send(['ok' => true, 'stored' => count($ph), 'server_ts_ms' => (int) (microtime(true) * 1000)], 201);
     }
 
     if (preg_match('#^/orders/(\d+)/pod$#', $reqPath, $m) && $method === 'POST') {

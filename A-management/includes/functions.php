@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__.'/../config/app.php';
 require_once __DIR__.'/../../A-rider/includes/dispatch.php';
+require_once __DIR__.'/../../admin/includes/rider_support.php';
 
 function getOpsDB(): PDO
 {
@@ -1349,7 +1350,7 @@ function createDirectOrder(array $customer, int $storeId, array $lineItems, int 
                             'options' => [],
                         ];
                     }
-                    if ($r['option_id']) {
+                    if ($r['option_id'] && (int) $r['is_available'] === 1) {
                         $groups[$r['group_id']]['options'][(int) $r['option_id']] = [
                             'option_id' => (int) $r['option_id'],
                             'option_name' => $r['option_name'],
@@ -1360,10 +1361,17 @@ function createDirectOrder(array $customer, int $storeId, array $lineItems, int 
                 if (! is_array($selectedOptionIds)) {
                     $selectedOptionIds = [];
                 }
-                $selectedOptionIds = array_map('intval', $selectedOptionIds);
+                $selectedOptionIds = array_values(array_unique(array_filter(
+                    array_map('intval', $selectedOptionIds),
+                    static fn (int $id): bool => $id > 0
+                )));
+                $validSelectedCount = 0;
                 foreach ($groups as $g) {
+                    $selectedInGroup = 0;
                     foreach ($g['options'] as $oid => $opt) {
                         if (in_array($oid, $selectedOptionIds, true)) {
+                            $selectedInGroup++;
+                            $validSelectedCount++;
                             $unitPrice += (float) $opt['price_delta'];
                             $optionDeltas[] = [
                                 'group_name' => $g['group_name'],
@@ -1372,6 +1380,20 @@ function createDirectOrder(array $customer, int $storeId, array $lineItems, int 
                             ];
                         }
                     }
+                    $minSelect = max((int) $g['min_select'], ! empty($g['is_required']) ? 1 : 0);
+                    $maxSelect = strtolower((string) $g['selection_type']) === 'radio'
+                        ? 1
+                        : max(0, (int) $g['max_select']);
+                    if ($selectedInGroup < $minSelect || ($maxSelect > 0 && $selectedInGroup > $maxSelect)) {
+                        $pdo->rollBack();
+
+                        return false;
+                    }
+                }
+                if ($validSelectedCount !== count($selectedOptionIds)) {
+                    $pdo->rollBack();
+
+                    return false;
                 }
             } else {
                 $itemName = trim((string) ($line['item_name_snapshot'] ?? 'Custom Item'));

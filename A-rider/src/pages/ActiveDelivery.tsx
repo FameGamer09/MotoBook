@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { LucideIcon } from '@/components/ui/Primitive';
 import { describeDeliveryProgress } from '@/lib/orderStateMachine';
 import type { OrderState } from '@/types/domain';
+import { useRiderNotice } from '@/components/RiderNotice';
+import { useRiderSupport } from '@/components/RiderSupportDialog';
 
 function openMapsApp(target: { lat: number | null; lng: number | null; label: string }, kind: 'google' | 'waze' | 'apple' = 'google') {
   const ll = target.lat != null && target.lng != null ? `${target.lat},${target.lng}` : '';
@@ -31,6 +33,8 @@ function openMapsApp(target: { lat: number | null; lng: number | null; label: st
 const DROPOFF_STATES: OrderState[] = ['ORDER_VERIFIED','NAVIGATING_TO_DROP_OFF','ARRIVED_AT_DROP_OFF','PROOF_SUBMITTED'];
 
 export function ActiveDeliveryPage() {
+  const showNotice = useRiderNotice();
+  const openSupport = useRiderSupport();
   const rider = useRiderStore((s) => s.profile);
   const orders = useOrderStore((s) => s.list);
   const activeId = useOrderStore((s) => s.activeOrderId);
@@ -143,17 +147,18 @@ export function ActiveDeliveryPage() {
             <h1 className="text-[16px] font-bold text-white tracking-tight leading-none">{headerTitle}</h1>
           </div>
           {isAccepted ? (
-            <a
-              href="tel:"
+            <button
+              type="button"
+              onClick={openSupport}
               className="min-h-[40px] min-w-[48px] h-10 w-10 rounded-2xl inline-flex items-center justify-center text-cyan-300 hover:text-cyan-200 hover:bg-cyan-500/10 transition"
               aria-label="Support"
             >
               <LucideIcon name="Headphones" size={18} strokeWidth={1.75} />
-            </a>
+            </button>
           ) : (
             <button
               type="button"
-              onClick={() => window.alert('Report incident: Contact dispatch via call/support.')}
+              onClick={() => showNotice('To report an incident, contact rider operations through Support.')}
               className="min-h-[40px] min-w-[48px] h-10 px-3 rounded-2xl inline-flex items-center gap-1.5 text-[13px] font-bold text-cyan-300 hover:text-cyan-200 hover:bg-cyan-500/10 transition"
               aria-label="Report"
             >
@@ -174,7 +179,7 @@ export function ActiveDeliveryPage() {
             order={order}
             telemetry={tel}
             onCallMerchant={() => { if (order.merchant_phone) window.location.href = `tel:${order.merchant_phone}`; }}
-            onChatCustomer={() => { alert('Chat: Not integrated — customer contact via phone below if available.'); }}
+            onChatCustomer={() => showNotice('Customer chat is not available yet. Use the phone option if shown.')}
             onOpenNavigation={onOpen}
             onOpenChecklist={() => nav('/checklist')}
             onSwipeAction={swipeAction}

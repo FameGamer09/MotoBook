@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 $pdo = getDBConnection();
 runOperationsMigration($pdo);
@@ -28,7 +28,7 @@ if ($route === 'auth/login' && $method === 'POST') {
         $stmt = $pdo->prepare('SELECT * FROM super_admins WHERE email = ?');
         $stmt->execute([$email]);
         $admin = $stmt->fetch();
-        if (!$admin || !password_verify($password, $admin['password'])) {
+        if (! $admin || ! password_verify($password, $admin['password'])) {
             apiJson(['success' => false, 'message' => 'Invalid super admin credentials.'], 401);
         }
         $token = issueToken($pdo, 'super_admin', (int) $admin['id'], $admin['email']);
@@ -72,7 +72,7 @@ if ($route === 'auth/login' && $method === 'POST') {
         $token = issueToken($pdo, 'store_owner', (int) $store['id'], $store['owner_email']);
         apiJson(['success' => true, 'token' => $token, 'user' => [
             'id' => (int) $store['id'],
-            'name' => $store['owner_name'] ?: $store['store_name'] . ' Owner',
+            'name' => $store['owner_name'] ?: $store['store_name'].' Owner',
             'email' => $store['owner_email'],
             'type' => 'store_owner',
             'role' => 'store_manager',
@@ -113,13 +113,13 @@ if ($route === 'settings' && $method === 'POST') {
 
 if ($route === 'dashboard') {
     $threshold = delayThreshold($pdo);
-    $storeFilter = $scopeStoreId ? ' AND store_id = ' . (int) $scopeStoreId : '';
+    $storeFilter = $scopeStoreId ? ' AND store_id = '.(int) $scopeStoreId : '';
     $activeOrders = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE order_status NOT IN ('delivered','cancelled') {$storeFilter}")->fetchColumn();
     $delayed = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE (order_status = 'delayed' OR (order_status NOT IN ('delivered','cancelled') AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) > {$threshold})) {$storeFilter}")->fetchColumn();
-    $openTickets = (int) $pdo->query('SELECT COUNT(*) FROM complaint_tickets WHERE status IN (\'open\',\'in_review\')' . ($scopeStoreId ? ' AND store_id = ' . (int) $scopeStoreId : ''))->fetchColumn();
+    $openTickets = (int) $pdo->query('SELECT COUNT(*) FROM complaint_tickets WHERE status IN (\'open\',\'in_review\')'.($scopeStoreId ? ' AND store_id = '.(int) $scopeStoreId : ''))->fetchColumn();
     $pendingRemit = (int) $pdo->query("SELECT COUNT(*) FROM rider_daily_collections WHERE remittance_status = 'pending' AND collection_date = CURDATE()")->fetchColumn();
     $ridersOnShift = (int) $pdo->query("SELECT COUNT(*) FROM rider_shifts WHERE shift_date = CURDATE() AND shift_status IN ('clocked_in','active','on_break')")->fetchColumn();
-    $pendingPromos = (int) $pdo->query("SELECT COUNT(*) FROM store_promos WHERE status = 'pending'" . ($scopeStoreId ? ' AND store_id = ' . (int) $scopeStoreId : ''))->fetchColumn();
+    $pendingPromos = (int) $pdo->query("SELECT COUNT(*) FROM store_promos WHERE status = 'pending'".($scopeStoreId ? ' AND store_id = '.(int) $scopeStoreId : ''))->fetchColumn();
 
     apiJson(['success' => true, 'kpis' => [
         'active_orders' => $activeOrders,
@@ -148,7 +148,7 @@ if ($route === 'orders') {
         $sql .= ' AND o.store_id = ?';
         $params[] = $scopeStoreId;
     }
-    if (!empty($_GET['status']) && $_GET['status'] !== 'all') {
+    if (! empty($_GET['status']) && $_GET['status'] !== 'all') {
         if ($_GET['status'] === 'delayed') {
             $sql .= " AND o.order_status NOT IN ('delivered','cancelled') AND (o.order_status = 'delayed' OR TIMESTAMPDIFF(MINUTE, o.created_at, NOW()) > ?)";
             $params[] = $threshold;
@@ -171,7 +171,7 @@ if (preg_match('#^orders/(\d+)$#', $route, $m) && $method === 'GET') {
     $stmt = $pdo->prepare('SELECT o.*, ps.store_name, r.full_name AS rider_name FROM orders o LEFT JOIN partnership_stores ps ON ps.id = o.store_id LEFT JOIN riders r ON r.id = o.rider_id WHERE o.id = ?');
     $stmt->execute([$id]);
     $order = $stmt->fetch();
-    if (!$order) {
+    if (! $order) {
         apiJson(['success' => false, 'message' => 'Order not found.'], 404);
     }
     if ($scopeStoreId && (int) $order['store_id'] !== $scopeStoreId) {
@@ -195,7 +195,7 @@ if (preg_match('#^orders/(\d+)$#', $route, $m) && $method === 'GET') {
         $roStmt->execute([$id]);
         $riderOrder = $roStmt->fetch() ?: null;
         if ($riderOrder) {
-            $roId = (int)$riderOrder['id'];
+            $roId = (int) $riderOrder['id'];
             $podStmt = $pdo->prepare('SELECT proof_image_path, proof_image_lat, proof_image_lng, proof_captured_at,
                 cod_collected_amt, cod_change_due, cod_confirmed, signature_path, signature_name, dropoff_notes, handoff_mode, created_at
                 FROM rider_pod_records WHERE rider_order_id = ? LIMIT 1');
@@ -224,7 +224,7 @@ if (preg_match('#^orders/(\d+)$#', $route, $m) && $method === 'GET') {
 }
 
 if (preg_match('#^orders/(\d+)/reassign$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Only Motobook management staff can reassign riders.'], 403);
     }
     $orderId = (int) $m[1];
@@ -233,42 +233,44 @@ if (preg_match('#^orders/(\d+)/reassign$#', $route, $m) && $method === 'POST') {
     $rider = $pdo->prepare("SELECT * FROM riders WHERE id = ? AND status IN ('active','on_duty')");
     $rider->execute([$riderId]);
     $riderRow = $rider->fetch();
-    if (!$riderRow) {
+    if (! $riderRow) {
         apiJson(['success' => false, 'message' => 'Rider is not available for assignment.'], 422);
     }
     $pdo->beginTransaction();
     try {
         $pdo->prepare("UPDATE orders SET rider_id = ?, order_status = 'driver_assigned', assigned_at = NOW() WHERE id = ?")->execute([$riderId, $orderId]);
         $pdo->prepare("UPDATE riders SET duty_status = 'on_trip', status = 'on_duty' WHERE id = ?")->execute([$riderId]);
-        logOrderEvent($pdo, $orderId, 'reassign', $reason . ' → ' . $riderRow['full_name'], $user['actor_email']);
-        $riderSync = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string)$user['actor_email']);
+        logOrderEvent($pdo, $orderId, 'reassign', $reason.' → '.$riderRow['full_name'], $user['actor_email']);
+        $riderSync = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string) $user['actor_email']);
         $pdo->commit();
-        apiJson(['success' => true, 'message' => 'Order reassigned to ' . $riderRow['full_name'] . '.', 'rider_sync' => $riderSync]);
+        apiJson(['success' => true, 'message' => 'Order reassigned to '.$riderRow['full_name'].'.', 'rider_sync' => $riderSync]);
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        apiJson(['success' => false, 'message' => 'Failed to reassign order: ' . $e->getMessage()], 500);
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        apiJson(['success' => false, 'message' => 'Failed to reassign order: '.$e->getMessage()], 500);
     }
 }
 
 if (preg_match('#^orders/(\d+)/rider-sync$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Only Motobook management staff can sync orders to the rider system.'], 403);
     }
-    $orderId = (int)$m[1];
-    $riderId = (int)($body['rider_id'] ?? 0);
+    $orderId = (int) $m[1];
+    $riderId = (int) ($body['rider_id'] ?? 0);
     if ($riderId <= 0) {
         $probe = $pdo->prepare('SELECT rider_id FROM orders WHERE id = ? LIMIT 1');
         $probe->execute([$orderId]);
-        $riderId = (int)($probe->fetchColumn() ?: 0);
+        $riderId = (int) ($probe->fetchColumn() ?: 0);
     }
     if ($riderId <= 0) {
         apiJson(['success' => false, 'message' => 'No rider assigned to this legacy order. Assign a rider first.'], 422);
     }
-    $synced = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string)($user['actor_email'] ?? ''));
-    if (!$synced || empty($synced['rider_order_id'])) {
+    $synced = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string) ($user['actor_email'] ?? ''));
+    if (! $synced || empty($synced['rider_order_id'])) {
         apiJson(['success' => false, 'message' => 'Rider schema not installed or order not found — run A-rider/migrations/001_init_rider_schema.sql first.'], 422);
     }
-    logOrderEvent($pdo, $orderId, 'rider_sync', 'Explicit sync → rider_orders #' . $synced['rider_order_id'], (string)($user['actor_email'] ?? ''));
+    logOrderEvent($pdo, $orderId, 'rider_sync', 'Explicit sync → rider_orders #'.$synced['rider_order_id'], (string) ($user['actor_email'] ?? ''));
     apiJson(['success' => true, 'rider_sync' => $synced]);
 }
 
@@ -287,7 +289,7 @@ if ($route === 'incidents' && $method === 'GET') {
 }
 
 if ($route === 'incidents' && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Only management staff can log rider incidents.'], 403);
     }
     $pdo->prepare('INSERT INTO rider_incidents (rider_id, incident_type, notes, logged_by_staff_id) VALUES (?, ?, ?, ?)')
@@ -306,7 +308,7 @@ if ($route === 'remittance' && $method === 'GET') {
 }
 
 if (preg_match('#^remittance/(\d+)/collect$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Only Motobook management staff can collect remittance.'], 403);
     }
     $id = (int) $m[1];
@@ -325,7 +327,7 @@ if ($route === 'tickets' && $method === 'GET') {
         $sql .= ' AND t.store_id = ?';
         $params[] = $scopeStoreId;
     }
-    if (!empty($_GET['status'])) {
+    if (! empty($_GET['status'])) {
         $sql .= ' AND t.status = ?';
         $params[] = $_GET['status'];
     }
@@ -340,7 +342,7 @@ if (preg_match('#^tickets/(\d+)$#', $route, $m) && $method === 'GET') {
     $stmt = $pdo->prepare('SELECT t.*, ps.store_name, r.full_name AS rider_name, o.order_number, o.order_total, o.photo_path FROM complaint_tickets t LEFT JOIN partnership_stores ps ON ps.id = t.store_id LEFT JOIN riders r ON r.id = t.rider_id LEFT JOIN orders o ON o.id = t.order_id WHERE t.id = ?');
     $stmt->execute([$id]);
     $ticket = $stmt->fetch();
-    if (!$ticket) {
+    if (! $ticket) {
         apiJson(['success' => false, 'message' => 'Ticket not found.'], 404);
     }
     if ($scopeStoreId && (int) $ticket['store_id'] !== $scopeStoreId) {
@@ -362,7 +364,7 @@ if (preg_match('#^tickets/(\d+)$#', $route, $m) && $method === 'GET') {
 }
 
 if (preg_match('#^tickets/(\d+)/resolve$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Daily ticket resolution is handled by Motobook management staff.'], 403);
     }
     $id = (int) $m[1];
@@ -373,13 +375,13 @@ if (preg_match('#^tickets/(\d+)/resolve$#', $route, $m) && $method === 'POST') {
     $ticketStmt = $pdo->prepare('SELECT * FROM complaint_tickets WHERE id = ?');
     $ticketStmt->execute([$id]);
     $ticket = $ticketStmt->fetch();
-    if (!$ticket) {
+    if (! $ticket) {
         apiJson(['success' => false, 'message' => 'Ticket not found.'], 404);
     }
 
     if ($action === 'refund') {
         if ($refundAmount <= 0 || $refundAmount > $maxRefund) {
-            apiJson(['success' => false, 'message' => 'Refund exceeds Super Admin operational limit of ' . formatMoney($maxRefund) . '.'], 422);
+            apiJson(['success' => false, 'message' => 'Refund exceeds Super Admin operational limit of '.formatMoney($maxRefund).'.'], 422);
         }
         $pdo->prepare('INSERT INTO refunds (ticket_id, order_id, amount, refund_type, status, processed_by_staff_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
             ->execute([$id, $ticket['order_id'], $refundAmount, 'refund', 'approved', (int) $user['actor_id'], $notes]);
@@ -387,7 +389,7 @@ if (preg_match('#^tickets/(\d+)/resolve$#', $route, $m) && $method === 'POST') {
             $pdo->prepare("UPDATE orders SET payment_status = 'refunded' WHERE id = ?")->execute([$ticket['order_id']]);
         }
         $pdo->prepare("UPDATE complaint_tickets SET status = 'resolved', resolution_notes = ?, assigned_staff_id = ? WHERE id = ?")
-            ->execute(['Refund ' . formatMoney($refundAmount) . '. ' . $notes, (int) $user['actor_id'], $id]);
+            ->execute(['Refund '.formatMoney($refundAmount).'. '.$notes, (int) $user['actor_id'], $id]);
         apiJson(['success' => true, 'message' => 'Refund approved within Super Admin limits.']);
     }
 
@@ -395,7 +397,7 @@ if (preg_match('#^tickets/(\d+)/resolve$#', $route, $m) && $method === 'POST') {
         $pdo->prepare('INSERT INTO refunds (ticket_id, order_id, amount, refund_type, status, processed_by_staff_id, notes) VALUES (?, ?, 0, ?, ?, ?, ?)')
             ->execute([$id, $ticket['order_id'], 'replacement', 'approved', (int) $user['actor_id'], $notes]);
         $pdo->prepare("UPDATE complaint_tickets SET status = 'resolved', resolution_notes = ?, assigned_staff_id = ? WHERE id = ?")
-            ->execute(['Replacement order issued. ' . $notes, (int) $user['actor_id'], $id]);
+            ->execute(['Replacement order issued. '.$notes, (int) $user['actor_id'], $id]);
         apiJson(['success' => true, 'message' => 'Replacement order issued.']);
     }
 
@@ -425,11 +427,11 @@ if (preg_match('#^stores/(\d+)/pause$#', $route, $m) && $method === 'POST') {
     }
     $status = in_array($body['status'] ?? '', ['paused', 'offline', 'open'], true) ? $body['status'] : 'paused';
     $pdo->prepare('UPDATE partnership_stores SET status = ? WHERE id = ?')->execute([$status, $storeId]);
-    apiJson(['success' => true, 'message' => 'Store status set to ' . $status . '.']);
+    apiJson(['success' => true, 'message' => 'Store status set to '.$status.'.']);
 }
 
 if (preg_match('#^stores/(\d+)/onboard$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Onboarding assistance is for Motobook management staff.'], 403);
     }
     $storeId = (int) $m[1];
@@ -441,13 +443,13 @@ if (preg_match('#^stores/(\d+)/onboard$#', $route, $m) && $method === 'POST') {
             $params[] = $body[$field];
         }
     }
-    if (!empty($body['owner_password'])) {
+    if (! empty($body['owner_password'])) {
         $fields[] = 'owner_password = ?';
         $params[] = password_hash((string) $body['owner_password'], PASSWORD_DEFAULT);
     }
     if ($fields) {
         $params[] = $storeId;
-        $pdo->prepare('UPDATE partnership_stores SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
+        $pdo->prepare('UPDATE partnership_stores SET '.implode(', ', $fields).' WHERE id = ?')->execute($params);
     }
     apiJson(['success' => true, 'message' => 'Store profile updated. Super Admin still owns global commission rules.']);
 }
@@ -463,6 +465,9 @@ if (preg_match('#^stores/(\d+)/menu$#', $route, $m) && $method === 'GET') {
 }
 
 if (preg_match('#^stores/(\d+)/menu$#', $route, $m) && $method === 'POST') {
+    if (! $isStore) {
+        apiJson(['success' => false, 'message' => 'Only the store manager and staff can change menu items.'], 403);
+    }
     $storeId = (int) $m[1];
     if ($isStore && $scopeStoreId !== $storeId) {
         apiJson(['success' => false, 'message' => 'Forbidden.'], 403);
@@ -473,11 +478,14 @@ if (preg_match('#^stores/(\d+)/menu$#', $route, $m) && $method === 'POST') {
 }
 
 if (preg_match('#^menu/(\d+)/toggle$#', $route, $m) && $method === 'POST') {
+    if (! $isStore) {
+        apiJson(['success' => false, 'message' => 'Only the store manager and staff can change menu availability.'], 403);
+    }
     $itemId = (int) $m[1];
     $item = $pdo->prepare('SELECT * FROM store_menu_items WHERE id = ?');
     $item->execute([$itemId]);
     $row = $item->fetch();
-    if (!$row) {
+    if (! $row) {
         apiJson(['success' => false, 'message' => 'Item not found.'], 404);
     }
     if ($isStore && $scopeStoreId !== (int) $row['store_id']) {
@@ -502,14 +510,14 @@ if ($route === 'helpdesk' && $method === 'GET') {
 
 if ($route === 'helpdesk' && $method === 'POST') {
     $storeId = $scopeStoreId ?: (int) ($body['store_id'] ?? 0);
-    $number = 'MHT-' . date('ymdHis');
+    $number = 'MHT-'.date('ymdHis');
     $pdo->prepare('INSERT INTO merchant_help_tickets (ticket_number, store_id, subject, category, message, status) VALUES (?, ?, ?, ?, ?, ?)')
         ->execute([$number, $storeId, trim((string) ($body['subject'] ?? '')), $body['category'] ?? 'other', trim((string) ($body['message'] ?? '')), 'open']);
     apiJson(['success' => true, 'message' => 'Help desk ticket submitted.', 'ticket_number' => $number]);
 }
 
 if (preg_match('#^helpdesk/(\d+)/reply$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Only Motobook management can reply to merchant tickets.'], 403);
     }
     $pdo->prepare("UPDATE merchant_help_tickets SET staff_reply = ?, status = 'resolved' WHERE id = ?")
@@ -523,19 +531,19 @@ if ($route === 'banners' && $method === 'GET') {
 }
 
 if ($route === 'banners' && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Banner uploads are executed by Motobook management staff.'], 403);
     }
     $imagePath = null;
-    $uploadDir = dirname(__DIR__, 2) . '/uploads/banners/';
-    if (!is_dir($uploadDir)) {
+    $uploadDir = dirname(__DIR__, 2).'/uploads/banners/';
+    if (! is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
-    if (!empty($_FILES['image']['tmp_name']) && is_uploaded_file($_FILES['image']['tmp_name'])) {
+    if (! empty($_FILES['image']['tmp_name']) && is_uploaded_file($_FILES['image']['tmp_name'])) {
         $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION) ?: 'png';
-        $name = 'banner_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . preg_replace('/[^a-z0-9]/i', '', $ext);
-        move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $name);
-        $imagePath = 'uploads/banners/' . $name;
+        $name = 'banner_'.time().'_'.bin2hex(random_bytes(3)).'.'.preg_replace('/[^a-z0-9]/i', '', $ext);
+        move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir.$name);
+        $imagePath = 'uploads/banners/'.$name;
     }
     $pdo->prepare('INSERT INTO promo_banners (title, caption, image_path, hex_color, store_id, is_active, uploaded_by_staff_id) VALUES (?, ?, ?, ?, ?, 1, ?)')
         ->execute([
@@ -564,7 +572,7 @@ if ($route === 'promos' && $method === 'GET') {
 
 if ($route === 'promos' && $method === 'POST') {
     $storeId = $scopeStoreId ?: (int) ($body['store_id'] ?? 0);
-    if (!$storeId) {
+    if (! $storeId) {
         apiJson(['success' => false, 'message' => 'Store is required.'], 422);
     }
     $pdo->prepare('INSERT INTO store_promos (store_id, title, description, discount_percent, status, submitted_by) VALUES (?, ?, ?, ?, ?, ?)')
@@ -573,13 +581,13 @@ if ($route === 'promos' && $method === 'POST') {
 }
 
 if (preg_match('#^promos/(\d+)/review$#', $route, $m) && $method === 'POST') {
-    if (!$isPlatform) {
+    if (! $isPlatform) {
         apiJson(['success' => false, 'message' => 'Store managers cannot approve their own promos.'], 403);
     }
     $status = ($body['status'] ?? '') === 'approved' ? 'approved' : 'rejected';
     $pdo->prepare('UPDATE store_promos SET status = ?, reviewed_by_staff_id = ?, review_notes = ? WHERE id = ?')
         ->execute([$status, (int) $user['actor_id'], trim((string) ($body['notes'] ?? '')), (int) $m[1]]);
-    apiJson(['success' => true, 'message' => 'Promo ' . $status . '.']);
+    apiJson(['success' => true, 'message' => 'Promo '.$status.'.']);
 }
 
 if ($route === 'staff' && $method === 'POST') {
@@ -587,4 +595,4 @@ if ($route === 'staff' && $method === 'POST') {
     apiJson(['success' => false, 'message' => 'Use Super Admin for staff accounts.'], 403);
 }
 
-apiJson(['success' => false, 'message' => 'Unknown API route: ' . $route], 404);
+apiJson(['success' => false, 'message' => 'Unknown API route: '.$route], 404);

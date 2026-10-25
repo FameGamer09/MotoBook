@@ -1,12 +1,14 @@
 <?php
 
 use App\Models\User;
+use App\Services\SharedPanelAuthentication;
 
 test('login screen is available to platform users', function () {
     $response = $this->get('/login');
 
     $response->assertOk()
-        ->assertSee('Customer, merchant, and rider accounts sign in here.');
+        ->assertSee('Use your customer, rider, management, or admin account to sign in here.')
+        ->assertDontSee('open the management sign-in');
 });
 
 test('users can authenticate using the login screen', function () {
@@ -19,6 +21,30 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('management accounts can authenticate using the login screen', function () {
+    $panelAuthentication = Mockery::mock(SharedPanelAuthentication::class);
+    $panelAuthentication->shouldReceive('authenticate')
+        ->once()
+        ->with('staff@example.com', 'management-password')
+        ->andReturn([
+            'ok' => true,
+            'panel' => 'management',
+            'role' => 'platform_staff',
+            'url' => '/A-management/orders.php?tab=kanban',
+            'data' => ['id' => 1],
+        ]);
+    $panelAuthentication->shouldReceive('startPanelSession')->once();
+    $this->app->instance(SharedPanelAuthentication::class, $panelAuthentication);
+
+    $response = $this->post('/login', [
+        'email' => 'staff@example.com',
+        'password' => 'management-password',
+    ]);
+
+    $this->assertGuest();
+    $response->assertRedirect('/A-management/orders.php?tab=kanban');
 });
 
 test('users can not authenticate with invalid password', function () {

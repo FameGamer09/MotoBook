@@ -6,6 +6,8 @@ import { useLocationTelemetry } from '@/hooks/useLocationTelemetry';
 import { Button } from '@/components/ui/Button';
 import { StatusDot } from '@/components/ui/StatusDot';
 import { LucideIcon, cn, currencyPHP } from '@/components/ui/Primitive';
+import { useRiderNotice } from '@/components/RiderNotice';
+import { useRiderSupport } from '@/components/RiderSupportDialog';
 
 const RIDER_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'>
@@ -36,12 +38,19 @@ interface QuickAction {
 }
 
 export function HomeDashboardPage() {
+  const showNotice = useRiderNotice();
+  const openSupport = useRiderSupport();
   const nav = useNavigate();
   const rider = useRiderStore((s) => s.profile);
   const toggleDuty = useRiderStore((s) => s.setDuty);
   const orders = useOrderStore((s) => s.list);
+  const clearOrderError = useOrderStore((s) => s.clearError);
   const selectActive = useOrderStore((s) => s.selectActive);
   const loadOrders = useOrderStore((s) => s.loadList);
+  const acceptableOffers = useMemo(
+    () => orders.filter((o) => o.state === 'OFFER_RECEIVED' && o.rider_id === null),
+    [orders],
+  );
 
   const isOnline = rider?.status === 'ON_SHIFT';
   const completedToday = rider?.completed_today ?? 0;
@@ -60,8 +69,6 @@ export function HomeDashboardPage() {
     ),
     [orders, rider?.id],
   );
-
-  useEffect(() => { void loadOrders(); const t = setInterval(() => void loadOrders(), 15_000); return () => clearInterval(t); }, [loadOrders]);
 
   useEffect(() => {
     if (!activeAccepted) return;
@@ -93,9 +100,9 @@ export function HomeDashboardPage() {
 
   const quickActions: QuickAction[] = [
     { key: 'wallet',  label: 'Wallet',   icon: 'Wallet',       to: '/earnings' },
-    { key: 'heatmap', label: 'Heat Map', icon: 'MapPin',       onClick: () => alert('Heat Map: shows nearby hot orders zone.') },
-    { key: 'scan',    label: 'Scan QR',  icon: 'ScanLine',     onClick: () => alert('Scan QR: scan merchant or customer QR for quick checkout.') },
-    { key: 'support', label: 'Support',  icon: 'Headphones',   onClick: () => alert('Support: call dispatch or open chat with rider operations.') },
+    { key: 'heatmap', label: 'Heat Map', icon: 'MapPin',       onClick: () => nav('/heatmap') },
+    { key: 'scan',    label: 'Scan QR',  icon: 'ScanLine',     onClick: () => nav('/scan') },
+    { key: 'support', label: 'Support',  icon: 'Headphones',   onClick: openSupport },
   ];
 
   return (
@@ -115,7 +122,7 @@ export function HomeDashboardPage() {
             type="button"
             className="ml-auto min-h-[48px] min-w-[48px] h-11 w-11 rounded-2xl border border-surface-border bg-surface-card inline-flex items-center justify-center text-slate-200 hover:bg-slate-800 relative"
             aria-label="Notifications"
-            onClick={() => alert('Notifications: no new alerts.')}
+            onClick={() => showNotice('You have no new notifications.')}
           >
             <LucideIcon name="Bell" size={20} strokeWidth={1.75} />
           </button>
@@ -264,13 +271,48 @@ export function HomeDashboardPage() {
           </div>
         </section>
 
+        {acceptableOffers.length > 0 ? (
+          <section aria-labelledby="delivery-offers-heading" className="space-y-2">
+            <div className="flex items-center justify-between px-0.5">
+              <h3 id="delivery-offers-heading" className="text-[12px] font-bold uppercase tracking-[0.1em] text-cyan-300">New delivery offers</h3>
+              <span className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-200">{acceptableOffers.length} open</span>
+            </div>
+            <p className="px-0.5 text-[11px] leading-5 text-slate-400">Offers are shared with on-shift riders. Riders with fewer deliveries today get first turn; if nobody claims within 20 seconds, the next group gets a turn. The first eligible confirmation wins.</p>
+            {acceptableOffers.map((offer) => (
+              <article key={offer.id} className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-slate-900 p-4 shadow-[0_10px_30px_-18px_rgba(6,182,212,0.55)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-white">{offer.merchant_name}</p>
+                    <p className="mt-1 text-xs text-slate-300">Pickup to {offer.dropoff_name || 'Customer'}</p>
+                    <p className="mt-1 text-xs text-slate-400">{offer.total_distance_km.toFixed(1)} km · {offer.estimated_minutes} min estimate</p>
+                  </div>
+                  <span className="shrink-0 font-mono text-sm font-extrabold text-cyan-200">{currencyPHP(offer.payout_amount + offer.tip_amount)}</span>
+                </div>
+                <Button
+                  className="mt-3 w-full"
+                  disabled={!isOnline || !offer.can_accept_offer || !!activeAccepted}
+                  onClick={async () => {
+                    clearOrderError();
+                    await useOrderStore.getState().transition(offer.id, 'ACCEPTED');
+                    const latest = useOrderStore.getState();
+                    const claimed = latest.list.find((item) => item.id === offer.id)?.rider_id === rider?.id;
+                    if (!claimed) showNotice(latest.error || 'This offer was claimed by another rider or is waiting for your fair-share turn.');
+                  }}
+                >
+                  {!isOnline ? 'Go on shift to accept' : activeAccepted ? 'Finish your current delivery first' : offer.can_accept_offer ? 'Confirm delivery' : 'Waiting for fair-share turn'}
+                </Button>
+              </article>
+            ))}
+          </section>
+        ) : null}
+
         {/* Assigned Delivery */}
         <section>
           <div className="flex items-center justify-between px-0.5 mb-2">
             <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-cyan-300">Assigned Delivery</h3>
             <span className="inline-flex items-center gap-1 rounded-full h-6 px-2.5 text-[11px] font-extrabold uppercase tracking-[0.06em] bg-cyan-500/12 border border-cyan-500/25 text-cyan-300">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              {isOnline ? 'Auto-assignment on' : 'Offline'}
+              {isOnline ? 'Offers on' : 'Offline'}
             </span>
           </div>
 
@@ -309,7 +351,7 @@ export function HomeDashboardPage() {
                 </div>
                 <div className="text-[13px] font-semibold text-slate-300">No assigned delivery</div>
                 <div className="text-[12px] text-slate-500 mt-0.5">
-                  {isOnline ? 'You are available. The next order will be assigned automatically.' : 'Go online to receive automatic delivery assignments.'}
+                  {isOnline ? 'New orders are offered to available riders. Confirm an offer to claim it.' : 'Go on shift to receive delivery offers.'}
                 </div>
             </div>
           )}
@@ -318,7 +360,7 @@ export function HomeDashboardPage() {
         {/* Duty + Deposit CTA */}
         <section className="space-y-2.5 pt-1">
           <div className="rounded-2xl border border-surface-border bg-surface-card/70 p-3 grid grid-cols-2 gap-2.5 items-center">
-            <div className="inline-flex items-center gap-2">
+            <div className="inline-flex items-center gap-2 min-w-0">
               <span className={cn(
                 'inline-flex h-8 w-8 items-center justify-center rounded-xl',
                 tel.watchActive && !tel.error
@@ -327,13 +369,24 @@ export function HomeDashboardPage() {
               )}>
                 <LucideIcon name="Satellite" size={16} strokeWidth={1.75} />
               </span>
-              <div>
+              <div className="min-w-0" title={tel.error ?? 'GPS location is monitored while your rider shift is active.'}>
                 <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">GPS Telemetry</div>
                 <div className="text-[13px] font-semibold text-white inline-flex items-center gap-1.5">
                   <StatusDot state={tel.watchActive && !tel.error ? 'success' : 'danger'} size={8} />
-                  {tel.error ? 'Error' : tel.watchActive ? tel.lastPoint ? `${tel.lastPoint.speed_kmh?.toFixed(0) ?? '0'} km/h · Queue ${tel.queueDepth}` : 'Acquiring…' : 'Suspended'}
+                  <span className="truncate">
+                    {tel.error ? `Issue · ${tel.error}` : tel.watchActive ? tel.lastPoint ? `${tel.lastPoint.speed_kmh?.toFixed(0) ?? '0'} km/h · Queue ${tel.queueDepth}` : 'Acquiring…' : 'Suspended'}
+                  </span>
                 </div>
               </div>
+              <button
+                type="button"
+                aria-label="Refresh GPS location"
+                title="Refresh GPS location"
+                onClick={tel.requestSingleFix}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-surface-border text-slate-300 hover:border-cyan-400 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              >
+                <LucideIcon name="LocateFixed" size={15} strokeWidth={1.75} />
+              </button>
             </div>
             <div className="inline-flex items-center justify-end gap-2">
               <Button

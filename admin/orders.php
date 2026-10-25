@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__.'/includes/functions.php';
+require_once __DIR__.'/includes/migrate_ops.php';
 requireLogin();
 
 $pdo = getDBConnection();
 runOperationsMigration($pdo);
 
 $statusFilter = $_GET['status'] ?? 'all';
-$searchQuery = trim((string)($_GET['q'] ?? ''));
+$searchQuery = trim((string) ($_GET['q'] ?? ''));
 
 $sql = 'SELECT o.*, ps.store_name, r.full_name AS rider_name, r.rider_code
         FROM orders o
@@ -31,7 +32,7 @@ if ($statusFilter !== 'all') {
 
 if ($searchQuery !== '') {
     $sql .= ' AND (o.order_number LIKE ? OR o.customer_name LIKE ? OR o.customer_phone LIKE ?)';
-    $like = '%' . $searchQuery . '%';
+    $like = '%'.$searchQuery.'%';
     $params[] = $like;
     $params[] = $like;
     $params[] = $like;
@@ -42,24 +43,24 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
-$statusCountsStmt = $pdo->query("SELECT order_status, COUNT(*) AS cnt FROM orders GROUP BY order_status")->fetchAll();
+$statusCountsStmt = $pdo->query('SELECT order_status, COUNT(*) AS cnt FROM orders GROUP BY order_status')->fetchAll();
 $countMap = [];
 foreach ($statusCountsStmt as $sc) {
-    $countMap[$sc['order_status']] = (int)$sc['cnt'];
+    $countMap[$sc['order_status']] = (int) $sc['cnt'];
 }
-$totalCount = (int)$pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn();
+$totalCount = (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn();
 
 $pageTitle = 'Orders &amp; Deliveries';
 $activePage = 'orders.php';
-include __DIR__ . '/includes/header.php';
+include __DIR__.'/includes/header.php';
 ?>
 
-<?php if ($msg = flash('success')): ?>
+<?php if ($msg = flash('success')) { ?>
     <div class="alert alert-success"><?= e($msg) ?></div>
-<?php endif; ?>
-<?php if ($msg = flash('error')): ?>
+<?php } ?>
+<?php if ($msg = flash('error')) { ?>
     <div class="alert alert-danger"><?= e($msg) ?></div>
-<?php endif; ?>
+<?php } ?>
 
 <div class="card" style="margin-bottom:1rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
@@ -90,12 +91,12 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
     <div class="card-body" style="padding:0;">
-        <?php if (empty($orders)): ?>
+        <?php if (empty($orders)) { ?>
             <div style="padding:3rem;text-align:center;color:var(--gray-500);">
                 <div style="font-size:2.4rem;margin-bottom:0.5rem;">📦</div>
                 <p style="margin:0;font-size:0.95rem;">No orders match the current filter.</p>
             </div>
-        <?php else: ?>
+        <?php } else { ?>
             <div style="overflow-x:auto;">
                 <table class="data-table" style="border:0;margin:0;">
                     <thead>
@@ -113,51 +114,51 @@ include __DIR__ . '/includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($orders as $o): ?>
+                        <?php foreach ($orders as $o) { ?>
                         <tr>
                             <td>
-                                <strong style="font-size:0.88rem;"><?= e($o['order_number'] ?? ('ORD-' . $o['id'])) ?></strong>
+                                <strong style="font-size:0.88rem;"><?= e($o['order_number'] ?? ('ORD-'.$o['id'])) ?></strong>
                             </td>
                             <td><?= e($o['store_name'] ?? '<em class="text-muted">—</em>') ?></td>
                             <td>
                                 <div style="font-weight:500;font-size:0.84rem;"><?= e($o['customer_name'] ?? '—') ?></div>
-                                <?php if (!empty($o['customer_phone'])): ?>
+                                <?php if (! empty($o['customer_phone'])) { ?>
                                     <small class="text-muted"><?= e($o['customer_phone']) ?></small>
-                                <?php endif; ?>
+                                <?php } ?>
                             </td>
-                            <td><?= statusBadge((string)($o['order_status'] ?? 'pending')) ?></td>
+                            <td><?= statusBadge((string) ($o['order_status'] ?? 'pending')) ?></td>
                             <td>
                                 <div style="font-size:0.82rem;font-weight:500;">
                                     <?php
-                                    $pm = strtoupper((string)($o['payment_method'] ?? 'cash'));
-                                    $pmLabelMap = [
-                                        'cash' => 'COD', 'COD' => 'COD',
-                                        'gcash' => 'GCash', 'GCASH' => 'GCash',
-                                        'maya' => 'Maya', 'MAYA' => 'Maya',
-                                        'card' => 'Card', 'CARD' => 'Card',
-                                    ];
-                                    echo $pmMap[$pm] ?? ucfirst($pm);
-                                    ?>
+                                    $pm = strtoupper((string) ($o['payment_method'] ?? 'cash'));
+                            $pmLabelMap = [
+                                'cash' => 'COD', 'COD' => 'COD',
+                                'gcash' => 'GCash', 'GCASH' => 'GCash',
+                                'maya' => 'Maya', 'MAYA' => 'Maya',
+                                'card' => 'Card', 'CARD' => 'Card',
+                            ];
+                            echo $pmMap[$pm] ?? ucfirst($pm);
+                            ?>
                                 </div>
-                                <?php if (!empty($o['payment_status'])): ?>
-                                    <small class="text-muted"><?= e(ucfirst((string)$o['payment_status'])) ?></small>
-                                <?php endif; ?>
+                                <?php if (! empty($o['payment_status'])) { ?>
+                                    <small class="text-muted"><?= e(ucfirst((string) $o['payment_status'])) ?></small>
+                                <?php } ?>
                             </td>
                             <td>
-                                <?php if (!empty($o['rider_name'])): ?>
+                                <?php if (! empty($o['rider_name'])) { ?>
                                     <div style="font-size:0.82rem;"><?= e($o['rider_name']) ?></div>
-                                    <?php if (!empty($o['rider_code'])): ?>
+                                    <?php if (! empty($o['rider_code'])) { ?>
                                         <small class="text-muted"><?= e($o['rider_code']) ?></small>
-                                    <?php endif; ?>
-                                <?php else: ?>
+                                    <?php } ?>
+                                <?php } else { ?>
                                     <em class="text-muted" style="font-size:0.82rem;">Unassigned</em>
-                                <?php endif; ?>
+                                <?php } ?>
                             </td>
-                            <td style="font-weight:600;white-space:nowrap;"><?= formatMoney((float)($o['order_total'] ?? 0)) ?></td>
+                            <td style="font-weight:600;white-space:nowrap;"><?= formatMoney((float) ($o['order_total'] ?? 0)) ?></td>
                             <td style="white-space:nowrap;font-size:0.8rem;"><?= e(formatDateTime($o['created_at'] ?? null)) ?></td>
                             <td style="white-space:nowrap;font-size:0.8rem;"><?= e(formatDateTime($o['delivered_at'] ?? null)) ?></td>
                             <td style="text-align:center;">
-                                <a href="<?= APP_URL ?>/proof_viewer.php?order_id=<?= (int)$o['id'] ?>"
+                                <a href="<?= APP_URL ?>/proof_viewer.php?order_id=<?= (int) $o['id'] ?>"
                                    class="btn btn-primary btn-sm"
                                    style="font-weight:600;"
                                    title="View Proof of Delivery compliance audit">
@@ -166,12 +167,12 @@ include __DIR__ . '/includes/header.php';
                                 </a>
                             </td>
                         </tr>
-                        <?php endforeach; ?>
+                        <?php } ?>
                     </tbody>
                 </table>
             </div>
-        <?php endif; ?>
+        <?php } ?>
     </div>
 </div>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<?php include __DIR__.'/includes/footer.php'; ?>
