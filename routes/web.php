@@ -19,7 +19,7 @@ Route::get('/SD/oliva', [DataController::class, 'handleSerialization']);
 
 require __DIR__.'/auth.php';
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::middleware('role:admin,cashier')->group(function () {

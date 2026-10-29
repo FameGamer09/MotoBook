@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
@@ -19,9 +20,11 @@ class SocialLoginController extends Controller
     public function redirect(Request $request): RedirectResponse
     {
         $provider = $this->provider($request);
+        $registrationFlow = $request->routeIs("register.social.{$provider}");
+        $request->session()->put("social_registration_flow.{$provider}", $registrationFlow);
 
         if (! $this->configured($provider)) {
-            return redirect()->route('login')->withErrors([
+            return redirect()->route($registrationFlow ? 'register' : 'login')->withErrors([
                 'email' => ucfirst($provider).' sign-in has not been configured by the administrator yet.',
             ]);
         }
@@ -44,6 +47,7 @@ class SocialLoginController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         $provider = $this->provider($request);
+        $registrationFlow = (bool) $request->session()->pull("social_registration_flow.{$provider}", false);
 
         try {
             $driver = Socialite::driver($provider);
@@ -55,10 +59,18 @@ class SocialLoginController extends Controller
             $email = mb_strtolower(trim((string) $identity->getEmail()));
 
             if ($subject === '') {
-                return $this->failed('The provider did not return a usable account identifier.');
+                return $this->failed('The provider did not return a usable account identifier.', $registrationFlow);
             }
 
-            $user = DB::transaction(function () use ($provider, $subject, $email): ?User {
+            $emailIsVerified = $provider === 'google'
+                ? (bool) ($identity->getRaw()['verified_email'] ?? false)
+                : false;
+
+            if ($registrationFlow && ($email === '' || ($provider === 'google' && ! $emailIsVerified))) {
+                return $this->failed('The provider did not return a verified email address.', true);
+            }
+
+            $user = DB::transaction(function () use ($provider, $subject, $email, $identity, $registrationFlow, $emailIsVerified): ?User {
                 $linked = DB::table('social_accounts')
                     ->where('provider', $provider)
                     ->where('provider_user_id', $subject)
@@ -81,7 +93,20 @@ class SocialLoginController extends Controller
                     ->first();
 
                 if (! $user) {
-                    return null;
+                    if (! $registrationFlow || $email === '') {
+                        return null;
+                    }
+
+                    $user = User::create([
+                        'name' => filled($identity->getName()) ? $identity->getName() : Str::before($email, '@'),
+                        'email' => $email,
+                        'password' => Str::random(64),
+                        'role' => 'customer',
+                        'status' => 'active',
+                        'email_verified_at' => $emailIsVerified ? now() : null,
+                    ]);
+
+                    $user->wallet()->create(['balance' => 0]);
                 }
 
                 DB::table('social_accounts')->insert([
@@ -92,7 +117,7 @@ class SocialLoginController extends Controller
                     'updated_at' => now(),
                 ]);
 
-                if (! $user->email_verified_at && $email !== '') {
+                if (! $user->email_verified_at && $emailIsVerified) {
                     $user->forceFill(['email_verified_at' => now()])->save();
                 }
 
@@ -100,7 +125,11 @@ class SocialLoginController extends Controller
             });
 
             if (! $user) {
-                return $this->failed('No active customer account matches this provider. Sign up with the same email first, then try again.');
+                $message = $registrationFlow
+                    ? 'This email already belongs to an account that cannot be registered through social sign-up. Please log in or contact support.'
+                    : 'No active customer account matches this provider. Sign up with the same email first, then try again.';
+
+                return $this->failed($message, $registrationFlow);
             }
 
             Auth::login($user);
@@ -113,7 +142,7 @@ class SocialLoginController extends Controller
                 'exception_type' => $exception::class,
             ]);
 
-            return $this->failed('Sign-in could not be completed. Check the provider configuration and try again.');
+            return $this->failed('Sign-in could not be completed. Check the provider configuration and try again.', $registrationFlow);
         }
     }
 
@@ -135,8 +164,13 @@ class SocialLoginController extends Controller
             && filled($config['redirect'] ?? null);
     }
 
-    private function failed(string $message): RedirectResponse
+    public function registerRedirect(Request $request): RedirectResponse
     {
-        return redirect()->route('login')->withErrors(['email' => $message]);
+        return $this->redirect($request);
+    }
+
+    private function failed(string $message, bool $registrationFlow = false): RedirectResponse
+    {
+        return redirect()->route($registrationFlow ? 'register' : 'login')->withErrors(['email' => $message]);
     }
 }

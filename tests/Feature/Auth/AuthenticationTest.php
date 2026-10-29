@@ -66,3 +66,32 @@ test('users can logout', function () {
     $this->assertGuest();
     $response->assertRedirect('/');
 });
+
+test('authenticated pages are not cached by the browser', function () {
+    $user = User::factory()->create([
+        'role' => 'customer',
+        'status' => 'active',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('customer.restaurants'));
+
+    $response->assertSuccessful();
+    expect($response->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($response->headers->get('Cache-Control'))->toContain('no-cache');
+});
+
+test('login page is not cached by the browser', function () {
+    $response = $this->get(route('login'));
+
+    $response->assertSuccessful();
+    expect($response->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($response->headers->get('Cache-Control'))->toContain('no-cache');
+});
+
+test('authenticated users are redirected away from the login page', function () {
+    $user = User::factory()->create(['status' => 'active']);
+
+    $this->actingAs($user)
+        ->get(route('login'))
+        ->assertRedirect(route('dashboard'));
+});
