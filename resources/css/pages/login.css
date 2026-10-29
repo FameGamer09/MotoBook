@@ -63,6 +63,7 @@
 .login-divider { display: flex; align-items: center; gap: 13px; margin: 17px 0 12px; color: #8190a2; font-size: 13px; font-weight: 600; }
 .login-divider::before, .login-divider::after { content: ""; height: 1px; flex: 1; background: #e2eaf0; }
 .login-social { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.login-social-register { grid-template-columns: repeat(2,minmax(0,1fr)); margin-bottom: 12px; }
 .login-social-button {
     display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 8px;
     border: 1px solid #dce5ee; border-radius: 15px; color: #36475d; background: #fff;

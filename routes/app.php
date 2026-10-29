@@ -9,7 +9,6 @@ use App\Http\Controllers\Customer\ItemDetailController;
 use App\Http\Controllers\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\Customer\ProfileController as CustomerProfileController;
 use App\Http\Controllers\Customer\StoreDetailController;
-use App\Http\Controllers\Rider\CustomDeliveryController as RiderCustomDeliveryController;
 use App\Http\Controllers\Merchant\DashboardController as MerchantDashboardController;
 use App\Http\Controllers\Merchant\MenuController as MerchantMenuController;
 use App\Http\Controllers\Merchant\OnboardingController as MerchantOnboardingController;
@@ -17,6 +16,7 @@ use App\Http\Controllers\Merchant\OrderController as MerchantOrderController;
 use App\Http\Controllers\Merchant\SalesController as MerchantSalesController;
 use App\Http\Controllers\Merchant\SettingsController as MerchantSettingsController;
 use App\Http\Controllers\Merchant\StoreController as MerchantStoreController;
+use App\Http\Controllers\Rider\CustomDeliveryController as RiderCustomDeliveryController;
 use App\Http\Controllers\Rider\DashboardController as RiderDashboardController;
 use App\Http\Controllers\Rider\OnboardingController as RiderOnboardingController;
 use App\Http\Controllers\Rider\ProfileController as RiderProfileController;
@@ -41,7 +41,7 @@ Route::bind('menuItem', function (string $value) {
 });
 
 // ---- Customer ----
-Route::middleware(['auth', 'role:customer'])->prefix('customer')->name('customer.')->group(function () {
+Route::middleware(['auth', 'role:customer', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->prefix('customer')->name('customer.')->group(function () {
     Route::get('/restaurants', [CustomerHomeController::class, 'index'])->name('restaurants');
     Route::get('/restaurants/{store:slug}', [StoreDetailController::class, 'show'])->name('restaurants.show');
     Route::post('/favorites/{store}', [ExperienceController::class, 'toggleFavorite'])->name('favorites.toggle');
@@ -92,7 +92,7 @@ Route::middleware(['auth', 'role:customer'])->prefix('customer')->name('customer
 });
 
 // ---- Merchant ----
-Route::middleware(['auth', 'role:merchant'])->prefix('merchant')->name('merchant.')->group(function () {
+Route::middleware(['auth', 'role:merchant', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->prefix('merchant')->name('merchant.')->group(function () {
     Route::get('/onboarding', [MerchantOnboardingController::class, 'show'])->name('onboarding');
     Route::post('/onboarding', [MerchantOnboardingController::class, 'store'])->name('onboarding.store');
     Route::get('/dashboard', [MerchantDashboardController::class, 'index'])->name('dashboard');
@@ -123,7 +123,7 @@ Route::middleware(['auth', 'role:merchant'])->prefix('merchant')->name('merchant
 });
 
 // ---- Rider ----
-Route::middleware(['auth', 'role:rider'])->prefix('rider')->name('rider.')->group(function () {
+Route::middleware(['auth', 'role:rider', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->prefix('rider')->name('rider.')->group(function () {
     Route::get('/onboarding', [RiderOnboardingController::class, 'show'])->name('onboarding');
     Route::post('/onboarding', [RiderOnboardingController::class, 'store'])->name('onboarding.store');
     Route::get('/dashboard', [RiderDashboardController::class, 'index'])->name('dashboard');
