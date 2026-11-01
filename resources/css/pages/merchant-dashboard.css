@@ -47,7 +47,7 @@ button { font: inherit; }
 .merchant-topbar h1 { margin: 0; color: var(--merchant-ink); font-size: 23px; letter-spacing: -.04em; font-weight: 650; }
 .merchant-topbar-actions { display: flex; align-items: center; gap: 21px; }
 .merchant-icon-button { width: 36px; height: 36px; border: 1px solid var(--merchant-line); border-radius: 50%; background: white; color: var(--merchant-muted); position: relative; cursor: pointer; }
-.merchant-icon-button i { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--merchant-red); right: 7px; top: 5px; }
+.merchant-notification-count { position: absolute; min-width: 17px; height: 17px; display: grid; place-items: center; padding: 0 4px; border: 2px solid white; border-radius: 999px; background: var(--merchant-red); color: white; font-size: 10px; line-height: 1; font-weight: 700; right: -5px; top: -5px; }
 .merchant-user-chip { display: flex; gap: 9px; align-items: center; font-size: 13px; font-weight: 600; }
 .merchant-user-chip span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: white; background: var(--merchant-mint); }
 .merchant-content { max-width: 1400px; padding: 37px 42px 56px; margin: 0 auto; }

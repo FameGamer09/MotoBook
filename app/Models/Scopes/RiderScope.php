@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Delivery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -17,7 +18,18 @@ class RiderScope implements Scope
         $user = auth()->user();
 
         if ($user && $user->role === 'rider' && $user->riderProfile) {
-            $builder->where($model->getTable().'.rider_id', $user->riderProfile->id);
+            $builder->where(function (Builder $query) use ($model, $user): void {
+                $query->where($model->getTable().'.rider_id', $user->riderProfile->id);
+
+                if ($model instanceof Delivery) {
+                    $query->orWhere(function (Builder $offerQuery) use ($user): void {
+                        $offerQuery->where('deliveries.status', 'pending_assignment')
+                            ->whereHas('offers', fn (Builder $offers) => $offers
+                                ->where('rider_id', $user->riderProfile->id)
+                                ->whereIn('status', ['waiting', 'offered']));
+                    });
+                }
+            });
         }
     }
 }

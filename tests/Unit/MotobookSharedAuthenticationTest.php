@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__.'/../../admin/includes/sso.php';
+require_once __DIR__.'/../../A-management/config/session.php';
 
 beforeEach(function () {
     $this->pdo = new PDO('sqlite::memory:');
@@ -20,6 +21,48 @@ test('shared sign in authenticates an existing admin account', function () {
     expect($auth['ok'])->toBeTrue()
         ->and($auth['panel'])->toBe('admin')
         ->and($auth['url'])->toBe('/motobook/admin/dashboard.php');
+});
+
+test('admin panel sessions use writable project storage', function () {
+    $sessionPath = motobookAdminSessionSavePath();
+    $previousPath = session_save_path();
+    $previousName = session_name();
+    $sessionId = null;
+
+    try {
+        ssoSeedPanelSession([
+            'panel' => 'admin',
+            'role' => 'admin',
+            'data' => ['id' => 42, 'name' => 'Test Admin', 'email' => 'admin@example.test'],
+        ]);
+        $sessionId = session_id();
+
+        expect(is_dir($sessionPath))->toBeTrue()
+            ->and(is_writable($sessionPath))->toBeTrue()
+            ->and(session_save_path())->toBe($sessionPath)
+            ->and($_SESSION['admin_id'])->toBe(42)
+            ->and(session_status())->toBe(PHP_SESSION_NONE);
+    } finally {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        if ($sessionId !== null) {
+            @unlink($sessionPath.DIRECTORY_SEPARATOR.'sess_'.$sessionId);
+        }
+
+        session_id('');
+        session_name($previousName);
+        session_save_path($previousPath);
+    }
+});
+
+test('management panel reads session files from the shared login session directory', function () {
+    $sharedLoginSessionPath = motobookAdminSessionSavePath();
+    $managementSessionPath = motobookManagementSessionSavePath();
+
+    expect($managementSessionPath)->toBe($sharedLoginSessionPath)
+        ->and(is_writable($managementSessionPath))->toBeTrue();
 });
 
 test('shared sign in authenticates management staff and sends them to management', function () {

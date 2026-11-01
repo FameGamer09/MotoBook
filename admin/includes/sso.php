@@ -1,6 +1,9 @@
 <?php
 
 declare(strict_types=1);
+
+require_once __DIR__.'/../config/session.php';
+
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Mail;
@@ -274,6 +277,7 @@ function ssoAbsoluteUrl(string $path): string
 function ssoStartAuthSession(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        session_save_path(motobookAdminSessionSavePath());
         session_name('motobook_sso_session');
         session_set_cookie_params(ssoSessionCookieParameters());
         session_start();
@@ -614,6 +618,7 @@ function ssoSeedPanelSession(array $auth): void
         session_write_close();
     }
 
+    session_save_path(motobookAdminSessionSavePath());
     session_id('');
     session_name($sessionName);
     session_set_cookie_params(ssoSessionCookieParameters());

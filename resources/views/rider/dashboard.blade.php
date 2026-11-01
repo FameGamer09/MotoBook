@@ -7,16 +7,52 @@
     <title>Dashboard · MotoBook Rider</title>
     @vite(['resources/css/app.css', 'resources/css/pages/rider-dashboard.css'])
     @vite('resources/js/rider-location.js')
+    @vite('resources/js/rider-offers.js')
 </head>
 <body class="rider-shell">
     <header class="rider-header">
-        <button class="rider-header-icon" type="button" aria-label="Open menu">☰</button>
-        <h1>Dashboard</h1>
-        <button class="rider-header-icon" type="button" aria-label="Notifications">♧</button>
+        <a class="rider-header-icon" href="{{ route('rider.profile') }}" aria-label="Open rider profile settings">⚙</a>
+        <h1><img src="{{ asset('images/825310998_1610647237377200_4391978218746131377_n.png') }}" alt="MotoBook">Dashboard</h1>
+        <a class="rider-header-icon" href="#deliveries" aria-label="View delivery requests">▣</a>
     </header>
     <main class="rider-content">
         @if (session('status')) <div class="rider-alert">{{ session('status') }}</div> @endif
         @if ($errors->any()) <div class="rider-error">{{ $errors->first() }}</div> @endif
+        @if ($rider?->status === 'online' && $rider?->is_verified)
+            <section class="rider-section rider-offers-section" data-rider-offers data-offers-url="{{ route('rider.offers') }}">
+                <div class="rider-section-heading">
+                    <div><span class="rider-kicker">Fair rider queue</span><h2>New orders <span class="rider-offer-count">{{ $offers->count() }}</span></h2></div>
+                    <button class="rider-notification-toggle" type="button" data-enable-order-notifications>Enable alerts</button>
+                </div>
+                <p class="rider-queue-note">Orders are offered in turns. Each rider gets 20 seconds to accept before the next rider’s turn.</p>
+                @forelse ($offers as $offer)
+                    @php
+                        $currentOffer = $offer->delivery->offers->firstWhere('status', 'offered');
+                        $secondsUntilTurn = $currentOffer?->expires_at
+                            ? max(0, now()->diffInSeconds($currentOffer->expires_at, false))
+                                + max(0, $offer->queue_position - $currentOffer->queue_position - 1) * 20
+                            : 0;
+                        $isMyTurn = $offer->status === 'offered' && $offer->expires_at?->isFuture();
+                    @endphp
+                    <article class="rider-delivery-card rider-offer-card" data-offer-id="{{ $offer->id }}" data-offer-status="{{ $offer->status }}" data-offer-can-accept="{{ $isMyTurn ? '1' : '0' }}">
+                        <div class="rider-delivery-top"><span class="rider-order-number">Order {{ $offer->delivery->order->order_number }}</span><span class="rider-delivery-status">{{ $isMyTurn ? 'Your turn' : 'Queue #'.$offer->queue_position }}</span></div>
+                        <h3>{{ $offer->delivery->order->store->name }}</h3>
+                        <p class="rider-address">{{ $offer->delivery->order->items->sum('quantity') }} item(s) · ₱{{ number_format($offer->delivery->order->total_amount, 2) }}</p>
+                        @if ($isMyTurn)
+                            <p class="rider-queue-note">Accept within {{ max(0, now()->diffInSeconds($offer->expires_at, false)) }} seconds.</p>
+                            <div class="rider-actions">
+                                <form method="POST" action="{{ route('rider.deliveries.accept', $offer->delivery) }}">@csrf<button class="rider-button primary" type="submit">Accept order</button></form>
+                                <form method="POST" action="{{ route('rider.deliveries.reject', $offer->delivery) }}">@csrf<button class="rider-button secondary" type="submit">Skip turn</button></form>
+                            </div>
+                        @else
+                            <p class="rider-queue-note">Your turn is expected in about {{ ceil($secondsUntilTurn / 60) }} min {{ $secondsUntilTurn % 60 }} sec.</p>
+                        @endif
+                    </article>
+                @empty
+                    <div class="rider-empty rider-offer-empty" data-empty-offers><strong>No open orders</strong><p>New orders will appear here while you’re online.</p></div>
+                @endforelse
+            </section>
+        @endif
         <section class="rider-profile-row" id="profile"><div class="rider-profile-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}<i></i></div><div class="rider-profile-copy"><strong>{{ auth()->user()->name }}</strong><span>Rider</span><small>★ {{ number_format($rider?->rating ?? 0, 1) }} <em>({{ $rider?->total_deliveries ?? 0 }})</em></small></div><span class="rider-online-pill {{ $rider?->status === 'online' ? 'online' : '' }}">{{ $rider?->status === 'online' ? 'Online' : 'Offline' }}</span></section>
         <section class="rider-earnings-card" id="earnings"><div><span>Today's Earnings</span><strong>₱{{ number_format($earnings, 2) }}</strong></div><span class="rider-wallet-icon">▣</span></section>
         <section class="rider-stats-row"><div><strong>{{ $rider?->total_deliveries ?? 0 }}</strong><span>Completed</span></div><div><strong>{{ $deliveries->count() }}</strong><span>Active orders</span></div><div><strong>{{ $rider?->status === 'online' ? 'Online' : 'Offline' }}</strong><span>Rider status</span></div></section>
@@ -46,6 +82,6 @@
         <div id="location"><button id="share-location" class="rider-location-button" type="button" data-delivery-id="{{ $deliveries->first()?->id }}" data-location-url="{{ route('rider.location.update') }}" data-custom-location-url="{{ $activeCustomDelivery ? route('rider.custom-deliveries.location',$activeCustomDelivery) : '' }}" @disabled($deliveries->isEmpty() && !$activeCustomDelivery)>{{ $deliveries->isEmpty() && !$activeCustomDelivery ? 'Location sharing available during a delivery' : 'Start live location sharing' }}</button><p class="rider-location-feedback" id="location-feedback" aria-live="polite"></p></div>
         <section class="rider-section rider-store-section"><div class="rider-section-heading"><div><span class="rider-kicker">Partner stores</span><h2>Store status</h2></div></div><div class="rider-store-list">@foreach($stores as $store)<div><span>{{ $store->name }}</span><strong class="{{ $store->is_open ? 'open' : 'closed' }}">{{ $store->is_open ? 'Open' : 'Closed' }}</strong></div>@endforeach</div></section>
     </main>
-    <nav class="rider-bottom-nav"><a class="active" href="{{ route('rider.dashboard') }}"><span>⌂</span>Home</a><a href="#deliveries"><span>▣</span>Orders</a><form method="POST" action="{{ route('rider.status.toggle') }}">@csrf<button class="online-action" type="submit"><span>➤</span>{{ $rider?->status === 'online' ? 'Go Offline' : 'Go Online' }}</button></form><a href="#earnings"><span>▤</span>Earnings</a><a href="{{ route('rider.profile') }}"><span>◎</span>Profile</a></nav>
+    <nav class="rider-bottom-nav"><a class="active" href="{{ route('rider.dashboard') }}"><span>⌂</span>Home</a><a href="#deliveries"><span>▣</span>Orders</a><form method="POST" action="{{ route('rider.status.toggle') }}">@csrf<button class="online-action" type="submit" @disabled($rider?->status === 'online' ? false : ! $canGoOnline)><span>➤</span>{{ $rider?->status === 'online' ? 'Go Offline' : ($hasActiveDelivery ? 'On delivery' : ($rider?->is_verified ? 'Go Online' : 'Pending verification')) }}</button></form><a href="#earnings"><span>▤</span>Earnings</a><a href="{{ route('rider.profile') }}"><span>◎</span>Profile</a></nav>
 </body>
 </html>

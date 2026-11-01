@@ -14,6 +14,7 @@ define('APP_URL', $appUrl);
 define('ADMIN_URL', $baseUrl.'/admin');
 define('CURRENCY', '₱');
 define('SESSION_NAME', 'motobook_ops_session');
+require_once __DIR__.'/session.php';
 
 define('DB_HOST', '127.0.0.1');
 define('DB_PORT', '3306');
@@ -27,6 +28,7 @@ $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' 
 define('API_BASE', $scheme.'://'.$host.$baseUrl.'/admin/api/v1/index.php');
 
 if (session_status() === PHP_SESSION_NONE) {
+    session_save_path(motobookManagementSessionSavePath());
     session_name(SESSION_NAME);
     if (PHP_VERSION_ID >= 70300) {
         $host = $_SERVER['HTTP_HOST'] ?? '';

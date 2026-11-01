@@ -32,6 +32,28 @@ test('non-customer accounts cannot open the customer storefront', function () {
         ->assertForbidden();
 });
 
+test('riders without a profile can log in and reach onboarding instead of a not found page', function () {
+    $rider = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+
+    $this->post(route('login'), [
+        'email' => $rider->email,
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard'));
+
+    $this->get(route('dashboard'))
+        ->assertRedirect(route('rider.onboarding'));
+
+    $this->get(route('rider.onboarding'))
+        ->assertOk()
+        ->assertViewHas('rider', fn ($profile) => $profile->user_id === $rider->id);
+
+    $this->assertDatabaseHas('riders', [
+        'user_id' => $rider->id,
+        'vehicle_type' => 'motorcycle',
+        'status' => 'offline',
+    ]);
+});
+
 test('public registration creates an active customer account and wallet', function () {
     $response = $this->post(route('register'), [
         'name' => 'Customer Example',

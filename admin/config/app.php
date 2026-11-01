@@ -12,7 +12,10 @@ define('APP_URL', $adminUrl !== '' ? $adminUrl : '/admin');
 define('CURRENCY', '₱');
 define('SESSION_NAME', 'motobook_admin_session');
 
+require_once __DIR__.'/session.php';
+
 if (session_status() === PHP_SESSION_NONE) {
+    session_save_path(motobookAdminSessionSavePath());
     session_name(SESSION_NAME);
     session_start();
 }

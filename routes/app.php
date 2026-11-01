@@ -127,6 +127,7 @@ Route::middleware(['auth', 'role:rider', 'cache.headers:private;no_store;no_cach
     Route::get('/onboarding', [RiderOnboardingController::class, 'show'])->name('onboarding');
     Route::post('/onboarding', [RiderOnboardingController::class, 'store'])->name('onboarding.store');
     Route::get('/dashboard', [RiderDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/offers', [RiderDashboardController::class, 'offers'])->middleware('throttle:30,1')->name('offers');
     Route::get('/profile', [RiderProfileController::class, 'edit'])->name('profile');
     Route::patch('/profile', [RiderProfileController::class, 'update'])->name('profile.update');
     Route::post('/deliveries/{delivery}/accept', [RiderDashboardController::class, 'accept'])->name('deliveries.accept');

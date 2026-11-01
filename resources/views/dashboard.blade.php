@@ -92,7 +92,7 @@
                     </div>
                 </div>
                 <div class="w-10 h-10 rounded-lg {{ $lowStockProducts->count() > 0 ? 'bg-status-danger-soft text-status-danger' : 'bg-status-success-soft text-status-success-ink' }} grid place-items-center">
-                    <i data-lucide="package-alert" class="w-5 h-5"></i>
+                    <i data-lucide="package-x" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
@@ -165,7 +165,7 @@
         <div class="card">
             <div class="card-header">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="package-alert" class="w-4 h-4 text-status-danger"></i>
+                    <i data-lucide="package-x" class="w-4 h-4 text-status-danger"></i>
                     <h3 class="text-sm font-semibold text-ink tracking-tight">Low Stock Alert</h3>
                 </div>
                 <a href="{{ route('products.index') }}" class="btn-sm btn-ghost text-brand-700 hover:text-brand-800 hover:bg-brand-50">

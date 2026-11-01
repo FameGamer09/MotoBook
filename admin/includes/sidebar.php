@@ -1,7 +1,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Sidebar navigation">
     <div class="sidebar-brand">
         <div class="brand-icon" aria-hidden="true">
-            <i data-lucide="bike"></i>
+            <img src="<?= rtrim(dirname(APP_URL), '/') ?>/images/825310998_1610647237377200_4391978218746131377_n.png" alt="MotoBook">
         </div>
         <div>
             <strong>Motobook</strong>

@@ -42,7 +42,7 @@
                 <h1>Good morning, {{ auth()->user()->name }}</h1>
             </div>
             <div class="merchant-topbar-actions">
-                <button class="merchant-icon-button" type="button" aria-label="Notifications">♧<i></i></button>
+                <a href="{{ route('merchant.orders.index', ['status' => 'pending']) }}" class="merchant-icon-button" aria-label="{{ $stats['pending_orders'] }} pending order notifications" title="View pending orders">♧@if ($stats['pending_orders'] > 0)<span class="merchant-notification-count">{{ $stats['pending_orders'] }}</span>@endif</a>
                 <div class="merchant-user-chip"><span>{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>{{ auth()->user()->name }}</div>
             </div>
         </header>

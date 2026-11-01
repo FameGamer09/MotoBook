@@ -3,17 +3,19 @@
 namespace App\Http\Controllers\Rider;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class OnboardingController extends Controller
 {
-    public function show(Request $request)
+    public function show(Request $request): View|RedirectResponse
     {
-        $rider = $request->user()->riderProfile;
-
-        if (! $rider) {
-            abort(404);
-        }
+        $rider = $request->user()->riderProfile()->firstOrCreate([], [
+            'vehicle_type' => 'motorcycle',
+            'status' => 'offline',
+            'is_verified' => false,
+        ]);
 
         if ($request->user()->status === 'active' && $rider->is_verified && $rider->plate_number) {
             return redirect()->route('rider.dashboard');
@@ -22,7 +24,7 @@ class OnboardingController extends Controller
         return view('rider.onboarding', ['rider' => $rider]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'vehicle_type' => ['required', 'in:motorcycle,bicycle,car'],
@@ -33,8 +35,11 @@ class OnboardingController extends Controller
 
         $licensePath = $request->file('license_photo')->store('rider-licenses', 'local');
 
-        $rider = $request->user()->riderProfile;
-        abort_unless($rider, 404);
+        $rider = $request->user()->riderProfile()->firstOrCreate([], [
+            'vehicle_type' => 'motorcycle',
+            'status' => 'offline',
+            'is_verified' => false,
+        ]);
 
         $rider->update([
             'vehicle_type' => $validated['vehicle_type'],

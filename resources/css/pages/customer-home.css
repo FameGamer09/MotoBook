@@ -171,6 +171,8 @@
     .home-location-row {
         @apply flex items-center justify-between mb-3;
     }
+    .home-brand-location { @apply flex min-w-0 items-center gap-3; }
+    .home-brand-location img { @apply h-14 w-14 shrink-0 rounded-lg object-cover; }
     .home-location {
         @apply flex items-center gap-1.5 text-sm font-semibold;
     }

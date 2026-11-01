@@ -99,6 +99,7 @@
             color: white;
             box-shadow: 0 1px 3px rgba(8,145,178,0.3);
         }
+        .brand-mark img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
         .brand-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
         .brand-sub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 
@@ -493,9 +494,7 @@
     <header class="topbar">
         <div class="brand">
             <div class="brand-mark">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                     data-lucide="bike" aria-hidden="true"></svg>
+                <img src="{{ asset('images/825310998_1610647237377200_4391978218746131377_n.png') }}" alt="MotoBook">
             </div>
             <div>
                 <div class="brand-title">Motobook</div>

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\Transaction;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +14,51 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function notifications(): JsonResponse
+    {
+        $lowStockQuery = Product::query()
+            ->whereRaw('quantity <= low_stock_threshold')
+            ->where('is_active', true);
+        $lowStockCount = (clone $lowStockQuery)->count();
+        $lowStockProducts = (clone $lowStockQuery)
+            ->orderBy('quantity')
+            ->limit(5)
+            ->get(['id', 'name', 'quantity', 'low_stock_threshold']);
+
+        $notifications = $lowStockProducts->map(fn (Product $product): array => [
+            'id' => 'low-stock-'.$product->id,
+            'title' => $product->name.' is low on stock',
+            'message' => "{$product->quantity} left · threshold {$product->low_stock_threshold}",
+            'url' => route('products.edit', $product),
+            'kind' => 'warning',
+        ])->all();
+
+        $recentMovements = InventoryMovement::query()
+            ->with('product:id,name')
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        foreach ($recentMovements as $movement) {
+            if (! $movement->product) {
+                continue;
+            }
+
+            $notifications[] = [
+                'id' => 'stock-movement-'.$movement->id,
+                'title' => 'Stock updated: '.$movement->product->name,
+                'message' => ucfirst(str_replace('_', ' ', $movement->type))." · stock now {$movement->new_quantity}",
+                'url' => route('products.show', $movement->product),
+                'kind' => 'activity',
+            ];
+        }
+
+        return response()->json([
+            'low_stock_count' => $lowStockCount,
+            'notifications' => $notifications,
+        ]);
+    }
+
     public function index(Request $request): View|RedirectResponse
     {
         $user = $request->user();

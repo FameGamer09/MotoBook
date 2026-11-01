@@ -17,6 +17,7 @@ export default defineConfig({
                 ...pageStyles,
                 'resources/js/customer-order-tracking.js',
                 'resources/js/rider-location.js',
+                'resources/js/rider-offers.js',
             ],
             refresh: true,
         }),

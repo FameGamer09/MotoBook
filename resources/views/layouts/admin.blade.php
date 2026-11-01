@@ -9,7 +9,7 @@
 <body class="admin-shell">
 
     <aside class="admin-rail">
-        <div class="admin-rail-brand">MotoBook admin</div>
+        <div class="admin-rail-brand"><img src="{{ asset('images/825310998_1610647237377200_4391978218746131377_n.png') }}" alt="MotoBook"><span>MotoBook Admin</span></div>
         <nav class="admin-rail-nav">
             <a href="{{ route('admin.dashboard') }}" class="admin-rail-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>

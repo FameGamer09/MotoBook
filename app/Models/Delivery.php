@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToRider;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Delivery extends Model
 {
@@ -30,8 +32,13 @@ class Delivery extends Model
 
     // note: rider() relationship is provided by BelongsToRider
 
-    public function order()
+    public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function offers(): HasMany
+    {
+        return $this->hasMany(RiderDeliveryOffer::class);
     }
 }

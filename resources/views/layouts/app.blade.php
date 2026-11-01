@@ -34,9 +34,7 @@
         <div class="flex min-h-screen">
             <aside class="sidebar-frame hidden lg:flex">
                 <div class="sidebar-brand">
-                    <div class="w-9 h-9 rounded-md bg-brand-600/25 text-brand-300 grid place-items-center">
-                        <i data-lucide="bike" class="w-5 h-5"></i>
-                    </div>
+                    <img src="{{ asset('images/825310998_1610647237377200_4391978218746131377_n.png') }}" alt="MotoBook" class="h-10 w-10 rounded-md object-cover">
                     <div class="flex flex-col leading-tight">
                         <span class="font-semibold text-white tracking-tight">Motobook</span>
                         <span class="text-[11px] text-slate-400">Inventory &amp; POS</span>
@@ -101,10 +99,30 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button type="button" class="btn-ghost !p-2" aria-label="Notifications">
-                            <i data-lucide="bell" class="w-5 h-5"></i>
-                        </button>
-                        <button type="button" class="btn-ghost !p-2" aria-label="Search">
+                        <div class="relative" x-data="dashboardNotifications('{{ route('dashboard.notifications') }}')" x-init="load()" @click.outside="open = false">
+                            <button type="button" class="btn-ghost !p-2 relative" aria-label="Notifications" aria-haspopup="true" :aria-expanded="open" @click="open = !open; if (open && !loaded) load()">
+                                <i data-lucide="bell" class="w-5 h-5"></i>
+                                <span x-show="lowStockCount > 0" x-text="lowStockCount > 9 ? '9+' : lowStockCount" x-cloak class="absolute -right-1 -top-1 min-w-4 rounded-full bg-status-danger px-1 text-[10px] font-bold leading-4 text-white"></span>
+                            </button>
+                            <section x-show="open" x-transition x-cloak class="absolute right-0 z-50 mt-2 w-[min(90vw,22rem)] overflow-hidden rounded-xl border border-surface-border bg-white shadow-xl" role="region" aria-label="Inventory notifications">
+                                <div class="flex items-center justify-between border-b border-surface-border px-4 py-3">
+                                    <div><h2 class="text-sm font-semibold text-ink">Notifications</h2><p class="text-xs text-ink-subtle">Low stock and recent stock changes</p></div>
+                                    <button type="button" class="btn-ghost !p-1" aria-label="Close notifications" @click="open = false">×</button>
+                                </div>
+                                <div class="max-h-80 overflow-y-auto p-2">
+                                    <p x-show="loading" class="px-3 py-5 text-center text-sm text-ink-subtle">Loading notifications…</p>
+                                    <p x-show="!loading && loadError" class="px-3 py-5 text-center text-sm text-status-danger">Could not load notifications. Try again.</p>
+                                    <template x-for="notification in notifications" :key="notification.id">
+                                        <a :href="notification.url" class="flex gap-3 rounded-lg px-3 py-3 hover:bg-surface-muted">
+                                            <span class="mt-1 h-2 w-2 shrink-0 rounded-full" :class="notification.kind === 'warning' ? 'bg-status-danger' : 'bg-brand-600'"></span>
+                                            <span class="min-w-0"><strong class="block text-sm font-medium text-ink" x-text="notification.title"></strong><span class="mt-0.5 block text-xs text-ink-subtle" x-text="notification.message"></span></span>
+                                        </a>
+                                    </template>
+                                    <p x-show="!loading && loaded && !loadError && notifications.length === 0" class="px-3 py-6 text-center text-sm text-ink-subtle">No low-stock alerts or recent stock changes.</p>
+                                </div>
+                            </section>
+                        </div>
+                        <button type="button" class="btn-ghost !p-2" aria-label="Search" data-open-global-search>
                             <i data-lucide="search" class="w-5 h-5"></i>
                         </button>
 
@@ -172,5 +190,16 @@
                 </main>
             </div>
         </div>
+        <dialog id="global-search-dialog" class="m-auto w-[min(92vw,38rem)] rounded-xl border border-surface-border bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-950/40">
+            <form method="GET" action="{{ route('products.index') }}" class="space-y-4 p-5" data-global-search-form>
+                <div class="flex items-start justify-between gap-4">
+                    <div><h2 class="text-base font-semibold">Search MotoBook</h2><p class="mt-1 text-sm text-ink-subtle">Search inventory or sales records.</p></div>
+                    <button type="button" class="btn-ghost !p-1" aria-label="Close search" data-close-global-search>×</button>
+                </div>
+                <label class="block space-y-1.5"><span class="text-sm font-medium">Search in</span><select class="select w-full" data-global-search-target><option value="{{ route('products.index') }}">Inventory (name or SKU)</option><option value="{{ route('transactions.index') }}">Sales (invoice number)</option></select></label>
+                <label class="block space-y-1.5"><span class="text-sm font-medium">Search term</span><input type="search" name="search" required maxlength="100" class="input w-full" placeholder="Type a product, SKU, or invoice number…" data-global-search-input></label>
+                <button type="submit" class="btn-primary w-full">Search</button>
+            </form>
+        </dialog>
     </body>
 </html>

@@ -1,9 +1,14 @@
 <x-guest-layout>
     <section class="login-card" aria-labelledby="login-title">
-        <div class="login-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" fill="none"><path d="M7 31h5l4-9h11l5 9h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="33" r="5" stroke="currentColor" stroke-width="2.5"/><circle cx="35" cy="33" r="5" stroke="currentColor" stroke-width="2.5"/><path d="m19 22 4-7h7l4 7M25 15l-3-4h-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 18h9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <div class="login-brand-lockup">
+            <div class="login-brand-mark">
+                <img src="{{ asset('images/825310998_1610647237377200_4391978218746131377_n.png') }}" alt="">
+            </div>
+            <div class="login-brand-copy">
+                <div class="login-brand-name">MotoBook</div>
+                <span>Order · Ride · Enjoy</span>
+            </div>
         </div>
-        <div class="login-brand-name">MotoBook</div>
         <h1 id="login-title" class="login-title">Log In</h1>
         <p class="login-subtitle">Welcome back! Please log in<br class="desktop-break"> to your account.</p>
 

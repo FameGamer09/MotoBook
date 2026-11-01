@@ -268,7 +268,11 @@ small {
     font-weight: var(--fw-bold);
     font-size: 1.125rem;
     flex-shrink: 0;
+    overflow: hidden;
+    padding: 0;
+    background: transparent;
 }
+.sidebar-brand .brand-icon img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 
 .sidebar-brand strong {
     display: block;

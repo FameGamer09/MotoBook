@@ -58,7 +58,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 <body>
 <main class="auth-card">
     <div class="brand">
-        <div class="brand-mark"><img src="<?= ssoH($baseUrl) ?>/public/images/login-scooter.svg" alt="Motobook scooter"></div>
+        <div class="brand-mark"><img src="<?= ssoH($baseUrl) ?>/images/825310998_1610647237377200_4391978218746131377_n.png" alt="MotoBook scooter logo"></div>
         <span>Motobook</span>
     </div>
     <h1>Rider Sign Up</h1>

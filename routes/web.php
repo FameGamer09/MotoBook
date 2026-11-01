@@ -23,6 +23,9 @@ Route::middleware(['auth', 'cache.headers:private;no_store;no_cache;must_revalid
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::middleware('role:admin,cashier')->group(function () {
+        Route::get('/dashboard/notifications', [DashboardController::class, 'notifications'])
+            ->name('dashboard.notifications');
+
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
         Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
