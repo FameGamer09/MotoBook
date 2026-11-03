@@ -65,6 +65,61 @@ test('management panel reads session files from the shared login session directo
         ->and(is_writable($managementSessionPath))->toBeTrue();
 });
 
+test('rider panel reads the session created by shared sign in', function () {
+    $sessionPath = motobookAdminSessionSavePath();
+    $previousPath = session_save_path();
+    $previousName = session_name();
+    $previousScriptName = $_SERVER['SCRIPT_NAME'] ?? null;
+    $sessionId = null;
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
+    session_id('');
+    $_SERVER['SCRIPT_NAME'] = '/A-rider/index.php';
+
+    try {
+        ssoSeedPanelSession([
+            'panel' => 'rider',
+            'role' => 'rider',
+            'data' => [
+                'id' => 42,
+                'rider_code' => 'RDR-042',
+                'name' => 'Test Rider',
+                'email' => 'rider@example.test',
+                'status' => 'ACTIVE',
+            ],
+        ]);
+        $sessionId = session_id();
+
+        require_once __DIR__.'/../../A-rider/config/app.php';
+
+        expect(session_name())->toBe('motobook_rider_session')
+            ->and(session_save_path())->toBe($sessionPath)
+            ->and(is_writable(session_save_path()))->toBeTrue()
+            ->and($_SESSION['rider_id'])->toBe(42);
+    } finally {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        if ($sessionId !== null && $sessionId !== '') {
+            @unlink($sessionPath.DIRECTORY_SEPARATOR.'sess_'.$sessionId);
+        }
+
+        session_id('');
+        session_name($previousName);
+        session_save_path($previousPath);
+
+        if ($previousScriptName === null) {
+            unset($_SERVER['SCRIPT_NAME']);
+        } else {
+            $_SERVER['SCRIPT_NAME'] = $previousScriptName;
+        }
+    }
+});
+
 test('shared sign in authenticates management staff and sends them to management', function () {
     $statement = $this->pdo->prepare(
         'INSERT INTO staff (full_name, email, password, role, staff_type, is_active) VALUES (?, ?, ?, ?, ?, 1)'

@@ -10,7 +10,7 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  base: '/IM-101/motobook/A-rider/public/build/',
+  base: process.env.VITE_RIDER_ASSET_BASE || '/IM-101/motobook/A-rider/public/build/',
   server: {
     port: 5174,
     strictPort: true,

@@ -3,6 +3,73 @@
 // The legacy admin panel lives outside the public document root. Dispatch only
 // its explicitly supported entry points before Laravel loads global helpers.
 $requestPath = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+$riderRoot = realpath(dirname(__DIR__).'/A-rider');
+
+if ($requestPath === '/A-rider/api' || str_starts_with($requestPath, '/A-rider/api/')) {
+    $riderApiPath = $riderRoot !== false ? realpath($riderRoot.DIRECTORY_SEPARATOR.'api'.DIRECTORY_SEPARATOR.'index.php') : false;
+
+    if ($riderApiPath === false || ! is_file($riderApiPath)) {
+        http_response_code(404);
+        exit;
+    }
+
+    $_SERVER['SCRIPT_NAME'] = '/A-rider/api/index.php';
+    $_SERVER['PHP_SELF'] = '/A-rider/api/index.php';
+    $_SERVER['SCRIPT_FILENAME'] = $riderApiPath;
+
+    require $riderApiPath;
+    exit;
+}
+
+if (str_starts_with($requestPath, '/A-rider/public/build/')) {
+    $riderBuildRelativePath = substr($requestPath, strlen('/A-rider/public/build/'));
+    $riderBuildRoot = $riderRoot !== false ? realpath($riderRoot.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'build') : false;
+    $riderBuildPath = $riderBuildRoot !== false
+        ? realpath($riderBuildRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $riderBuildRelativePath))
+        : false;
+    $riderAssetTypes = [
+        'css' => 'text/css; charset=utf-8',
+        'js' => 'application/javascript; charset=utf-8',
+        'json' => 'application/json; charset=utf-8',
+        'webmanifest' => 'application/manifest+json; charset=utf-8',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'svg' => 'image/svg+xml',
+        'webp' => 'image/webp',
+        'ico' => 'image/x-icon',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+    ];
+    $riderAssetType = $riderAssetTypes[strtolower(pathinfo($riderBuildRelativePath, PATHINFO_EXTENSION))] ?? null;
+
+    if ($riderBuildPath === false || $riderBuildRoot === false || ! is_file($riderBuildPath) || ! str_starts_with($riderBuildPath, $riderBuildRoot.DIRECTORY_SEPARATOR) || $riderAssetType === null) {
+        http_response_code(404);
+        exit;
+    }
+
+    header('Content-Type: '.$riderAssetType);
+    header('X-Content-Type-Options: nosniff');
+    readfile($riderBuildPath);
+    exit;
+}
+
+if ($requestPath === '/A-rider' || str_starts_with($requestPath, '/A-rider/')) {
+    $riderEntryPath = $riderRoot !== false ? realpath($riderRoot.DIRECTORY_SEPARATOR.'index.php') : false;
+
+    if ($riderEntryPath === false || ! is_file($riderEntryPath)) {
+        http_response_code(404);
+        exit;
+    }
+
+    $_SERVER['SCRIPT_NAME'] = '/A-rider/index.php';
+    $_SERVER['PHP_SELF'] = '/A-rider/index.php';
+    $_SERVER['SCRIPT_FILENAME'] = $riderEntryPath;
+
+    require $riderEntryPath;
+    exit;
+}
+
 $managementScripts = [
     '/A-management' => 'index.php',
     '/A-management/' => 'index.php',

@@ -245,7 +245,8 @@ try {
         if (! isset($extensions[$mimeType])) {
             $send(['error' => 'INVALID_DOCUMENT_TYPE'], 422);
         }
-        $directory = dirname(__DIR__, 3).'/motobook-private/rider-documents/'.$riderId;
+        $privateStorageRoot = getenv('MOTOBOOK_PRIVATE_STORAGE_PATH') ?: dirname(__DIR__, 3).'/motobook-private/rider-documents';
+        $directory = rtrim($privateStorageRoot, '/\\').DIRECTORY_SEPARATOR.$riderId;
         if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
             $send(['error' => 'DOCUMENT_STORAGE_UNAVAILABLE'], 500);
         }

@@ -8,11 +8,23 @@ function riderAdminDB(): PDO
     if ($pdo instanceof PDO) {
         return $pdo;
     }
-    $host = getenv('MOTOBOOK_ADMIN_DB_HOST') ?: '127.0.0.1';
-    $user = getenv('MOTOBOOK_ADMIN_DB_USER') ?: 'root';
-    $pass = getenv('MOTOBOOK_ADMIN_DB_PASS') ?: '';
-    $name = getenv('MOTOBOOK_ADMIN_DB_NAME') ?: 'motobook_admin';
-    $port = (int) (getenv('MOTOBOOK_ADMIN_DB_PORT') ?: 3306);
+    $databaseEnv = static function (string $key, string $fallbackKey, string $default): string {
+        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+
+        if ($value !== false && $value !== null && $value !== '') {
+            return (string) $value;
+        }
+
+        $fallback = $_ENV[$fallbackKey] ?? $_SERVER[$fallbackKey] ?? getenv($fallbackKey);
+
+        return $fallback === false || $fallback === null ? $default : (string) $fallback;
+    };
+
+    $host = $databaseEnv('MANAGEMENT_DB_HOST', 'MOTOBOOK_ADMIN_DB_HOST', '127.0.0.1');
+    $user = $databaseEnv('MANAGEMENT_DB_USERNAME', 'MOTOBOOK_ADMIN_DB_USER', 'root');
+    $pass = $databaseEnv('MANAGEMENT_DB_PASSWORD', 'MOTOBOOK_ADMIN_DB_PASS', '');
+    $name = $databaseEnv('MANAGEMENT_DB_DATABASE', 'MOTOBOOK_ADMIN_DB_NAME', 'motobook_admin');
+    $port = (int) $databaseEnv('MANAGEMENT_DB_PORT', 'MOTOBOOK_ADMIN_DB_PORT', '3306');
     $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $name);
     $pdo = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

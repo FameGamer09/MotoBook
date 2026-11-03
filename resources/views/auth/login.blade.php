@@ -60,15 +60,7 @@
                 <svg class="facebook-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.6 21v-8.2h2.8l.4-3.2h-3.2v-2c0-.9.3-1.6 1.6-1.6H17V3.1c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.3H7.5v3.2h2.8V21h3.3Z"/></svg>
                 <span>Facebook</span>
             </a>
-            <a href="{{ route('login.social.apple') }}" class="login-social-button" aria-label="Continue with Apple">
-                <svg class="apple-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.5 12.8c0-2 1.6-3 1.7-3.1a3.7 3.7 0 0 0-2.9-1.6c-1.2-.1-2.3.7-2.9.7s-1.5-.7-2.5-.7a3.9 3.9 0 0 0-3.3 2c-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.4 2s1.3-.6 2.4-.6 1.4.6 2.5.6 1.8-1 2.4-2a9 9 0 0 0 1.1-2.2 3.5 3.5 0 0 1-2-3.1ZM14.6 6.8A3.7 3.7 0 0 0 15.5 4a3.8 3.8 0 0 0-2.5 1.3 3.4 3.4 0 0 0-.9 2.6 3.2 3.2 0 0 0 2.5-1.1Z"/></svg>
-                <span>Apple</span>
-            </a>
         </div>
-        <a class="login-phone-link" href="{{ route('login.phone') }}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
-            Sign in with a one-time phone code
-        </a>
         <p class="login-signup">Don’t have an account? <a href="{{ route('register') }}">Sign Up</a></p>
 
         <p class="login-unified">Use your customer, rider, management, or admin account to sign in here.</p>

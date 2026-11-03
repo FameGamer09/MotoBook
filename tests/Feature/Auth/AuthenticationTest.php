@@ -8,6 +8,10 @@ test('login screen is available to platform users', function () {
 
     $response->assertOk()
         ->assertSee('Use your customer, rider, management, or admin account to sign in here.')
+        ->assertSee(route('login.social.google'))
+        ->assertSee(route('login.social.facebook'))
+        ->assertDontSee(route('login.social.apple'))
+        ->assertDontSee(route('login.phone'))
         ->assertDontSee('open the management sign-in');
 });
 

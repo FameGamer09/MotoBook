@@ -1,7 +1,12 @@
 <?php
 
 declare(strict_types=1);
+
+require_once dirname(__DIR__, 2).'/admin/config/session.php';
+
 if (session_status() === PHP_SESSION_NONE) {
+    session_save_path(motobookAdminSessionSavePath());
+
     if (PHP_VERSION_ID >= 70300) {
         $isHttps = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '')
             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
@@ -37,18 +42,20 @@ if (basename($scriptDir) === 'A-rider') {
     $projectBase = $scriptDir;
 }
 $projectBase = ($projectBase === '.' || $projectBase === '') ? '' : $projectBase;
+$requestIsHttps = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
 
 define('APP_URL_BASE', ($projectBase === '' ? '' : $projectBase).'/A-rider');
 define('PROJECT_URL_BASE', $projectBase === '' ? '/' : $projectBase.'/');
 
-define('UNIFIED_LOGIN_URL', (function () use ($projectBase): string {
-    $proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
+define('UNIFIED_LOGIN_URL', (function () use ($projectBase, $requestIsHttps): string {
+    $proto = $requestIsHttps ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
     return sprintf('%s://%s%s/admin/login.php', $proto, $host, $projectBase === '' ? '' : $projectBase);
 })());
-define('UNIFIED_LOGOUT_URL', (function () use ($projectBase): string {
-    $proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
+define('UNIFIED_LOGOUT_URL', (function () use ($projectBase, $requestIsHttps): string {
+    $proto = $requestIsHttps ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
     return sprintf('%s://%s%s/admin/logout.php?pool=rider', $proto, $host, $projectBase === '' ? '' : $projectBase);
