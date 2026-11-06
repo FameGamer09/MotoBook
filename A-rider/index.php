@@ -76,15 +76,16 @@ header('X-Frame-Options: SAMEORIGIN');
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MotoBook Rider" />
-    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="application-name" content="MotoBook Rider" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <title>MotoBook Rider</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="manifest" href="<?= htmlspecialchars($buildBase . 'manifest.webmanifest?v=' . APP_BUILD_TAG, ENT_QUOTES, 'UTF-8') ?>" />
+    <link rel="manifest" href="<?= htmlspecialchars(rtrim(PROJECT_URL_BASE, '/') . '/manifest.webmanifest', ENT_QUOTES, 'UTF-8') ?>" />
     <link rel="icon" type="image/svg+xml" href="<?= htmlspecialchars($buildBase . 'assets/rider-icon-192.svg?v=' . APP_BUILD_TAG, ENT_QUOTES, 'UTF-8') ?>" />
     <link rel="apple-touch-icon" href="<?= htmlspecialchars($buildBase . 'assets/rider-icon-192.svg?v=' . APP_BUILD_TAG, ENT_QUOTES, 'UTF-8') ?>" />
+    <script src="<?= htmlspecialchars(rtrim(PROJECT_URL_BASE, '/') . '/js/pwa-install.js', ENT_QUOTES, 'UTF-8') ?>" defer></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
     <?php if ($buildExists && $cssUrl): ?>
         <link rel="stylesheet" href="<?= htmlspecialchars($cssUrl, ENT_QUOTES, 'UTF-8') ?>" />
@@ -118,14 +119,5 @@ header('X-Frame-Options: SAMEORIGIN');
     <?php else: ?>
     <script type="module" src="<?= htmlspecialchars($jsUrl, ENT_QUOTES, 'UTF-8') ?>"></script>
     <?php endif; ?>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('<?= htmlspecialchars($buildBase . 'service-worker.js?v=' . APP_BUILD_TAG, ENT_QUOTES, 'UTF-8') ?>', {
-            scope: '<?= htmlspecialchars($buildBase, ENT_QUOTES, 'UTF-8') ?>'
-          }).catch(function (e) { console.warn('[SW] register failed', e); });
-        });
-      }
-    </script>
 </body>
 </html>

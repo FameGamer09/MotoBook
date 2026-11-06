@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00b8d2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MotoBook">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/motobook-app-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/motobook-app-192.png') }}">
     <title>@yield('title', 'MotoBook Admin')</title>
     @vite(['resources/css/app.css', 'resources/css/pages/' . ($pageCss ?? 'admin-dashboard') . '.css'])
+    <script src="{{ asset('js/pwa-install.js') }}" defer></script>
 </head>
 <body class="admin-shell">
 
