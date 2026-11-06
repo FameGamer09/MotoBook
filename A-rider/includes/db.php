@@ -105,6 +105,7 @@ function riderRequireAuth(): array
         $safeCol = static function (string $name, string $defaultExpr = "''") use ($col): string {
             return $col($name) ? "r.`$name`" : $defaultExpr;
         };
+        $dutyStatusExpression = 'UPPER(COALESCE('.$safeCol('duty_status').", ''))";
         $nameParts = [];
         if ($col('name')) {
             $nameParts[] = "NULLIF(r.`name`, '')";
@@ -116,12 +117,18 @@ function riderRequireAuth(): array
         $sql = "SELECT r.id,
             {$nameExpression} AS name,
             r.email,
-            CASE UPPER(r.status)
+            CASE UPPER(COALESCE(r.status, ''))
                 WHEN 'ACTIVE'    THEN 'ACTIVE'
                 WHEN 'ON_DUTY'   THEN 'ON_SHIFT'
                 WHEN 'ON_SHIFT'  THEN 'ON_SHIFT'
                 WHEN 'SUSPENDED' THEN 'SUSPENDED'
                 WHEN 'INACTIVE'  THEN 'INACTIVE'
+                WHEN '' THEN CASE {$dutyStatusExpression}
+                    WHEN 'ONLINE' THEN 'ON_SHIFT'
+                    WHEN 'ON_TRIP' THEN 'ON_SHIFT'
+                    WHEN 'IDLE' THEN 'ON_SHIFT'
+                    ELSE 'OFFLINE'
+                END
                 ELSE 'OFFLINE'
             END AS status,
             {$safeCol('vehicle_plate', "''")} AS vehicle_plate,
