@@ -993,7 +993,7 @@ function submitPromo(array $fields): bool
     $pdo = getOpsDB();
     try {
         $submitter = currentUser()['name'] ?? 'Store';
-        $pdo->prepare('INSERT INTO store_promos (store_id, title, description, discount_percent, status, submitted_by, created_at, updated_at) VALUES (?,?,?,?,?,\'pending\',?,NOW(),NOW())')->execute([
+        $pdo->prepare('INSERT INTO store_promos (store_id, title, description, discount_percent, status, submitted_by, created_at, updated_at) VALUES (?,?,?,?, \'pending\', ?, NOW(), NOW())')->execute([
             $sid, $fields['title'], $fields['description'] ?? '', (float) ($fields['discount_percent'] ?? 0), $submitter,
         ]);
 
