@@ -411,6 +411,22 @@ function settingValue(string $key, string $default = '0'): string
     }
 }
 
+function updateGlobalDeliveryFee(string $deliveryFee): bool
+{
+    if (! isPlatformStaff()) {
+        return false;
+    }
+
+    try {
+        $statement = getOpsDB()->prepare('UPDATE platform_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?');
+        $statement->execute([$deliveryFee, 'global_delivery_fee']);
+
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
 function allSettings(): array
 {
     $pdo = getOpsDB();
@@ -1433,7 +1449,7 @@ function createDirectOrder(array $customer, int $storeId, array $lineItems, int 
         $deliveryFee = (float) ($customer['delivery_fee'] ?? 0);
         if ($deliveryFee <= 0) {
             try {
-                $defaultFee = (float) settingValue('default_delivery_fee', '49');
+                $defaultFee = (float) settingValue('global_delivery_fee', '49');
                 $deliveryFee = max(0, $defaultFee);
             } catch (Throwable $e) {
                 $deliveryFee = 49.0;
