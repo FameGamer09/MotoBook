@@ -411,18 +411,39 @@ function settingValue(string $key, string $default = '0'): string
     }
 }
 
-function updateGlobalDeliveryFee(string $deliveryFee): bool
+/**
+ * @param  array{global_delivery_fee: string, bulk_min_orders: string, bulk_discount_percent: string, max_refund_amount: string, delay_threshold_minutes: string}  $settings
+ */
+function updateManagementRules(array $settings): bool
 {
-    if (! isPlatformStaff()) {
+    $allowedKeys = [
+        'global_delivery_fee',
+        'bulk_min_orders',
+        'bulk_discount_percent',
+        'max_refund_amount',
+        'delay_threshold_minutes',
+    ];
+
+    if (! isPlatformStaff() || array_diff(array_keys($settings), $allowedKeys) || array_diff($allowedKeys, array_keys($settings))) {
         return false;
     }
 
+    $pdo = null;
     try {
-        $statement = getOpsDB()->prepare('UPDATE platform_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?');
-        $statement->execute([$deliveryFee, 'global_delivery_fee']);
+        $pdo = getOpsDB();
+        $pdo->beginTransaction();
+        $statement = $pdo->prepare('UPDATE platform_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?');
+        foreach ($allowedKeys as $key) {
+            $statement->execute([$settings[$key], $key]);
+        }
+        $pdo->commit();
 
         return true;
     } catch (Throwable $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
         return false;
     }
 }

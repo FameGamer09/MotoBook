@@ -17,13 +17,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $deliveryFee = trim((string) ($_POST['delivery_fee'] ?? ''));
-    if (! preg_match('/^\d{1,6}(?:\.\d{1,2})?$/D', $deliveryFee)) {
-        flash('error', 'Enter a delivery fee from ₱0.00 to ₱999,999.99.');
-    } elseif (! updateGlobalDeliveryFee($deliveryFee)) {
-        flash('error', 'The delivery fee could not be saved. Please try again.');
+    $settingRules = [
+        'global_delivery_fee' => ['label' => 'delivery fee', 'pattern' => '/^\d{1,6}(?:\.\d{1,2})?$/D', 'min' => 0, 'max' => 999999.99, 'integer' => false],
+        'bulk_min_orders' => ['label' => 'minimum bulk orders', 'pattern' => '/^\d{1,6}$/D', 'min' => 1, 'max' => 999999, 'integer' => true],
+        'bulk_discount_percent' => ['label' => 'bulk discount percentage', 'pattern' => '/^\d{1,3}(?:\.\d{1,2})?$/D', 'min' => 0, 'max' => 100, 'integer' => false],
+        'max_refund_amount' => ['label' => 'maximum refund amount', 'pattern' => '/^\d{1,6}(?:\.\d{1,2})?$/D', 'min' => 0, 'max' => 999999.99, 'integer' => false],
+        'delay_threshold_minutes' => ['label' => 'delay threshold', 'pattern' => '/^\d{1,6}$/D', 'min' => 5, 'max' => 999999, 'integer' => true],
+    ];
+    $settingsToSave = [];
+    $invalidSettings = [];
+
+    foreach ($settingRules as $key => $rule) {
+        $value = trim((string) ($_POST[$key] ?? ''));
+        $numericValue = (float) $value;
+        if (! preg_match($rule['pattern'], $value) || $numericValue < $rule['min'] || $numericValue > $rule['max']) {
+            $invalidSettings[] = $rule['label'];
+
+            continue;
+        }
+
+        $settingsToSave[$key] = $rule['integer'] ? (string) (int) $value : number_format($numericValue, 2, '.', '');
+    }
+
+    if ($invalidSettings) {
+        flash('error', 'Please check these values: '.implode(', ', $invalidSettings).'.');
+    } elseif (! updateManagementRules($settingsToSave)) {
+        flash('error', 'The platform rules could not be saved. Please try again.');
     } else {
-        flash('success', 'Delivery fee updated for new orders.');
+        flash('success', 'Platform rules saved.');
     }
 
     header('Location: '.APP_URL.'/dashboard.php');
@@ -81,24 +102,42 @@ $recent = array_slice($orders, 0, 6);
         <div class="card-header"><h2>Platform rules</h2></div>
         <div class="card-body">
             <?php if (isPlatformStaff()) { ?>
-                <div class="alert alert-info">Management staff can change the delivery fee for new orders. Other platform rules remain read-only.</div>
+                <div class="alert alert-info">Save shared platform rules here. Delivery fees, refund limits, and delay alerts use these values.</div>
                 <form method="POST" action="<?= APP_URL ?>/dashboard.php" class="form-row">
                     <?= csrfField() ?>
                     <div class="form-group">
                         <label for="deliveryFee">Global delivery fee (₱)</label>
-                        <input class="form-control" id="deliveryFee" name="delivery_fee" type="number" min="0" max="999999.99" step="0.01" value="<?= e($settings['global_delivery_fee']) ?>" required>
+                        <input class="form-control" id="deliveryFee" name="global_delivery_fee" type="number" min="0" max="999999.99" step="0.01" value="<?= e($settings['global_delivery_fee']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bulkMinOrders">Minimum bulk orders</label>
+                        <input class="form-control" id="bulkMinOrders" name="bulk_min_orders" type="number" min="1" max="999999" step="1" value="<?= e($settings['bulk_min_orders']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bulkDiscountPercent">Bulk discount (%)</label>
+                        <input class="form-control" id="bulkDiscountPercent" name="bulk_discount_percent" type="number" min="0" max="100" step="0.01" value="<?= e($settings['bulk_discount_percent']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxRefundAmount">Maximum refund (₱)</label>
+                        <input class="form-control" id="maxRefundAmount" name="max_refund_amount" type="number" min="0" max="999999.99" step="0.01" value="<?= e($settings['max_refund_amount']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="delayThresholdMinutes">Delay threshold (minutes)</label>
+                        <input class="form-control" id="delayThresholdMinutes" name="delay_threshold_minutes" type="number" min="5" max="999999" step="1" value="<?= e($settings['delay_threshold_minutes']) ?>" required>
                     </div>
                     <div class="form-group" style="align-self:end">
-                        <button class="btn btn-primary" type="submit">Save delivery fee</button>
+                        <button class="btn btn-primary" type="submit">Save all rules</button>
                     </div>
                 </form>
             <?php } else { ?>
-                <div class="alert alert-info">Global delivery fees, bulking rules, and refund limits are configured by Motobook management staff.</div>
+                <div class="alert alert-info">Global delivery fees, bulking rules, refund limits, and delay thresholds are configured by Motobook management staff.</div>
                 <p><strong>Global delivery fee:</strong> <?= formatMoney((float) $settings['global_delivery_fee']) ?></p>
             <?php } ?>
-            <p><strong>Bulk min orders:</strong> <?= e($settings['bulk_min_orders']) ?> (<?= e($settings['bulk_discount_percent']) ?>% discount)</p>
-            <p><strong>Max refund limit:</strong> <?= formatMoney((float) $settings['max_refund_amount']) ?></p>
-            <p><strong>Delay threshold:</strong> <?= e($settings['delay_threshold_minutes']) ?> minutes</p>
+            <?php if (! isPlatformStaff()) { ?>
+                <p><strong>Bulk min orders:</strong> <?= e($settings['bulk_min_orders']) ?> (<?= e($settings['bulk_discount_percent']) ?>% discount)</p>
+                <p><strong>Max refund limit:</strong> <?= formatMoney((float) $settings['max_refund_amount']) ?></p>
+                <p><strong>Delay threshold:</strong> <?= e($settings['delay_threshold_minutes']) ?> minutes</p>
+            <?php } ?>
             <?php if (isPlatformStaff()) { ?>
                 <p class="text-muted">Staff accounts are managed in Super Admin.</p>
             <?php } else { ?>
