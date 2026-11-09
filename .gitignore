@@ -44,6 +44,7 @@ vendor/
 .DS_Store
 Thumbs.db
 *.sql
+!admin/database/operations.sql
 
 # ---- Dev-only smoke / debug scripts ----
 _smoke_tests.php

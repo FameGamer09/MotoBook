@@ -28,7 +28,16 @@ function runOperationsMigration(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
-    $opsSql = file_get_contents(dirname(__DIR__).'/database/operations.sql');
+    $opsSqlPath = dirname(__DIR__).'/database/operations.sql';
+    if (! is_file($opsSqlPath) || ! is_readable($opsSqlPath)) {
+        throw new RuntimeException('Required admin operations schema file is missing or unreadable.');
+    }
+
+    $opsSql = file_get_contents($opsSqlPath);
+    if ($opsSql === false) {
+        throw new RuntimeException('Unable to read the admin operations schema file.');
+    }
+
     $opsSql = preg_replace('/^USE motobook_admin;\s*/m', '', $opsSql) ?? $opsSql;
     $opsSql = preg_replace('/--.*$/m', '', $opsSql) ?? $opsSql;
 
