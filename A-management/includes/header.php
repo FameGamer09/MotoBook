@@ -18,6 +18,8 @@ if ($isStoreOnly && $pageMode !== 'store') {
     redirectOps('/menu.php');
 }
 $currentScript = basename($_SERVER['PHP_SELF'] ?? 'dashboard.php');
+$pwaProjectBase = str_ends_with(APP_URL, '/A-management') ? substr(APP_URL, 0, -strlen('/A-management')) : '';
+$pwaAssetBase = ($pwaProjectBase === '' ? '/' : rtrim($pwaProjectBase, '/').'/');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,11 +28,19 @@ $currentScript = basename($_SERVER['PHP_SELF'] ?? 'dashboard.php');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= csrfToken() ?>">
     <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#00b8d2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MotoBook">
+    <link rel="manifest" href="<?= htmlspecialchars($pwaAssetBase.'manifest.webmanifest', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="icon" type="image/png" sizes="192x192" href="<?= htmlspecialchars($pwaAssetBase.'images/motobook-app-192.png', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($pwaAssetBase.'images/motobook-app-192.png', ENT_QUOTES, 'UTF-8') ?>">
     <title><?= pageTitle($pageTitle) ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/style.css?v=<?= gmdate('Ymd-Hi') ?>">
+    <script src="<?= htmlspecialchars($pwaAssetBase.'js/pwa-install.js', ENT_QUOTES, 'UTF-8') ?>" defer></script>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
         <defs>
             <linearGradient id="half-grad" x1="0%" y1="0%" x2="100%" y2="0%">

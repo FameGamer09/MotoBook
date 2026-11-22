@@ -411,6 +411,43 @@ function settingValue(string $key, string $default = '0'): string
     }
 }
 
+/**
+ * @param  array{global_delivery_fee: string, bulk_min_orders: string, bulk_discount_percent: string, max_refund_amount: string, delay_threshold_minutes: string}  $settings
+ */
+function updateManagementRules(array $settings): bool
+{
+    $allowedKeys = [
+        'global_delivery_fee',
+        'bulk_min_orders',
+        'bulk_discount_percent',
+        'max_refund_amount',
+        'delay_threshold_minutes',
+    ];
+
+    if (! isPlatformStaff() || array_diff(array_keys($settings), $allowedKeys) || array_diff($allowedKeys, array_keys($settings))) {
+        return false;
+    }
+
+    $pdo = null;
+    try {
+        $pdo = getOpsDB();
+        $pdo->beginTransaction();
+        $statement = $pdo->prepare('UPDATE platform_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?');
+        foreach ($allowedKeys as $key) {
+            $statement->execute([$settings[$key], $key]);
+        }
+        $pdo->commit();
+
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        return false;
+    }
+}
+
 function allSettings(): array
 {
     $pdo = getOpsDB();
@@ -993,7 +1030,7 @@ function submitPromo(array $fields): bool
     $pdo = getOpsDB();
     try {
         $submitter = currentUser()['name'] ?? 'Store';
-        $pdo->prepare('INSERT INTO store_promos (store_id, title, description, discount_percent, status, submitted_by, created_at, updated_at) VALUES (?,?,?,?,?,\'pending\',?,NOW(),NOW())')->execute([
+        $pdo->prepare('INSERT INTO store_promos (store_id, title, description, discount_percent, status, submitted_by, created_at, updated_at) VALUES (?,?,?,?, \'pending\', ?, NOW(), NOW())')->execute([
             $sid, $fields['title'], $fields['description'] ?? '', (float) ($fields['discount_percent'] ?? 0), $submitter,
         ]);
 
@@ -1433,7 +1470,7 @@ function createDirectOrder(array $customer, int $storeId, array $lineItems, int 
         $deliveryFee = (float) ($customer['delivery_fee'] ?? 0);
         if ($deliveryFee <= 0) {
             try {
-                $defaultFee = (float) settingValue('default_delivery_fee', '49');
+                $defaultFee = (float) settingValue('global_delivery_fee', '49');
                 $deliveryFee = max(0, $defaultFee);
             } catch (Throwable $e) {
                 $deliveryFee = 49.0;

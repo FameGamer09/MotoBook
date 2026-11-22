@@ -9,16 +9,18 @@
         </div>
     </div>
     <nav class="sidebar-nav">
-        <div class="nav-section-label">Workspace</div>
-        <a class="nav-item <?= isActivePage('dashboard.php') ?>" href="<?= APP_URL ?>/dashboard.php">
-            <i data-lucide="layout-dashboard"></i>
-            Dashboard
-        </a>
-        <a class="nav-item <?= isActivePage('orders.php') ?>" href="<?= APP_URL ?>/orders.php">
-            <i data-lucide="clipboard-list"></i>
-            Live Orders
-        </a>
-        <?php if (isPlatformStaff()): ?>
+        <?php if (isPlatformStaff()) { ?>
+            <div class="nav-section-label">Workspace</div>
+            <a class="nav-item <?= isActivePage('dashboard.php') ?>" href="<?= APP_URL ?>/dashboard.php">
+                <i data-lucide="layout-dashboard"></i>
+                Dashboard
+            </a>
+            <a class="nav-item <?= isActivePage('orders.php') ?>" href="<?= APP_URL ?>/orders.php">
+                <i data-lucide="clipboard-list"></i>
+                Live Orders
+            </a>
+        <?php } ?>
+        <?php if (isPlatformStaff()) { ?>
             <div class="nav-section-label">Platform Operations</div>
             <a class="nav-item <?= isActivePage('remittance.php') ?>" href="<?= APP_URL ?>/remittance.php">
                 <i data-lucide="banknote"></i>
@@ -56,7 +58,7 @@
                 <i data-lucide="sliders-horizontal"></i>
                 Rules (Read-Only)
             </a>
-        <?php else: ?>
+        <?php } else { ?>
             <div class="nav-section-label">Store</div>
             <a class="nav-item <?= isActivePage('menu.php') ?>" href="<?= APP_URL ?>/menu.php">
                 <i data-lucide="warehouse"></i>
@@ -74,7 +76,7 @@
                 <i data-lucide="store"></i>
                 Store Status
             </a>
-        <?php endif; ?>
+        <?php } ?>
     </nav>
     <div class="sidebar-footer"><small>Motobook Management &middot; powered by MySQL</small></div>
 </aside>

@@ -6,12 +6,11 @@ use App\Models\CustomerCart;
 use App\Models\MenuItem;
 use App\Models\Store;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CartService
 {
     private const SESSION_KEY = 'cart';
-
-    private const DELIVERY_FEE = 30.00;
 
     private const SERVICE_FEE = 5.00;
 
@@ -142,7 +141,7 @@ class CartService
     public function totals(): array
     {
         $subtotal = $this->getItems()->sum('line_total');
-        $deliveryFee = $subtotal > 0 ? self::DELIVERY_FEE : 0;
+        $deliveryFee = $subtotal > 0 ? $this->globalDeliveryFee() : 0;
         $serviceFee = $subtotal > 0 ? self::SERVICE_FEE : 0;
 
         return [
@@ -158,6 +157,22 @@ class CartService
         sort($optionIds);
 
         return md5($menuItemId.'-'.implode(',', $optionIds));
+    }
+
+    private function globalDeliveryFee(): float
+    {
+        try {
+            $fee = DB::connection('management')
+                ->table('platform_settings')
+                ->where('setting_key', 'global_delivery_fee')
+                ->value('setting_value');
+
+            return is_numeric($fee) && (float) $fee >= 0 ? round((float) $fee, 2) : 49.00;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return 49.00;
+        }
     }
 
     private function getRaw(): array

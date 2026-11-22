@@ -83,6 +83,11 @@
 .login-signup { margin: 16px 0 0; text-align: center; color: #52647a; font-size: 14px; }
 .login-unified { margin: 12px 0 0; color: #718198; text-align: center; font-size: 12px; line-height: 1.6; }
 .login-copyright { margin: 12px 0 0; color: #8494a5; text-align: center; font-size: 11px; }
+.pwa-install-area { display: grid; justify-items: center; gap: 8px; margin-top: 12px; }
+.pwa-install-button { min-height: 42px; padding: 9px 18px; border: 1px solid #b7e8ef; border-radius: 13px; background: #f3fcfe; color: #087b94; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
+.pwa-install-button:hover { border-color: #62cbdc; background: #e5f9fc; transform: translateY(-1px); }
+.pwa-install-button[hidden], .pwa-install-help[hidden] { display: none; }
+.pwa-install-help { max-width: 34rem; margin: 0; color: #63758a; text-align: center; font-size: 12px; line-height: 1.5; }
 .login-shell :focus-visible { outline: 3px solid rgba(8, 185, 215, .35); outline-offset: 3px; }
 
 @media (max-width: 520px) {

@@ -76,12 +76,18 @@ try {
             email, ".$apiSafe($pdo, $t, 'phone', "''").' AS phone, '.$apiSafe($pdo, $t, 'vehicle_plate', "''").' AS vehicle_plate,
             COALESCE(NULLIF('.$apiSafe($pdo, $t, 'vehicle_type', "''").", ''), 'MOTORCYCLE') AS vehicle_type,
             COALESCE(".$apiSafe($pdo, $t, 'city', "''").", '') AS city,
-            CASE UPPER(".$apiSafe($pdo, $t, 'status', "'OFFLINE'").")
+            CASE UPPER(COALESCE(".$apiSafe($pdo, $t, 'status', "'OFFLINE'").", ''))
                 WHEN 'ACTIVE'    THEN 'ACTIVE'
                 WHEN 'ON_DUTY'   THEN 'ON_SHIFT'
                 WHEN 'ON_SHIFT'  THEN 'ON_SHIFT'
                 WHEN 'SUSPENDED' THEN 'SUSPENDED'
                 WHEN 'INACTIVE'  THEN 'INACTIVE'
+                WHEN '' THEN CASE UPPER(COALESCE(".$apiSafe($pdo, $t, 'duty_status', "''").", ''))
+                    WHEN 'ONLINE' THEN 'ON_SHIFT'
+                    WHEN 'ON_TRIP' THEN 'ON_SHIFT'
+                    WHEN 'IDLE' THEN 'ON_SHIFT'
+                    ELSE 'OFFLINE'
+                END
                 ELSE 'OFFLINE'
             END AS status,
             COALESCE(".$apiSafe($pdo, $t, 'duty_today_payout', '0').', 0) AS duty_today_payout,
@@ -131,9 +137,10 @@ try {
         $body = riderInputJson();
         $goOnline = ! empty($body['online']);
         $now = new DateTimeImmutable;
-        $newStatus = $goOnline ? 'ON_SHIFT' : 'OFFLINE';
-        $legacyDuty = $goOnline ? 'on_trip' : 'online';
-        $legacyStat = $goOnline ? 'on_duty' : 'active';
+        // Keep both status fields aligned with the legacy management schema.
+        // The rider app maps ON_DUTY back to ON_SHIFT for its own interface.
+        $newStatus = $goOnline ? 'on_duty' : 'active';
+        $legacyDuty = $goOnline ? 'online' : 'offline';
         $pdo->beginTransaction();
         $setStarted = $goOnline ? 'current_shift_started_at = ?' : 'current_shift_started_at = current_shift_started_at';
         $stmt = $pdo->prepare('UPDATE riders SET status = ?, duty_status = ?, '.$setStarted.' WHERE id = ?');

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__.'/includes/functions.php';
 requireLogin();
 
 $pdo = getDBConnection();
@@ -10,30 +10,41 @@ $pdo = getDBConnection();
 /* Guard: A-rider migration cols may not exist yet; never crash admin if migration 001 not applied. */
 $hasGcashCols = static function () use ($pdo): bool {
     static $cached = null;
-    if ($cached !== null) return $cached;
+    if ($cached !== null) {
+        return $cached;
+    }
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'riders'
            AND COLUMN_NAME IN ('gcash_mobile_number','gcash_account_name','gcash_qr_data_uri','fcm_push_token')"
     );
     $stmt->execute();
-    $cached = ((int) $stmt->fetchColumn()) >= 3;
+    $cached = ((int) $stmt->fetchColumn()) === 4;
+
     return $cached;
 };
 
-function readUploadedImageAsDataUri(string $fieldName): ?string {
-    if (!isset($_FILES[$fieldName]) || !is_array($_FILES[$fieldName]) || empty($_FILES[$fieldName]['tmp_name']) || !is_uploaded_file($_FILES[$fieldName]['tmp_name'])) {
+function readUploadedImageAsDataUri(string $fieldName): ?string
+{
+    if (! isset($_FILES[$fieldName]) || ! is_array($_FILES[$fieldName]) || empty($_FILES[$fieldName]['tmp_name']) || ! is_uploaded_file($_FILES[$fieldName]['tmp_name'])) {
         return null;
     }
     $err = (int) ($_FILES[$fieldName]['error'] ?? UPLOAD_ERR_NO_FILE);
-    if ($err !== UPLOAD_ERR_OK) return null;
+    if ($err !== UPLOAD_ERR_OK) {
+        return null;
+    }
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = (string) $finfo->file($_FILES[$fieldName]['tmp_name']);
-    if (!str_starts_with($mime, 'image/')) return null;
+    if (! str_starts_with($mime, 'image/')) {
+        return null;
+    }
     $size = filesize($_FILES[$fieldName]['tmp_name']);
-    if ($size === false || $size > 2 * 1024 * 1024) return null; // 2MB cap for data URI
+    if ($size === false || $size > 2 * 1024 * 1024) {
+        return null;
+    } // 2MB cap for data URI
     $bytes = (string) file_get_contents($_FILES[$fieldName]['tmp_name']);
-    return 'data:' . $mime . ';base64,' . base64_encode($bytes);
+
+    return 'data:'.$mime.';base64,'.base64_encode($bytes);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? null)) {
@@ -44,8 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         $status = $_POST['status'] ?? 'active';
         $allowed = ['active', 'inactive', 'on_duty', 'suspended'];
         if (in_array($status, $allowed, true)) {
-            $stmt = $pdo->prepare('UPDATE riders SET status = ? WHERE id = ?');
-            $stmt->execute([$status, $riderId]);
+            $dutyStatus = $status === 'on_duty' ? 'online' : 'offline';
+            $stmt = $pdo->prepare('UPDATE riders SET status = ?, duty_status = ? WHERE id = ?');
+            $stmt->execute([$status, $dutyStatus, $riderId]);
             flash('success', 'Rider status updated.');
         }
     }
@@ -67,10 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         ];
         $sql = 'UPDATE riders SET full_name = ?, phone = ?, vehicle_plate = ?, license_number = ?, vehicle_type = ?';
         if ($hasGcashCols()) {
-            $gcashMobile  = trim((string) ($_POST['gcash_mobile_number'] ?? ''));
+            $gcashMobile = trim((string) ($_POST['gcash_mobile_number'] ?? ''));
             $gcashAccount = trim((string) ($_POST['gcash_account_name'] ?? ''));
-            $fcmToken     = trim((string) ($_POST['fcm_push_token'] ?? ''));
-            $gcashQrNew   = readUploadedImageAsDataUri('gcash_qr_image');
+            $fcmToken = trim((string) ($_POST['fcm_push_token'] ?? ''));
+            $gcashQrNew = readUploadedImageAsDataUri('gcash_qr_image');
 
             $sql .= ', gcash_mobile_number = ?, gcash_account_name = ?';
             $binds[] = $gcashMobile === '' ? null : $gcashMobile;
@@ -91,16 +103,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
 
     if ($action === 'create_rider') {
         $fullName = trim((string) ($_POST['full_name'] ?? ''));
-        $email    = trim((string) ($_POST['email'] ?? ''));
-        if ($fullName === '' || $email === '') {
-            flash('error', 'Full name and email are required to create a rider.');
+        $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+        $phone = trim((string) ($_POST['phone'] ?? ''));
+        if ($fullName === '' || mb_strlen($fullName) > 150 || ! filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 150) {
+            flash('error', 'Enter a valid rider name and email address.');
+        } elseif (preg_match('/^\\+?[0-9()\\s.-]{7,30}$/', $phone) !== 1) {
+            flash('error', 'Enter the rider’s phone number (7–30 digits, with an optional + sign).');
         } else {
-            $phone     = trim((string) ($_POST['phone'] ?? ''));
-            $vType     = trim((string) ($_POST['vehicle_type'] ?? 'MOTORCYCLE'));
-            $plate     = trim((string) ($_POST['vehicle_plate'] ?? ''));
-            $license   = trim((string) ($_POST['license_number'] ?? ''));
-            $passRaw   = trim((string) ($_POST['password'] ?? ''));
-            $password  = password_hash($passRaw !== '' ? $passRaw : 'Motobook200409', PASSWORD_BCRYPT, ['cost' => 10]);
+            $vType = trim((string) ($_POST['vehicle_type'] ?? 'MOTORCYCLE'));
+            $plate = trim((string) ($_POST['vehicle_plate'] ?? ''));
+            $license = trim((string) ($_POST['license_number'] ?? ''));
+            $passRaw = trim((string) ($_POST['password'] ?? ''));
+            $password = password_hash($passRaw !== '' ? $passRaw : 'Motobook200409', PASSWORD_BCRYPT, ['cost' => 10]);
 
             $codeStmt = $pdo->prepare("SELECT CONCAT('RDR-', LPAD(COALESCE(MAX(CAST(SUBSTRING_INDEX(rider_code,'-',-1) AS UNSIGNED)), 0)+1, 4, '0')) FROM riders WHERE rider_code LIKE 'RDR-%'");
             $codeStmt->execute();
@@ -108,37 +122,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
 
             $sqlCols = 'INSERT INTO riders (rider_code, full_name, email, phone, password, vehicle_type, vehicle_plate, license_number, status';
             $sqlPlac = 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?';
-            $binds   = [$riderCode, $fullName, $email, $phone === '' ? null : $phone, $password, $vType, $plate === '' ? null : $plate, $license === '' ? null : $license, 'active'];
+            $binds = [$riderCode, $fullName, $email, $phone, $password, $vType, $plate === '' ? null : $plate, $license === '' ? null : $license, 'active'];
 
             if ($hasGcashCols()) {
-                $gcashMobile  = trim((string) ($_POST['gcash_mobile_number'] ?? ''));
+                $gcashMobile = trim((string) ($_POST['gcash_mobile_number'] ?? ''));
                 $gcashAccount = trim((string) ($_POST['gcash_account_name'] ?? ''));
-                $gcashQrNew   = readUploadedImageAsDataUri('gcash_qr_image');
-                $fcmToken     = trim((string) ($_POST['fcm_push_token'] ?? ''));
+                $gcashQrNew = readUploadedImageAsDataUri('gcash_qr_image');
+                $fcmToken = trim((string) ($_POST['fcm_push_token'] ?? ''));
                 $sqlCols .= ', gcash_mobile_number, gcash_account_name, gcash_qr_data_uri, fcm_push_token';
                 $sqlPlac .= ', ?, ?, ?, ?';
-                $binds[] = $gcashMobile  === '' ? null : $gcashMobile;
+                $binds[] = $gcashMobile === '' ? null : $gcashMobile;
                 $binds[] = $gcashAccount === '' ? null : $gcashAccount;
                 $binds[] = $gcashQrNew;
-                $binds[] = $fcmToken     === '' ? null : $fcmToken;
+                $binds[] = $fcmToken === '' ? null : $fcmToken;
             }
 
-            $sqlCols .= ') ' . $sqlPlac . ')';
-            $stmt = $pdo->prepare($sqlCols);
-            $stmt->execute($binds);
-            flash('success', sprintf('Rider %s (%s) created. Default temp password: Motobook200409.', $riderCode, $fullName));
+            $sqlCols .= ') '.$sqlPlac.')';
+            try {
+                $stmt = $pdo->prepare($sqlCols);
+                $stmt->execute($binds);
+                flash('success', sprintf('Rider %s (%s) created. Default temp password: Motobook200409.', $riderCode, $fullName));
+            } catch (PDOException $exception) {
+                error_log('MotoBook rider creation failed: '.$exception->getMessage());
+                flash('error', 'The rider could not be created. Check that the email and phone are not already used, then try again.');
+            }
         }
     }
 
     redirect('/riders.php');
 }
 
-
 $filter = $_GET['filter'] ?? 'all';
 $search = trim($_GET['search'] ?? '');
 
 $pageTitle = 'Riders Management';
-include __DIR__ . '/includes/header.php';
+include __DIR__.'/includes/header.php';
 
 $sql = 'SELECT * FROM riders WHERE 1=1';
 $params = [];
@@ -150,7 +168,7 @@ if ($filter !== 'all') {
 
 if ($search !== '') {
     $sql .= ' AND (full_name LIKE ? OR email LIKE ? OR rider_code LIKE ? OR phone LIKE ?)';
-    $like = '%' . $search . '%';
+    $like = '%'.$search.'%';
     $params = array_merge($params, [$like, $like, $like, $like]);
 }
 
@@ -160,12 +178,12 @@ $stmt->execute($params);
 $riders = $stmt->fetchAll();
 ?>
 
-<?php if ($msg = flash('success')): ?>
+<?php if ($msg = flash('success')) { ?>
     <div class="alert alert-success"><?= e($msg) ?></div>
-<?php endif; ?>
-<?php if ($msg = flash('error')): ?>
+<?php } ?>
+<?php if ($msg = flash('error')) { ?>
     <div class="alert alert-danger"><?= e($msg) ?></div>
-<?php endif; ?>
+<?php } ?>
 
 <div class="card">
     <div class="card-header">
@@ -212,36 +230,43 @@ $riders = $stmt->fetchAll();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($riders as $rider):
-                        $gcashOk  = $hasGcashCols() && !empty($rider['gcash_mobile_number']);
-                        $pushOk   = $hasGcashCols() && !empty($rider['fcm_push_token']);
-                    ?>
+                    <?php foreach ($riders as $rider) {
+                        $gcashOk = $hasGcashCols() && ! empty($rider['gcash_mobile_number']);
+                        $pushOk = $hasGcashCols() && ! empty($rider['fcm_push_token']);
+                        $displayStatus = trim((string) $rider['status']) === ''
+                            && in_array(strtolower((string) $rider['duty_status']), ['online', 'on_trip', 'idle'], true)
+                            ? 'on_duty'
+                            : (string) $rider['status'];
+                        $displayDutyStatus = in_array(strtolower($displayStatus), ['inactive', 'suspended'], true)
+                            ? 'offline'
+                            : (string) $rider['duty_status'];
+                        ?>
                     <tr>
                         <td><?= e($rider['rider_code']) ?></td>
                         <td><strong><?= e($rider['full_name']) ?></strong></td>
                         <td><?= e($rider['phone']) ?><br><small><?= e($rider['email']) ?></small></td>
                         <td><?= e($rider['vehicle_type']) ?><br><small><?= e($rider['vehicle_plate'] ?? 'N/A') ?></small></td>
-                        <td><?= statusBadge($rider['status']) ?></td>
+                        <td><?= statusBadge($displayStatus) ?></td>
                         <td>
-                            <?php if ($gcashOk): ?>
+                            <?php if ($gcashOk) { ?>
                                 <span class="badge badge-success" title="<?= e($rider['gcash_mobile_number'] ?? '') ?>">
                                     GCash
                                 </span>
-                            <?php else: ?>
+                            <?php } else { ?>
                                 <span class="badge badge-outline">Not set</span>
-                            <?php endif; ?>
+                            <?php } ?>
                         </td>
                         <td>
                             <?= $pushOk ? '<span class="badge badge-success">On</span>' : '<span class="badge badge-outline">Off</span>' ?>
                         </td>
-                        <td><?= statusBadge($rider['duty_status']) ?></td>
+                        <td><?= statusBadge($displayDutyStatus) ?></td>
                         <td><?= renderStars((float) $rider['avg_rating']) ?></td>
                         <td><?= (int) $rider['total_deliveries'] ?></td>
                         <td>
                             <button type="button" class="btn btn-primary btn-sm" onclick="openRiderModal(<?= $rider['id'] ?>)">View Profile</button>
                         </td>
                     </tr>
-                    <?php endforeach; ?>
+                    <?php } ?>
                 </tbody>
             </table>
         </div>
@@ -268,4 +293,4 @@ $riders = $stmt->fetchAll();
 </div>
 
 <script>window.APP_URL = '<?= APP_URL ?>';</script>
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<?php include __DIR__.'/includes/footer.php'; ?>
