@@ -11,6 +11,11 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/motobook-app-192.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/motobook-app-192.png') }}">
     <title>@yield('title', 'MotoBook')</title>
+    @if (($pageCss ?? '') === 'addresses')
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+              integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+              crossorigin="">
+    @endif
     @vite(['resources/css/app.css', 'resources/css/pages/' . ($pageCss ?? 'login') . '.css'])
     @vite('resources/css/pages/customer-experience.css')
     <script src="{{ asset('js/pwa-install.js') }}" defer></script>

@@ -1,11 +1,48 @@
 <?php
 
+use App\Models\Order;
 use App\Models\Store;
 use App\Models\User;
 
 test('guests must authenticate before opening the customer storefront', function () {
     $this->get(route('customer.restaurants'))
         ->assertRedirect(route('login'));
+});
+
+test('customers can choose delivery coordinates from a map on saved addresses', function () {
+    $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+
+    $this->actingAs($customer)
+        ->get(route('customer.addresses'))
+        ->assertOk()
+        ->assertSee('data-map-picker', false)
+        ->assertSee('data-location-map', false)
+        ->assertSee('Tap the map or drag the pin', false)
+        ->assertSee('openstreetmap.org/copyright', false);
+});
+
+test('checkout confirmation renders the restaurant from the order relationship', function () {
+    $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+    $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
+    $store = Store::factory()->create(['user_id' => $merchant->id]);
+    $order = Order::create([
+        'customer_id' => $customer->id,
+        'store_id' => $store->id,
+        'status' => 'pending',
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+        'subtotal' => 129,
+        'delivery_fee' => 49,
+        'service_fee' => 5,
+        'total_amount' => 183,
+        'delivery_address_snapshot' => ['address_line' => 'Test address'],
+    ]);
+
+    $this->actingAs($customer)
+        ->get(route('customer.checkout.confirmation', $order))
+        ->assertOk()
+        ->assertSee($store->name)
+        ->assertSee('offer is sent to eligible riders');
 });
 
 test('customers only see verified stores', function () {

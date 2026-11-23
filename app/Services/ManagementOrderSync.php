@@ -7,8 +7,10 @@ use App\Models\MenuItemOption;
 use App\Models\Order;
 use App\Models\Rider;
 use App\Models\User;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 /** Bridges Laravel customer orders into the Management and A-rider order ledger. */
@@ -23,11 +25,21 @@ class ManagementOrderSync
         try {
             $order->loadMissing(['store', 'customer', 'items.menuItem', 'rider.user']);
             $managementStoreId = $order->store?->management_store_id;
-            if (! $managementStoreId) {
-                return false;
+            $db = DB::connection('management');
+
+            $legacyTablesReady = Schema::connection('management')->hasTable('orders')
+                && Schema::connection('management')->hasTable('order_items')
+                && Schema::connection('management')->hasTable('order_item_options')
+                && Schema::connection('management')->hasTable('order_events');
+            $legacyOrderId = $managementStoreId && $legacyTablesReady
+                ? $db->table('orders')->where('order_number', $order->order_number)->value('id')
+                : null;
+            $this->syncRiderOrderLedger($db, $order, $legacyOrderId ? (int) $legacyOrderId : null, $managementStoreId ? (int) $managementStoreId : null);
+
+            if (! $managementStoreId || ! $legacyTablesReady) {
+                return Schema::connection('management')->hasTable('rider_orders');
             }
 
-            $db = DB::connection('management');
             $db->transaction(function () use ($db, $order, $managementStoreId) {
                 $paymentMethod = match ($order->payment_method) {
                     'gcash' => 'gcash',
@@ -125,7 +137,11 @@ class ManagementOrderSync
                     'actor_email' => $order->customer?->email,
                     'created_at' => now(),
                 ]);
+
             });
+
+            $syncedLegacyOrderId = $db->table('orders')->where('order_number', $order->order_number)->value('id');
+            $this->syncRiderOrderLedger($db, $order, $syncedLegacyOrderId ? (int) $syncedLegacyOrderId : null, (int) $managementStoreId);
 
             return true;
         } catch (Throwable $exception) {
@@ -136,6 +152,116 @@ class ManagementOrderSync
 
             return false;
         }
+    }
+
+    private function syncRiderOrderLedger(Connection $db, Order $order, ?int $legacyOrderId, ?int $managementStoreId): void
+    {
+        if (! Schema::connection('management')->hasTable('rider_orders')) {
+            Log::warning('Rider order ledger is not installed in the Management database.', [
+                'order_number' => $order->order_number,
+            ]);
+
+            return;
+        }
+
+        if (! in_array($order->status, ['ready_for_pickup', 'assigned', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'rejected'], true)) {
+            return;
+        }
+
+        $snapshot = $order->delivery_address_snapshot ?? [];
+        $items = $order->items->map(fn ($item): array => [
+            'name' => $item->item_name,
+            'qty' => $item->quantity,
+            'unit_price' => (float) $item->unit_price,
+            'subtotal' => (float) $item->subtotal,
+        ])->values()->all();
+        $paymentMethod = match ($order->payment_method) {
+            'gcash' => 'GCASH',
+            'card' => 'CARD',
+            'wallet' => 'PREPAID',
+            default => 'COD',
+        };
+        $paymentStatus = match ($order->payment_status) {
+            'paid' => 'PAID',
+            'refunded' => 'UNPAID',
+            default => $paymentMethod === 'GCASH' ? 'PENDING_VERIFICATION' : 'UNPAID',
+        };
+        $managementRiderId = $order->rider?->user?->email
+            ? $db->table('riders')->where('email', $order->rider->user->email)->value('id')
+            : null;
+        $riderOrderQuery = $db->table('rider_orders');
+        $riderOrder = $legacyOrderId
+            ? ($riderOrderQuery->where('shared_order_id', $legacyOrderId)->first()
+                ?? $db->table('rider_orders')->where('order_code', $order->order_number)->first())
+            : $riderOrderQuery->where('order_code', $order->order_number)->first();
+        $state = match ($order->status) {
+            'ready_for_pickup' => 'OFFER_RECEIVED',
+            'assigned' => $managementRiderId ? 'ACCEPTED' : 'OFFER_RECEIVED',
+            'out_for_delivery' => 'NAVIGATING_TO_DROP_OFF',
+            'delivered', 'completed' => 'COMPLETED',
+            'cancelled', 'rejected' => 'CANCELLED',
+        };
+        $terminalStates = ['COMPLETED', 'CANCELLED'];
+
+        $values = [
+            'source_store_id' => $managementStoreId,
+            'shared_order_id' => $legacyOrderId,
+            'source_system' => 'INHOUSE',
+            'merchant_name' => $order->store?->name ?? 'Partner Store',
+            'merchant_lat' => $order->store?->latitude,
+            'merchant_lng' => $order->store?->longitude,
+            'merchant_address' => $order->store?->address ?? 'Store address unavailable',
+            'dropoff_name' => $order->customer?->name ?? 'Customer',
+            'dropoff_lat' => data_get($snapshot, 'latitude', $order->customer_lat),
+            'dropoff_lng' => data_get($snapshot, 'longitude', $order->customer_lng),
+            'dropoff_address' => trim(implode(', ', array_filter([
+                data_get($snapshot, 'address_line', $order->dropoff_address),
+                data_get($snapshot, 'landmark'),
+            ]))) ?: 'Delivery address unavailable',
+            'dropoff_phone' => $order->customer?->phone,
+            'payout_amount' => max(0, (float) $order->delivery_fee),
+            'cod_amount' => $paymentMethod === 'COD' ? (float) $order->total_amount : 0,
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
+            'payment_reference' => $order->payment_reference,
+            'items_json' => json_encode($items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            'special_notes' => $order->delivery_notes ?? $order->customer_note,
+            'updated_at' => now(),
+        ];
+
+        if (! $riderOrder) {
+            $db->table('rider_orders')->insert([
+                ...$values,
+                'rider_id' => $managementRiderId,
+                'order_code' => $order->order_number,
+                'merchant_order_id' => strtoupper(substr('MB'.md5((string) $legacyOrderId), 0, 8)),
+                'shared_order_id' => $legacyOrderId,
+                'total_distance_km' => 0,
+                'estimated_minutes' => 0,
+                'tip_amount' => 0,
+                'state' => $state,
+                'offer_received_at' => now(),
+                'offer_expires_at' => $state === 'OFFER_RECEIVED' ? now()->addSeconds(60) : null,
+                'accepted_at' => $state === 'ACCEPTED' ? now() : null,
+                'created_at' => $order->created_at ?? now(),
+            ]);
+
+            return;
+        }
+
+        if (in_array($riderOrder->state, $terminalStates, true)) {
+            return;
+        }
+
+        if ($state !== 'OFFER_RECEIVED' || in_array($riderOrder->state, ['OFFER_RECEIVED', 'OFFER_EXPIRED', 'OFFER_REJECTED'], true)) {
+            $values['state'] = $state;
+            $values['rider_id'] = $managementRiderId;
+            $values['offer_received_at'] = $state === 'OFFER_RECEIVED' ? now() : $riderOrder->offer_received_at;
+            $values['offer_expires_at'] = $state === 'OFFER_RECEIVED' ? now()->addSeconds(60) : null;
+            $values['accepted_at'] = $state === 'ACCEPTED' ? ($riderOrder->accepted_at ?? now()) : $riderOrder->accepted_at;
+        }
+
+        $db->table('rider_orders')->where('id', $riderOrder->id)->update($values);
     }
 
     /** Pull the latest operational status and rider GPS written by Management/A-rider. */
