@@ -37,7 +37,6 @@ test('all role dashboards and primary screens render', function () {
         [$cashier, 'pos.index'],
         [$cashier, 'profile.edit'],
         [$merchant, 'merchant.dashboard'],
-        [$merchant, 'merchant.orders.index'],
         [$merchant, 'merchant.menu.index'],
         [$merchant, 'merchant.store.edit'],
         [$merchant, 'merchant.sales.index'],
@@ -98,11 +97,25 @@ test('POS sale and cancellation restore inventory', function () {
     $this->assertDatabaseHas('transactions', ['id' => $transactionId, 'status' => 'cancelled']);
 });
 
-test('customer can place an order and merchant can advance it to pickup', function () {
+test('customer checkout sends the order to the rider queue without store acceptance', function () {
     $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
-    $store = Store::factory()->create(['user_id' => $merchant->id, 'is_verified' => true, 'is_open' => true]);
+    $store = Store::factory()->create([
+        'user_id' => $merchant->id,
+        'is_verified' => true,
+        'is_open' => true,
+        'latitude' => 11.585,
+        'longitude' => 122.751,
+    ]);
     $item = MenuItem::factory()->create(['store_id' => $store->id, 'price' => 125]);
     $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+    $riderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+    $rider = $riderUser->riderProfile()->create([
+        'vehicle_type' => 'motorcycle',
+        'status' => 'online',
+        'is_verified' => true,
+        'current_latitude' => 11.585,
+        'current_longitude' => 122.751,
+    ]);
     $address = $customer->addresses()->create([
         'label' => 'Home', 'address_line' => '2 Test St', 'latitude' => 11.585, 'longitude' => 122.751,
         'is_default' => true,
@@ -121,14 +134,30 @@ test('customer can place an order and merchant can advance it to pickup', functi
     $order = Order::query()->latest('id')->firstOrFail();
     $this->assertDatabaseHas('orders', ['id' => $order->id, 'customer_id' => $customer->id, 'status' => 'pending']);
     $this->assertDatabaseHas('order_items', ['order_id' => $order->id, 'quantity' => 2, 'subtotal' => 250]);
+    $delivery = Delivery::query()->where('order_id', $order->id)->firstOrFail();
+    $this->assertDatabaseHas('deliveries', ['id' => $delivery->id, 'status' => 'pending_assignment']);
+    $this->assertDatabaseHas('rider_delivery_offers', [
+        'delivery_id' => $delivery->id,
+        'rider_id' => $rider->id,
+        'status' => 'offered',
+    ]);
 
-    $this->actingAs($merchant)
-        ->post(route('merchant.orders.accept', $order))->assertRedirect();
-    $this->post(route('merchant.orders.preparing', $order))->assertRedirect();
-    $this->post(route('merchant.orders.ready', $order))->assertRedirect();
+    $this->actingAs($riderUser)
+        ->getJson(route('rider.offers'))
+        ->assertOk()
+        ->assertJsonPath('offers.0.order_number', $order->order_number)
+        ->assertJsonPath('offers.0.can_accept', true);
 
-    $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'ready_for_pickup']);
-    $this->assertDatabaseHas('deliveries', ['order_id' => $order->id, 'status' => 'pending_assignment']);
+    $this->actingAs($riderUser)
+        ->post(route('rider.deliveries.accept', $delivery))
+        ->assertRedirect(route('rider.orders.navigation', $order));
+
+    $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'assigned', 'rider_id' => $rider->id]);
+    $this->assertDatabaseHas('deliveries', ['id' => $delivery->id, 'status' => 'accepted', 'rider_id' => $rider->id]);
+    $this->actingAs($riderUser)
+        ->get(route('rider.orders.navigation', $order))
+        ->assertOk()
+        ->assertSee('Pickup · Store');
 });
 
 test('merchant settings save and riders can complete only their assigned deliveries', function () {
@@ -236,7 +265,7 @@ test('rider can accept an offered delivery and move it through every delivery st
                 ->assertOk()
                 ->assertSee('Order accepted. Navigation to pickup is ready.')
                 ->assertSee('aria-label="Back to order details"', false)
-                ->assertSee('Pickup · Merchant');
+                ->assertSee('Pickup · Store');
         } else {
             $response->assertRedirect();
         }

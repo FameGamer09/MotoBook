@@ -27,9 +27,9 @@
         $deliveryStatusMessage = match ($deliveryStatus) {
             'assigned' => 'Rider assigned to your order',
             'accepted' => 'Rider accepted your delivery',
-            'en_route_to_pickup' => 'Rider is heading to the restaurant',
-            'arrived_at_pickup' => 'Rider has arrived at the restaurant',
-            'picked_up' => 'Your order has been picked up',
+            'en_route_to_pickup' => 'Rider is heading to the store',
+            'arrived_at_pickup' => 'Rider has arrived at the store to get your items',
+            'picked_up' => 'Your rider has your items',
             'en_route_to_customer' => 'Your rider is on the way to you',
             'arrived_at_customer' => 'Your rider has arrived',
             'delivered' => 'Delivered!',
@@ -51,7 +51,7 @@
         $steps = [
             ['label' => 'Pending', 'time' => $order->created_at],
             ['label' => 'Confirmed', 'time' => $order->accepted_at],
-            ['label' => 'Picked Up', 'time' => $delivery?->picked_up_at],
+            ['label' => 'Picked Up', 'time' => $delivery?->picked_up_at ?? $order->picked_up_at],
             ['label' => 'On Delivery', 'time' => null],
             ['label' => 'Drop-off', 'time' => $order->delivered_at],
         ];

@@ -11,7 +11,7 @@
 
     <div class="confirm-icon">✅</div>
     <div class="confirm-title">Order Placed!</div>
-    <p class="confirm-subtitle">{{ $order->store?->name ?? 'The restaurant' }} has received your order. Management can track preparation, and an offer is sent to eligible riders when it is ready for pickup.</p>
+    <p class="confirm-subtitle">Your order is being sent to nearby riders. The rider who accepts it will go to {{ $order->store?->name ?? 'the store' }} to get your items.</p>
 
     <div class="confirm-card">
         <div class="confirm-row"><span class="label">Order Number</span><span class="value">{{ $order->order_number }}</span></div>

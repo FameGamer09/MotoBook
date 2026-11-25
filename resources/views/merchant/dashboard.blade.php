@@ -20,7 +20,6 @@
 
         <nav class="merchant-nav" aria-label="Merchant navigation">
             <a href="#dashboard" class="merchant-nav-link is-active"><span>⌂</span>Dashboard</a>
-            <a href="{{ route('merchant.orders.index') }}" class="merchant-nav-link"><span>▤</span>Orders <b>{{ $stats['pending_orders'] }}</b></a>
             <a href="{{ route('merchant.menu.index') }}" class="merchant-nav-link"><span>◈</span>Menu</a>
             <a href="{{ route('merchant.store.edit') }}" class="merchant-nav-link"><span>□</span>Store profile</a>
             <a href="{{ route('merchant.sales.index') }}" class="merchant-nav-link"><span>◒</span>Sales</a>
@@ -42,7 +41,6 @@
                 <h1>Good morning, {{ auth()->user()->name }}</h1>
             </div>
             <div class="merchant-topbar-actions">
-                <a href="{{ route('merchant.orders.index', ['status' => 'pending']) }}" class="merchant-icon-button" aria-label="{{ $stats['pending_orders'] }} pending order notifications" title="View pending orders">♧@if ($stats['pending_orders'] > 0)<span class="merchant-notification-count">{{ $stats['pending_orders'] }}</span>@endif</a>
                 <div class="merchant-user-chip"><span>{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>{{ auth()->user()->name }}</div>
             </div>
         </header>
@@ -68,38 +66,15 @@
 
             <section class="merchant-stat-grid" aria-label="Store summary">
                 <article class="merchant-stat-card accent-stat"><span>Today’s sales</span><strong>₱{{ number_format($stats['today_sales'], 2) }}</strong><small>Across completed orders</small></article>
-                <article class="merchant-stat-card"><span>Today’s orders</span><strong>{{ number_format($stats['today_orders']) }}</strong><small>Orders received today</small></article>
-                <article class="merchant-stat-card pending-stat"><span>Needs attention</span><strong>{{ number_format($stats['pending_orders']) }}</strong><small>Waiting for your response</small></article>
+                <article class="merchant-stat-card"><span>Available items</span><strong>{{ number_format($stats['available_items']) }}</strong><small>Visible to customers</small></article>
+                <article class="merchant-stat-card pending-stat"><span>Unavailable items</span><strong>{{ number_format($stats['unavailable_items']) }}</strong><small>Hidden until switched on</small></article>
                 <article class="merchant-stat-card"><span>Menu items</span><strong>{{ number_format($stats['menu_items']) }}</strong><small>Listed in your store</small></article>
             </section>
 
             <section class="merchant-work-grid">
-                <div class="merchant-panel" id="orders">
-                    <div class="merchant-panel-heading"><div><span class="merchant-overline">Live queue</span><h3>Recent orders</h3></div><a href="{{ route('merchant.orders.index') }}">View all <span>→</span></a></div>
-                    @if ($recentOrders->isEmpty())
-                        <div class="merchant-empty"><span>▤</span><strong>No orders yet</strong><p>New customer orders will appear here.</p></div>
-                    @else
-                        <div class="merchant-order-list">
-                            @foreach ($recentOrders as $order)
-                                @php
-                                    $statusClass = match ($order->status) {
-                                        'pending' => 'pending',
-                                        'accepted', 'preparing' => 'preparing',
-                                        'ready_for_pickup', 'assigned' => 'ready',
-                                        'rejected', 'cancelled' => 'cancelled',
-                                        default => 'complete',
-                                    };
-                                @endphp
-                                <a class="merchant-order-row" href="{{ route('merchant.orders.show', $order) }}">
-                                    <span class="merchant-order-id">{{ $order->order_number }}<small>{{ $order->created_at->diffForHumans() }}</small></span>
-                                    <span class="merchant-order-customer">{{ $order->customer?->name ?? 'Customer' }}<small>{{ $order->items->sum('quantity') }} item(s)</small></span>
-                                    <strong>₱{{ number_format($order->total_amount, 2) }}</strong>
-                                    <span class="merchant-status {{ $statusClass }}"><i></i>{{ str_replace('_', ' ', ucfirst($order->status)) }}</span>
-                                    <span class="merchant-row-arrow">→</span>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
+                <div class="merchant-panel" id="order-flow">
+                    <div class="merchant-panel-heading"><div><span class="merchant-overline">Customer orders</span><h3>Riders handle order pickup</h3></div></div>
+                    <div class="merchant-empty"><span>✓</span><strong>Keep your catalog up to date</strong><p>Customers’ orders go to riders first. Riders visit your store to get the requested items. Keep item availability and prices current so riders can complete orders.</p></div>
                 </div>
 
                 <div class="merchant-panel" id="menu">

@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/app.php';
 require_once __DIR__.'/../includes/db.php';
 require_once __DIR__.'/../includes/dispatch.php';
+require_once __DIR__.'/../../admin/includes/canonical_rider_status.php';
 require_once __DIR__.'/../../admin/includes/rider_support.php';
 require_once __DIR__.'/../../admin/includes/rider_telemetry.php';
 
@@ -106,6 +107,16 @@ try {
         if (! $rider) {
             $send(['authenticated' => false], 404);
         }
+        $canonical = canonicalRiderStatuses([(string) $rider['email']])[strtolower(trim((string) $rider['email']))] ?? null;
+        $rider['is_verified'] = $canonical['is_verified'] ?? false;
+        $rider['verification_status'] = $canonical === null
+            ? 'unlinked'
+            : ($canonical['is_verified'] ? 'verified' : 'pending');
+        $rider['status'] = $canonical !== null
+            && $canonical['user_status'] === 'active'
+            && $canonical['is_verified']
+            ? ($canonical['has_active_delivery'] ? 'ON_TRIP' : ($canonical['rider_status'] === 'online' ? 'ON_SHIFT' : 'OFFLINE'))
+            : 'OFFLINE';
         $settingsStmt = $pdo->prepare('SELECT address, vehicle_or_number, vehicle_cr_number, notification_preferences, quick_pin_hash FROM rider_account_settings WHERE rider_id = ? LIMIT 1');
         $settingsStmt->execute([(int) $rider['id']]);
         $settings = $settingsStmt->fetch() ?: [];
@@ -327,11 +338,26 @@ try {
 
     if (preg_match('#^/orders/list$#', $reqPath) && $method === 'GET') {
         $filter = $_GET['state'] ?? null;
-        $sql = "SELECT * FROM rider_orders
-            WHERE rider_id = ?
-                OR (rider_id IS NULL AND state = 'OFFER_RECEIVED'
-                    AND EXISTS (SELECT 1 FROM riders me WHERE me.id = ? AND UPPER(me.status) IN ('ON_SHIFT','ON_DUTY')))";
-        $params = [$riderId, $riderId];
+        $emailStmt = $pdo->prepare('SELECT email FROM riders WHERE id = ? LIMIT 1');
+        $emailStmt->execute([$riderId]);
+        $riderEmail = (string) ($emailStmt->fetchColumn() ?: '');
+        $canonical = $riderEmail !== ''
+            ? (canonicalRiderStatuses([$riderEmail])[strtolower(trim($riderEmail))] ?? null)
+            : null;
+        $canReceiveOrders = canonicalRiderCanReceiveOrders($canonical);
+        $canViewAssignedOrders = $canonical !== null
+            && $canonical['user_status'] === 'active'
+            && ($canonical['is_verified'] || $canonical['has_active_delivery']);
+        $offerCondition = $canReceiveOrders
+            ? "OR (rider_id IS NULL AND state = 'OFFER_RECEIVED'
+                AND EXISTS (SELECT 1 FROM riders me WHERE me.id = ? AND UPPER(me.status) IN ('ON_SHIFT','ON_DUTY')))"
+            : '';
+        $sql = $canViewAssignedOrders
+            ? "SELECT * FROM rider_orders WHERE rider_id = ? {$offerCondition}"
+            : "SELECT * FROM rider_orders WHERE 1 = 0 {$offerCondition}";
+        $params = $canViewAssignedOrders
+            ? ($canReceiveOrders ? [$riderId, $riderId] : [$riderId])
+            : ($canReceiveOrders ? [$riderId] : []);
         if ($filter) {
             $sql = 'SELECT * FROM ('.$sql.') listed_orders WHERE state = ?';
             $params[] = $filter;
@@ -346,7 +372,7 @@ try {
         // Equal-share rotation: among riders who are on shift and not already
         // working a delivery, only the least-served riders can claim the next
         // offer. Ties are first-confirmed-wins.
-        $eligible = $pdo->query("SELECT rider.id,
+        $eligible = $pdo->query("SELECT rider.id, rider.email,
                 (SELECT COUNT(*) FROM rider_orders served
                  WHERE served.rider_id = rider.id AND served.accepted_at >= CURDATE()) AS assigned_today
             FROM riders rider
@@ -355,6 +381,12 @@ try {
                 AND active_order.state IN ('ACCEPTED','NAVIGATING_TO_PICKUP','ARRIVED_AT_PICKUP','ORDER_VERIFIED','NAVIGATING_TO_DROP_OFF','ARRIVED_AT_DROP_OFF','PROOF_SUBMITTED'))
               AND NOT EXISTS (SELECT 1 FROM orders active_legacy_order WHERE active_legacy_order.rider_id = rider.id
                 AND active_legacy_order.order_status IN ('driver_assigned','out_for_delivery','picked_up'))")->fetchAll();
+        $canonicalByEmail = canonicalRiderStatuses(array_map(static fn (array $rider): string => (string) $rider['email'], $eligible));
+        $eligible = array_values(array_filter($eligible, static function (array $candidate) use ($canonicalByEmail): bool {
+            $canonical = $canonicalByEmail[strtolower(trim((string) $candidate['email']))] ?? null;
+
+            return canonicalRiderCanReceiveOrders($canonical);
+        }));
         $lowestLoad = $eligible ? min(array_map(static fn ($r) => (int) $r['assigned_today'], $eligible)) : null;
         $eligibleIds = array_map(static fn ($r) => (int) $r['id'], $eligible);
         foreach ($rows as &$row) {
@@ -384,6 +416,16 @@ try {
         }
         $pdo->beginTransaction();
         if ($target === 'ACCEPTED') {
+            $emailStmt = $pdo->prepare('SELECT email FROM riders WHERE id = ? LIMIT 1');
+            $emailStmt->execute([$riderId]);
+            $riderEmail = (string) ($emailStmt->fetchColumn() ?: '');
+            $canonical = $riderEmail !== ''
+                ? (canonicalRiderStatuses([$riderEmail])[strtolower(trim($riderEmail))] ?? null)
+                : null;
+            if (! canonicalRiderCanReceiveOrders($canonical)) {
+                $pdo->rollBack();
+                $send(['error' => 'RIDER_NOT_AVAILABLE', 'message' => 'Your account must be active, verified, online, and free of another delivery before accepting an order.'], 409);
+            }
             // Lock the rider roster in a stable order so simultaneous claims
             // recalculate the fair-share counts after the previous claim commits.
             $pdo->query("SELECT id FROM riders WHERE UPPER(status) IN ('ON_SHIFT','ON_DUTY') ORDER BY id FOR UPDATE")->fetchAll();
@@ -410,7 +452,7 @@ try {
                 $pdo->rollBack();
                 $send(['error' => 'RIDER_BUSY', 'message' => 'Finish your current delivery before accepting another.'], 409);
             }
-            $loadStmt = $pdo->query("SELECT rider.id,
+            $loadStmt = $pdo->query("SELECT rider.id, rider.email,
                     (SELECT COUNT(*) FROM rider_orders served WHERE served.rider_id = rider.id
                         AND served.accepted_at >= CURDATE()) AS assigned_today
                 FROM riders rider WHERE UPPER(rider.status) IN ('ON_SHIFT','ON_DUTY')
@@ -419,6 +461,12 @@ try {
                   AND NOT EXISTS (SELECT 1 FROM orders active_legacy_order WHERE active_legacy_order.rider_id = rider.id
                     AND active_legacy_order.order_status IN ('driver_assigned','out_for_delivery','picked_up'))");
             $eligibleLoads = $loadStmt->fetchAll();
+            $canonicalByEmail = canonicalRiderStatuses(array_map(static fn (array $candidate): string => (string) $candidate['email'], $eligibleLoads));
+            $eligibleLoads = array_values(array_filter($eligibleLoads, static function (array $candidate) use ($canonicalByEmail): bool {
+                $canonical = $canonicalByEmail[strtolower(trim((string) $candidate['email']))] ?? null;
+
+                return canonicalRiderCanReceiveOrders($canonical);
+            }));
             $minimum = $eligibleLoads ? min(array_map(static fn ($r) => (int) $r['assigned_today'], $eligibleLoads)) : null;
             $myLoad = null;
             foreach ($eligibleLoads as $candidate) {

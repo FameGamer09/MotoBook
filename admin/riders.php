@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/includes/functions.php';
+require_once __DIR__.'/includes/canonical_rider_status.php';
 requireLogin();
 
 $pdo = getDBConnection();
@@ -176,6 +177,10 @@ $sql .= ' ORDER BY full_name ASC';
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $riders = $stmt->fetchAll();
+$canonicalStatuses = canonicalRiderStatuses(array_map(
+    static fn (array $rider): string => (string) ($rider['email'] ?? ''),
+    $riders
+));
 ?>
 
 <?php if ($msg = flash('success')) { ?>
@@ -221,6 +226,7 @@ $riders = $stmt->fetchAll();
                         <th>Contact</th>
                         <th>Vehicle</th>
                         <th>Status</th>
+                        <th>Verification</th>
                         <th>GCash Ready</th>
                         <th>Push</th>
                         <th>Duty</th>
@@ -233,13 +239,20 @@ $riders = $stmt->fetchAll();
                     <?php foreach ($riders as $rider) {
                         $gcashOk = $hasGcashCols() && ! empty($rider['gcash_mobile_number']);
                         $pushOk = $hasGcashCols() && ! empty($rider['fcm_push_token']);
-                        $displayStatus = trim((string) $rider['status']) === ''
-                            && in_array(strtolower((string) $rider['duty_status']), ['online', 'on_trip', 'idle'], true)
-                            ? 'on_duty'
-                            : (string) $rider['status'];
-                        $displayDutyStatus = in_array(strtolower($displayStatus), ['inactive', 'suspended'], true)
-                            ? 'offline'
-                            : (string) $rider['duty_status'];
+                        $canonical = $canonicalStatuses[strtolower(trim((string) ($rider['email'] ?? '')))] ?? null;
+                        if ($canonical !== null) {
+                            $displayStatus = $canonical['user_status'] !== 'active'
+                                ? 'inactive'
+                                : ($canonical['is_verified'] ? 'active' : 'pending');
+                            $displayDutyStatus = $canonical['has_active_delivery']
+                                ? 'on_trip'
+                                : ($canonical['rider_status'] === 'online' ? 'online' : 'offline');
+                            $verificationStatus = $canonical['is_verified'] ? 'verified' : 'pending';
+                        } else {
+                            $displayStatus = 'unlinked';
+                            $displayDutyStatus = 'offline';
+                            $verificationStatus = 'unlinked';
+                        }
                         ?>
                     <tr>
                         <td><?= e($rider['rider_code']) ?></td>
@@ -247,6 +260,7 @@ $riders = $stmt->fetchAll();
                         <td><?= e($rider['phone']) ?><br><small><?= e($rider['email']) ?></small></td>
                         <td><?= e($rider['vehicle_type']) ?><br><small><?= e($rider['vehicle_plate'] ?? 'N/A') ?></small></td>
                         <td><?= statusBadge($displayStatus) ?></td>
+                        <td><?= statusBadge($verificationStatus) ?></td>
                         <td>
                             <?php if ($gcashOk) { ?>
                                 <span class="badge badge-success" title="<?= e($rider['gcash_mobile_number'] ?? '') ?>">

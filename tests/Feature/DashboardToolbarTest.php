@@ -54,15 +54,16 @@ test('dashboard toolbar provides working inventory and sales searches', function
         ->assertSee('name="search"', false);
 });
 
-test('merchant notification link opens the pending customer orders filter', function () {
+test('merchant dashboard explains that riders handle customer order pickup', function () {
     $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
     Store::factory()->create(['user_id' => $merchant->id]);
 
     $this->actingAs($merchant)
         ->get(route('merchant.dashboard'))
         ->assertOk()
-        ->assertSee(route('merchant.orders.index', ['status' => 'pending']), false)
-        ->assertSee('View pending orders', false);
+        ->assertSee('Riders handle order pickup')
+        ->assertSee('Riders visit your store to get the requested items.')
+        ->assertDontSee('Waiting for your response');
 });
 
 test('dashboard notification data is limited to admin and cashier roles', function () {

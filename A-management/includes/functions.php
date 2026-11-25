@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../config/app.php';
 require_once __DIR__.'/../../A-rider/includes/dispatch.php';
 require_once __DIR__.'/../../admin/includes/rider_support.php';
+require_once __DIR__.'/../../admin/includes/canonical_rider_status.php';
 
 function getOpsDB(): PDO
 {
@@ -567,6 +568,16 @@ function fetchOrderById(int $id): ?array
 function reassignOrderRider(int $orderId, int $riderId, string $reason = ''): bool
 {
     $pdo = getOpsDB();
+    $riderLookup = $pdo->prepare('SELECT email FROM riders WHERE id = ? LIMIT 1');
+    $riderLookup->execute([$riderId]);
+    $riderEmail = (string) ($riderLookup->fetchColumn() ?: '');
+    $canonical = $riderEmail !== ''
+        ? (canonicalRiderStatuses([$riderEmail])[strtolower(trim($riderEmail))] ?? null)
+        : null;
+    if (! canonicalRiderCanReceiveOrders($canonical, canonicalManagementRiderHasActiveDelivery($pdo, $riderId))) {
+        return false;
+    }
+
     $pdo->beginTransaction();
     try {
         $check = $pdo->prepare('SELECT rider_id, assigned_at FROM orders WHERE id = ?');

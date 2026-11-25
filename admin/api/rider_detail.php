@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/../includes/functions.php';
+require_once __DIR__.'/../includes/canonical_rider_status.php';
 requireLogin();
 
 header('Content-Type: application/json');
@@ -53,6 +54,9 @@ if (trim($status) === '' && in_array(strtolower($storedDutyStatus), ['online', '
 $displayDutyStatus = in_array(strtolower($status), ['inactive', 'suspended'], true)
     ? 'offline'
     : $storedDutyStatus;
+$canonical = $isCreate
+    ? null
+    : (canonicalRiderStatuses([$email])[strtolower(trim($email))] ?? null);
 $gcashMobile = (string) ($rider['gcash_mobile_number'] ?? '');
 $gcashAccount = (string) ($rider['gcash_account_name'] ?? '');
 $gcashQrUri = (string) ($rider['gcash_qr_data_uri'] ?? '');
@@ -69,8 +73,21 @@ $overviewHtml = '
     <div class="detail-item"><label>Vehicle</label><span>'.e($vtype).' &mdash; '.e($plate ?: 'N/A').'</span></div>
     <div class="detail-item"><label>License</label><span>'.e($license ?: 'N/A').'</span></div>';
 if (! $isCreate) {
+    $overviewHtml .= '<div class="detail-item"><label>Management record</label><span>'.statusBadge($status).' '.statusBadge($displayDutyStatus).'</span></div>';
+    if ($canonical !== null) {
+        $canonicalAccountStatus = $canonical['user_status'] !== 'active'
+            ? 'inactive'
+            : ($canonical['is_verified'] ? 'active' : 'pending');
+        $canonicalDutyStatus = $canonical['has_active_delivery']
+            ? 'on_trip'
+            : ($canonical['rider_status'] === 'online' ? 'online' : 'offline');
+        $overviewHtml .= '<div class="detail-item"><label>Main rider account</label><span>'.statusBadge($canonicalAccountStatus).' '.statusBadge($canonicalDutyStatus).'</span></div>';
+        $overviewHtml .= '<div class="detail-item"><label>Verification</label><span>'.statusBadge($canonical['is_verified'] ? 'verified' : 'pending').'</span></div>';
+        $overviewHtml .= '<div class="detail-item"><label>Active delivery</label><span>'.($canonical['has_active_delivery'] ? 'Yes' : 'No').'</span></div>';
+    } else {
+        $overviewHtml .= '<div class="detail-item"><label>Main rider account</label><span>'.statusBadge('unlinked').'</span></div>';
+    }
     $overviewHtml .= '
-    <div class="detail-item"><label>Status</label><span>'.statusBadge($status).' '.statusBadge($displayDutyStatus).'</span></div>
     <div class="detail-item"><label>Total Deliveries</label><span>'.(int) ($rider['total_deliveries'] ?? 0).'</span></div>
     <div class="detail-item"><label>Avg Rating</label><span>'.renderStars((float) ($rider['avg_rating'] ?? 0)).'</span></div>';
 }
