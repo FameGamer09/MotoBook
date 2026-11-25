@@ -11,6 +11,30 @@ class Rider extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saved(function (Rider $rider): void {
+            if (! $rider->wasRecentlyCreated && ! $rider->wasChanged('status')) {
+                return;
+            }
+
+            if ($rider->status === 'offline') {
+                $rider->onlineSessions()
+                    ->whereNull('ended_at')
+                    ->latest('started_at')
+                    ->first()
+                    ?->update(['ended_at' => now()]);
+
+                return;
+            }
+
+            if (in_array($rider->status, ['online', 'busy'], true)
+                && ! $rider->onlineSessions()->whereNull('ended_at')->exists()) {
+                $rider->onlineSessions()->create(['started_at' => now()]);
+            }
+        });
+    }
+
     protected static function newFactory()
     {
         return RiderProfileFactory::new();
@@ -52,6 +76,11 @@ class Rider extends Model
     public function locationLogs(): HasMany
     {
         return $this->hasMany(RiderLocationLog::class);
+    }
+
+    public function onlineSessions(): HasMany
+    {
+        return $this->hasMany(RiderOnlineSession::class);
     }
 
     // ---- Helpers ----

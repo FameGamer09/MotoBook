@@ -35,6 +35,7 @@ class HomeController extends Controller
 
         return view('customer.home', [
             'stores' => $stores,
+            'popularStores' => $search || $category ? collect() : $stores->take(2),
             'categories' => $categories,
             'defaultAddress' => $defaultAddress,
             'search' => $search ?? '',

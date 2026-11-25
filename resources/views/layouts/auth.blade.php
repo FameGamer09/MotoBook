@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" @if (($pageCss ?? '') === 'rider-onboarding') data-rider-theme-root data-rider-theme="light" @endif>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -11,16 +11,27 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/motobook-app-192.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/motobook-app-192.png') }}">
     <title>@yield('title', 'MotoBook')</title>
+    @if (($pageCss ?? '') === 'addresses')
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+              integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+              crossorigin="">
+    @endif
     @vite(['resources/css/app.css', 'resources/css/pages/' . ($pageCss ?? 'login') . '.css'])
     @vite('resources/css/pages/customer-experience.css')
     <script src="{{ asset('js/pwa-install.js') }}" defer></script>
+    @if (($pageCss ?? '') === 'rider-onboarding')
+        @vite(['resources/css/pages/rider-theme.css', 'resources/js/rider-theme.js'])
+    @endif
 </head>
-<body class="auth-shell" data-theme="{{ (auth()->user()?->customer_settings['dark_mode'] ?? false) ? 'dark' : 'light' }}">
+<body class="auth-shell" data-theme="{{ (auth()->user()?->customer_settings['dark_mode'] ?? false) ? 'dark' : 'light' }}" @if (($pageCss ?? '') === 'rider-onboarding') data-rider-page="onboarding" @endif>
     <div class="auth-screen">
         @if (($pageCss ?? 'login') !== 'login')
             <div class="auth-brand">
                 <span class="auth-brand-dot"></span>
                 <span class="auth-brand-name"><b>Moto</b>Book</span>
+                @if (($pageCss ?? '') === 'rider-onboarding')
+                    <x-rider.theme-toggle class="rider-theme-toggle rider-onboarding-theme-toggle" />
+                @endif
             </div>
         @endif
 

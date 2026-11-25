@@ -40,7 +40,9 @@
                         <label for="longitude-{{ $address->id }}" class="auth-label">Delivery longitude</label>
                         <input type="number" step="0.0000001" id="longitude-{{ $address->id }}" name="longitude" class="auth-input auth-input-plain" value="{{ $address->longitude }}" placeholder="e.g. 122.7511" required>
                     </div>
-                    <div data-location-picker data-latitude-target="latitude-{{ $address->id }}" data-longitude-target="longitude-{{ $address->id }}">
+                    <div data-location-picker data-map-picker data-latitude-target="latitude-{{ $address->id }}" data-longitude-target="longitude-{{ $address->id }}">
+                        <p class="location-map-instructions">Tap the map or drag the pin to set the delivery point.</p>
+                        <div class="location-map" data-location-map aria-label="Map to choose delivery location"></div>
                         <button type="button" class="btn-secondary">Use my current location</button>
                         <p data-location-status role="status" aria-live="polite"></p>
                     </div>
@@ -86,7 +88,9 @@
             <label for="new-longitude" class="auth-label">Delivery longitude</label>
             <input type="number" step="0.0000001" id="new-longitude" name="longitude" class="auth-input auth-input-plain" value="{{ old('longitude') }}" placeholder="e.g. 122.7511" required>
         </div>
-        <div data-location-picker data-latitude-target="new-latitude" data-longitude-target="new-longitude">
+        <div data-location-picker data-map-picker data-latitude-target="new-latitude" data-longitude-target="new-longitude">
+            <p class="location-map-instructions">Tap the map or drag the pin to set the delivery point.</p>
+            <div class="location-map" data-location-map aria-label="Map to choose delivery location"></div>
             <button type="button" class="btn-secondary">Use my current location</button>
             <p data-location-status role="status" aria-live="polite"></p>
         </div>

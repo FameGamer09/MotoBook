@@ -17,6 +17,26 @@ class TestAccountsSeeder extends Seeder
         }
 
         DB::transaction(function (): void {
+            User::query()
+                ->whereIn('email', [
+                    'cashier@example.com',
+                    'jollibee@example.com',
+                    'manginasal@example.com',
+                    'bigbrew@example.com',
+                    'pizzahut@example.com',
+                ])
+                ->delete();
+
+            User::updateOrCreate(
+                ['email' => 'admin@example.com'],
+                [
+                    'name' => 'Admin',
+                    'password' => 'password',
+                    'role' => 'admin',
+                    'status' => 'active',
+                ],
+            );
+
             $customer = User::updateOrCreate(
                 ['email' => 'customer@example.com'],
                 [
@@ -49,7 +69,7 @@ class TestAccountsSeeder extends Seeder
             $merchant = User::updateOrCreate(
                 ['email' => 'merchant@example.com'],
                 [
-                    'name' => 'Test Merchant',
+                    'name' => 'Jollibee Merchant',
                     'phone' => '+15555550103',
                     'password' => 'password',
                     'role' => 'merchant',
@@ -57,24 +77,80 @@ class TestAccountsSeeder extends Seeder
                 ],
             );
             $merchant->wallet()->firstOrCreate([], ['balance' => 0]);
-            Store::updateOrCreate(
-                ['user_id' => $merchant->id],
+
+            Store::query()
+                ->where('user_id', $merchant->id)
+                ->where('slug', 'test-merchant-store')
+                ->delete();
+
+            $store = Store::updateOrCreate(
+                ['slug' => 'jollibee-roxas-city'],
                 [
-                    'name' => 'Test Merchant Store',
-                    'slug' => 'test-merchant-store',
-                    'description' => 'Demo store for local testing.',
-                    'category' => 'Restaurant',
-                    'address' => '123 Test Street',
+                    'user_id' => $merchant->id,
+                    'name' => 'Jollibee',
+                    'slug' => 'jollibee-roxas-city',
+                    'description' => 'Jollibee fast-food restaurant.',
+                    'category' => 'Fast Food',
+                    'address' => 'Roxas City, Capiz',
                     'phone' => $merchant->phone,
                     'is_open' => true,
                     'is_verified' => true,
                 ],
             );
+
+            $menu = [
+                'Chickenjoy and Rice Meals' => [
+                    ['name' => '1 pc Chickenjoy with Rice', 'description' => 'One piece of crispy fried chicken served with rice and gravy.', 'price' => 129],
+                    ['name' => '2 pc Chickenjoy with Rice', 'description' => 'Two pieces of crispy fried chicken served with rice and gravy.', 'price' => 199],
+                    ['name' => 'Chickenjoy Bucket', 'description' => 'A shareable bucket of crispy fried chicken.', 'price' => 499],
+                    ['name' => 'Burger Steak with Rice', 'description' => 'Savory burger patties with mushroom gravy and rice.', 'price' => 99],
+                ],
+                'Spaghetti and Pasta' => [
+                    ['name' => 'Jolly Spaghetti', 'description' => 'Filipino-style spaghetti with a sweet sauce.', 'price' => 79],
+                    ['name' => 'Jolly Spaghetti Family Pan', 'description' => 'A family-sized pan of Filipino-style spaghetti.', 'price' => 249],
+                    ['name' => 'Palabok Fiesta', 'description' => 'Rice noodles with savory palabok sauce and toppings.', 'price' => 129],
+                ],
+                'Burgers and Sandwiches' => [
+                    ['name' => 'Yumburger', 'description' => 'A classic burger with a savory dressing.', 'price' => 45],
+                    ['name' => 'Cheesy Yumburger', 'description' => 'A Yumburger topped with cheese.', 'price' => 59],
+                    ['name' => 'Jolly Hotdog', 'description' => 'A hotdog topped with cheese and dressing.', 'price' => 75],
+                    ['name' => 'Chicken Sandwich', 'description' => 'A crispy chicken fillet sandwich.', 'price' => 99],
+                ],
+                'Sides' => [
+                    ['name' => 'Jolly Crispy Fries', 'description' => 'Golden, crispy fries.', 'price' => 55],
+                ],
+                'Desserts and Drinks' => [
+                    ['name' => 'Peach Mango Pie', 'description' => 'A crisp pie filled with peach and mango.', 'price' => 49],
+                    ['name' => 'Chocolate Sundae', 'description' => 'Vanilla soft serve topped with chocolate sauce.', 'price' => 39],
+                    ['name' => 'Coke Float', 'description' => 'A cold cola drink topped with vanilla soft serve.', 'price' => 59],
+                    ['name' => 'Iced Tea', 'description' => 'A refreshing chilled tea drink.', 'price' => 49],
+                ],
+            ];
+
+            $sortOrder = 0;
+
+            foreach ($menu as $categoryName => $menuItems) {
+                $menuCategory = $store->menuCategories()->updateOrCreate(
+                    ['name' => $categoryName],
+                    ['sort_order' => $sortOrder],
+                );
+
+                foreach ($menuItems as $menuItem) {
+                    $store->menuItems()->updateOrCreate(
+                        ['name' => $menuItem['name']],
+                        [
+                            'menu_category_id' => $menuCategory->id,
+                            'description' => $menuItem['description'],
+                            'price' => $menuItem['price'],
+                            'is_available' => true,
+                        ],
+                    );
+                }
+
+                $sortOrder++;
+            }
         });
 
-        $this->command?->info('Test accounts seeded (local/testing only):');
-        $this->command?->info('  Customer: customer@example.com / password');
-        $this->command?->info('  Rider: rider@example.com / password');
-        $this->command?->info('  Merchant: merchant@example.com / password');
+        $this->command?->info('Seeded four local/testing accounts: admin, rider, customer, and Jollibee merchant.');
     }
 }

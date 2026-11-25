@@ -2,6 +2,371 @@
 
 @tailwind base;
 @tailwind components;
-.rider-profile-header h1 { display: flex; align-items: center; gap: 8px; }
-.rider-profile-header h1 img { width: 34px; height: 34px; border-radius: 7px; object-fit: cover; }
-.rider-profile-shell { min-height: 100vh; background: var(--rider-canvas); }.rider-profile-header { display: flex; align-items: center; justify-content: space-between; min-height: 58px; padding: 0 20px; background: white; }.rider-profile-header a { color: var(--rider-ink); font-size: 30px; line-height: 1; text-decoration: none; }.rider-profile-header h1 { margin: 0; font-size: 16px; }.rider-profile-content { max-width: 620px; margin: 0 auto; padding: 18px 15px 90px; }.rider-profile-hero { text-align: center; padding: 15px 0 22px; }.rider-profile-large-avatar { width: 92px; height: 92px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 50%; color: #087da7; background: #dce7ed; font-size: 34px; font-weight: 700; }.rider-profile-hero h2 { margin: 0; font-size: 20px; }.rider-profile-hero p { margin: 3px 0; color: var(--rider-muted); font-size: 11px; }.rider-profile-hero > span { color: #eda719; font-size: 12px; }.rider-profile-card { margin-bottom: 14px; padding: 17px; border: 1px solid var(--rider-line); border-radius: 12px; background: white; }.rider-profile-card h3 { margin: 0 0 13px; font-size: 14px; }.rider-profile-card label { display: block; margin-top: 11px; color: var(--rider-muted); font-size: 10px; font-weight: 600; }.rider-profile-card input, .rider-profile-card select { display: block; width: 100%; margin-top: 5px; padding: 10px; border: 1px solid var(--rider-line); border-radius: 7px; background: #fbfcfc; color: var(--rider-ink); font: inherit; font-size: 12px; }.rider-profile-document { margin: 14px 0 0; color: var(--rider-muted); font-size: 11px; }.rider-profile-document strong { color: var(--rider-mint); }.rider-profile-save { width: 100%; border: 0; border-radius: 8px; padding: 13px; color: white; background: #0ba4d5; font-size: 12px; font-weight: 700; }.rider-profile-logout { margin: 17px 0; text-align: center; }.rider-profile-logout button { border: 0; background: transparent; color: var(--rider-red); font: inherit; font-size: 12px; font-weight: 700; }
+
+.rider-profile-page {
+    min-height: 100vh;
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+    background: var(--rider-canvas);
+}
+
+.rider-profile-header {
+    position: relative;
+    display: grid;
+    min-height: 56px;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    padding: 0 16px;
+    border: 0;
+    background: var(--rider-surface, #fff);
+}
+
+.rider-profile-header > a {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    color: var(--rider-ink);
+    text-decoration: none;
+}
+
+.rider-profile-header > a svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.rider-profile-header h1 {
+    margin: 0;
+    color: var(--rider-ink);
+    font-size: 19px;
+    font-weight: 750;
+    text-align: center;
+}
+
+.rider-profile-header .rider-theme-toggle {
+    justify-self: end;
+}
+
+.rider-profile-content {
+    width: min(100%, 560px);
+    margin: 0 auto;
+    padding: 20px 14px calc(22px + env(safe-area-inset-bottom));
+}
+
+.rider-profile-hero {
+    display: flex;
+    min-height: 190px;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 8px 26px;
+    text-align: left;
+}
+
+.rider-profile-large-avatar {
+    display: grid;
+    width: 112px;
+    height: 112px;
+    flex: 0 0 112px;
+    place-items: center;
+    overflow: hidden;
+    border: 4px solid var(--rider-surface, #fff);
+    border-radius: 50%;
+    background: #dce7ed;
+    box-shadow: 0 0 0 1px var(--rider-line);
+    color: #087da7;
+    font-size: 38px;
+    font-weight: 700;
+}
+
+.rider-profile-large-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.rider-profile-summary {
+    min-width: 0;
+}
+
+.rider-profile-summary h2 {
+    margin: 0;
+    color: var(--rider-ink);
+    font-size: 23px;
+    font-weight: 750;
+    line-height: 1.15;
+}
+
+.rider-profile-summary > p {
+    margin: 5px 0 8px;
+    color: var(--rider-muted);
+    font-size: 13px;
+}
+
+.rider-profile-rating {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+.rider-profile-rating > span:first-child {
+    color: #f3a51c;
+    letter-spacing: -3px;
+}
+
+.rider-profile-rating strong {
+    color: var(--rider-ink);
+}
+
+.rider-profile-rating-count {
+    color: var(--rider-muted);
+}
+
+.rider-profile-view-link {
+    display: inline-block;
+    margin-top: 9px;
+    color: #159bd0;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.rider-profile-options,
+.rider-profile-account-options {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--rider-line) 75%, transparent);
+    border-radius: 20px;
+    background: var(--rider-surface, #fff);
+    box-shadow: 0 5px 20px rgba(27, 45, 59, .045);
+}
+
+.rider-profile-option {
+    color: var(--rider-ink);
+}
+
+.rider-profile-option + .rider-profile-option,
+.rider-profile-option-link + .rider-profile-option,
+.rider-profile-option + .rider-profile-option-link {
+    border-top: 1px solid var(--rider-line);
+}
+
+.rider-profile-option summary,
+.rider-profile-option-link {
+    display: flex;
+    min-height: 68px;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    color: var(--rider-ink);
+    font-size: 15px;
+    font-weight: 650;
+    list-style: none;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.rider-profile-option summary::-webkit-details-marker {
+    display: none;
+}
+
+.rider-profile-option summary > svg,
+.rider-profile-option-link > svg {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.9;
+}
+
+.rider-profile-option summary > span:nth-child(2),
+.rider-profile-option-link > span:first-of-type {
+    flex: 1;
+}
+
+.rider-profile-chevron {
+    color: #7385a0;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1;
+    transition: transform .18s ease;
+}
+
+.rider-profile-option[open] > summary .rider-profile-chevron {
+    transform: rotate(90deg);
+}
+
+.rider-profile-option-status {
+    color: var(--rider-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rider-profile-option-status.verified {
+    color: #2f9b78;
+}
+
+.rider-profile-option-content {
+    display: grid;
+    gap: 7px;
+    padding: 0 16px 18px 57px;
+}
+
+.rider-profile-option-content label {
+    margin-top: 4px;
+    color: var(--rider-muted);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.rider-profile-option-content input,
+.rider-profile-option-content select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--rider-line);
+    border-radius: 10px;
+    background: var(--rider-canvas);
+    color: var(--rider-ink);
+    font: inherit;
+    font-size: 14px;
+}
+
+.rider-profile-option-content input:focus,
+.rider-profile-option-content select:focus {
+    border-color: var(--rider-mint);
+    outline: 3px solid color-mix(in srgb, var(--rider-mint) 20%, transparent);
+}
+
+.rider-profile-document {
+    margin: 0;
+    color: var(--rider-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.rider-profile-save {
+    width: 100%;
+    min-height: 46px;
+    margin-top: 15px;
+    border: 0;
+    border-radius: 11px;
+    background: #0ba4d5;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rider-profile-account-options {
+    margin-top: 16px;
+}
+
+.rider-password-option .rider-profile-option-content {
+    padding-left: 57px;
+}
+
+.rider-profile-logout {
+    margin: 14px 0 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--rider-line) 75%, transparent);
+    border-radius: 18px;
+    background: var(--rider-surface, #fff);
+}
+
+.rider-profile-logout button {
+    display: flex;
+    width: 100%;
+    min-height: 68px;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    border: 0;
+    background: transparent;
+    color: #dc4c50;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rider-profile-logout svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.9;
+}
+
+.rider-profile-page .rider-bottom-nav {
+    z-index: 5;
+    max-width: 560px;
+    border-right: 1px solid var(--rider-line);
+    border-left: 1px solid var(--rider-line);
+}
+
+.rider-profile-page .rider-bottom-nav .rider-nav-item.active {
+    color: #0ba4d5;
+}
+
+.rider-profile-page .rider-bottom-nav .rider-nav-online-icon {
+    background: #0ba4d5;
+}
+
+.rider-profile-page :is(a, button, summary):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--rider-mint) 35%, transparent);
+    outline-offset: -3px;
+}
+
+@media (max-width: 380px) {
+    .rider-profile-content {
+        padding-right: 10px;
+        padding-left: 10px;
+    }
+
+    .rider-profile-hero {
+        min-height: 162px;
+        gap: 14px;
+        padding: 12px 6px 20px;
+    }
+
+    .rider-profile-large-avatar {
+        width: 96px;
+        height: 96px;
+        flex-basis: 96px;
+    }
+
+    .rider-profile-summary h2 {
+        font-size: 20px;
+    }
+
+    .rider-profile-option summary,
+    .rider-profile-option-link,
+    .rider-profile-logout button {
+        gap: 12px;
+        padding-right: 12px;
+        padding-left: 12px;
+        font-size: 14px;
+    }
+
+    .rider-profile-option-content,
+    .rider-password-option .rider-profile-option-content {
+        padding-left: 49px;
+    }
+}
+
+:root[data-rider-theme="dark"] .rider-profile-options,
+:root[data-rider-theme="dark"] .rider-profile-account-options,
+:root[data-rider-theme="dark"] .rider-profile-logout {
+    background: var(--rider-surface);
+}

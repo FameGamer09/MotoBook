@@ -49,9 +49,25 @@ test('all role dashboards and primary screens render', function () {
         [$customer, 'customer.cart'],
         [$customer, 'customer.orders.index'],
         [$rider, 'rider.dashboard'],
+        [$rider, 'rider.requests'],
+        [$rider, 'rider.earnings'],
+        [$rider, 'rider.history'],
+        [$rider, 'rider.wallet'],
+        [$rider, 'rider.settings'],
         [$rider, 'rider.profile'],
     ] as [$user, $route]) {
-        $this->actingAs($user)->get(route($route))->assertOk();
+        $response = $this->actingAs($user)->get(route($route))->assertOk();
+
+        if ($user->is($rider) && str_starts_with($route, 'rider.')) {
+            $response->assertSee('data-rider-theme-toggle', false)
+                ->assertSee('aria-label="Rider navigation"', false)
+                ->assertSee('rider-nav-online-icon', false)
+                ->assertSee('Home')
+                ->assertSee('Orders')
+                ->assertSee('Go Online')
+                ->assertSee('Earnings')
+                ->assertSee('Profile');
+        }
     }
 });
 
@@ -151,6 +167,16 @@ test('merchant settings save and riders can complete only their assigned deliver
     ]);
 
     $this->actingAs($otherRiderUser)
+        ->get(route('rider.orders.show', $delivery))
+        ->assertNotFound();
+
+    $this->actingAs($riderUser)
+        ->get(route('rider.orders.show', $delivery))
+        ->assertOk()
+        ->assertSee('Order Details')
+        ->assertSee('Order items');
+
+    $this->actingAs($otherRiderUser)
         ->post(route('rider.deliveries.complete', $delivery))
         ->assertNotFound();
 
@@ -200,9 +226,20 @@ test('rider can accept an offered delivery and move it through every delivery st
     ];
 
     foreach ($actions as [$route, $status]) {
-        $this->actingAs($riderUser)
-            ->post(route($route, $delivery))
-            ->assertRedirect();
+        $response = $this->actingAs($riderUser)->post(route($route, $delivery));
+
+        if ($route === 'rider.deliveries.accept') {
+            $response->assertRedirect(route('rider.orders.navigation', $order))
+                ->assertSessionHas('status', 'Order accepted. Navigation to pickup is ready.');
+
+            $this->get(route('rider.orders.navigation', $order))
+                ->assertOk()
+                ->assertSee('Order accepted. Navigation to pickup is ready.')
+                ->assertSee('aria-label="Back to order details"', false)
+                ->assertSee('Pickup · Merchant');
+        } else {
+            $response->assertRedirect();
+        }
 
         $this->assertDatabaseHas('deliveries', ['id' => $delivery->id, 'status' => $status]);
         $delivery->refresh();
@@ -211,7 +248,9 @@ test('rider can accept an offered delivery and move it through every delivery st
     $this->actingAs($riderUser)
         ->post(route('rider.deliveries.startCustomer', $delivery))
         ->assertRedirect(route('rider.orders.navigation', $order));
-    $this->get(route('rider.orders.navigation', $order))->assertOk();
+    $this->get(route('rider.orders.navigation', $order))
+        ->assertOk()
+        ->assertSee('Drop-off · Customer');
     $this->assertDatabaseHas('deliveries', ['id' => $delivery->id, 'status' => 'en_route_to_customer']);
 
     $this->post(route('rider.deliveries.arriveCustomer', $delivery))
@@ -410,9 +449,17 @@ test('verified rider can switch online and offline when no delivery is active', 
         ->post(route('rider.status.toggle'))
         ->assertRedirect();
     $this->assertDatabaseHas('riders', ['id' => $rider->id, 'status' => 'online']);
+    $this->assertDatabaseHas('rider_online_sessions', [
+        'rider_id' => $rider->id,
+        'ended_at' => null,
+    ]);
 
     $this->post(route('rider.status.toggle'))->assertRedirect();
     $this->assertDatabaseHas('riders', ['id' => $rider->id, 'status' => 'offline']);
+    $this->assertDatabaseMissing('rider_online_sessions', [
+        'rider_id' => $rider->id,
+        'ended_at' => null,
+    ]);
 });
 
 test('changing verified rider vehicle details requires verification again', function () {
@@ -544,11 +591,16 @@ test('rider can decline a custom delivery offer and update its live location', f
 });
 
 test('rider dashboard only shows that rider deliveries and counts earnings from today', function () {
+    $this->travelTo(today()->setTime(12, 0));
+
     $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
     $store = Store::factory()->create(['user_id' => $merchant->id]);
     $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
     $riderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
     $rider = $riderUser->riderProfile()->create(['vehicle_type' => 'motorcycle', 'status' => 'busy', 'is_verified' => true]);
+    $rider->onlineSessions()->latest('started_at')->firstOrFail()->update([
+        'started_at' => today()->setTime(5, 30),
+    ]);
     $otherRiderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
     $otherRider = $otherRiderUser->riderProfile()->create(['vehicle_type' => 'motorcycle', 'status' => 'busy', 'is_verified' => true]);
 
@@ -575,9 +627,33 @@ test('rider dashboard only shows that rider deliveries and counts earnings from 
     $this->actingAs($riderUser)
         ->get(route('rider.dashboard'))
         ->assertOk()
+        ->assertSee("Today's Earnings", false)
+        ->assertSee('Completed')
+        ->assertSee('data-rider-theme-root', false)
+        ->assertSee('data-rider-theme-toggle', false)
         ->assertSee('OWN-RIDER-ORDER')
         ->assertDontSee('OTHER-RIDER-ORDER')
+        ->assertSee('6h 30m')
         ->assertViewHas('earnings', fn ($earnings): bool => (float) $earnings === 25.0);
+
+    $this->get(route('rider.profile'))
+        ->assertOk()
+        ->assertSee('data-rider-theme-toggle', false)
+        ->assertSee('Rider Information')
+        ->assertSee('Vehicle Information')
+        ->assertSee('Documents')
+        ->assertSee('Wallet &amp; Earnings', false)
+        ->assertSee('Change Password')
+        ->assertSee('name="current_password"', false)
+        ->assertSee('Logout');
+
+    $this->get(route('rider.onboarding'))
+        ->assertOk()
+        ->assertSee('data-rider-theme-toggle', false);
+
+    $this->get(route('rider.orders.navigation', $rider->deliveries()->first()->order))
+        ->assertOk()
+        ->assertSee('data-rider-theme-toggle', false);
 });
 
 test('rider live location is recorded only for the rider assigned delivery', function () {
@@ -669,4 +745,23 @@ test('customer payment preferences and dark mode persist', function () {
         'dark_mode' => true,
         'order_notifications' => true,
     ]);
+});
+
+test('customer profile renders the account icons', function () {
+    $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+
+    $this->actingAs($customer)->patch(route('customer.settings.update'), [
+        'dark_mode' => '1',
+        'order_notifications' => '1',
+    ])->assertRedirect();
+
+    $response = $this->get(route('customer.profile'))
+        ->assertOk()
+        ->assertSee('data-theme="dark"', false)
+        ->assertSee('class="cx-mode-switch"', false)
+        ->assertSee('checked', false);
+
+    foreach (['orders', 'deliveries', 'addresses', 'payments', 'dark-mode', 'notifications', 'settings', 'help'] as $icon) {
+        $response->assertSee('data-account-icon="'.$icon.'"', false);
+    }
 });

@@ -45,6 +45,7 @@ vendor/
 Thumbs.db
 *.sql
 !admin/database/operations.sql
+!A-rider/migrations/001_init_rider_schema.sql
 
 # ---- Dev-only smoke / debug scripts ----
 _smoke_tests.php

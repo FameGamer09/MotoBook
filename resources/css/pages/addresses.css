@@ -192,4 +192,24 @@
     .address-actions .danger {
         @apply text-danger;
     }
+
+    .location-map-instructions {
+        @apply text-xs text-text-dim mb-2;
+    }
+
+    .location-map {
+        height: 240px;
+        width: 100%;
+        margin-bottom: 12px;
+        border: 1px solid theme('colors.border');
+        border-radius: 14px;
+        overflow: hidden;
+        z-index: 0;
+    }
+
+    @media (min-width: 640px) {
+        .location-map {
+            height: 300px;
+        }
+    }
 }

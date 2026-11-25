@@ -1,14 +1,24 @@
+@php
+    $merchantLat = $order->merchant_lat ?? $order->store?->latitude;
+    $merchantLng = $order->merchant_lng ?? $order->store?->longitude;
+    $pickupAddress = $order->pickup_address ?? $order->store?->address ?? 'Pickup location';
+    $dropoffAddress = $order->dropoff_address ?? $order->deliveryAddress?->address_line ?? 'Drop-off location';
+    $isPickupStage = in_array($order->delivery?->status, ['assigned', 'accepted', 'en_route_to_pickup', 'arrived_at_pickup'], true)
+        && $merchantLat !== null
+        && $merchantLng !== null;
+@endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-rider-theme-root data-rider-page="navigation" data-rider-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#0F172A">
+    <meta name="theme-color" content="#f4f7f8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <title>Navigation &middot; Order {{ $order->order_number }} &middot; Motobook</title>
+    @vite(['resources/css/pages/rider-theme.css', 'resources/js/rider-theme.js'])
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -439,7 +449,10 @@
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 </head>
-<body>
+<body class="rider-navigation-shell" data-rider-page="navigation">
+@if (session('status'))
+    <div class="rider-navigation-alert" role="status" aria-live="polite">{{ session('status') }}</div>
+@endif
 <div id="app">
     <div class="loading-overlay" id="loadingOverlay">
         <div style="text-align:center;">
@@ -450,6 +463,11 @@
 
     <div class="status-bar">
         <div class="status-left">
+            @if (auth()->user()->isRider() && $order->delivery)
+                <a class="rider-navigation-back" href="{{ route('rider.orders.show', $order->delivery) }}" aria-label="Back to order details">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/><path d="M9 12h12"/></svg>
+                </a>
+            @endif
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
                  style="color: var(--accent-hover); flex-shrink: 0;" aria-hidden="true">
@@ -465,6 +483,7 @@
             <span class="status-dot"></span>
             <span>{{ $order->status }}</span>
         </div>
+        <x-rider.theme-toggle class="rider-theme-toggle rider-navigation-theme-toggle" />
     </div>
 
     <div id="map">
@@ -487,7 +506,7 @@
 
     <div class="bottom-panel">
         <div class="destination-card" id="destinationCard">
-            <div class="dest-icon customer">
+            <div class="dest-icon {{ $isPickupStage ? 'merchant' : 'customer' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M20 10c0 7-8 13-8 13s-8-6-8-13a8 8 0 0 1 16 0Z"/>
@@ -495,8 +514,8 @@
                 </svg>
             </div>
             <div class="dest-info">
-                <div class="dest-label">Drop-off &middot; Customer</div>
-                <div class="dest-address">{{ $order->dropoff_address }}</div>
+                <div class="dest-label">{{ $isPickupStage ? 'Pickup · Merchant' : 'Drop-off · Customer' }}</div>
+                <div class="dest-address">{{ $isPickupStage ? $pickupAddress : $dropoffAddress }}</div>
             </div>
             <div class="distance-pill" id="distancePill">-- m</div>
         </div>
@@ -550,13 +569,13 @@
     const LOCATION_URL = `${API_BASE_URL}/orders/${ORDER_ID}/location`;
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 
-    const CUSTOMER_LAT = {{ $order->customer_lat }};
-    const CUSTOMER_LNG = {{ $order->customer_lng }};
+    const CUSTOMER_LAT = {{ $order->customer_lat ?? $order->deliveryAddress?->latitude ?? 'null' }};
+    const CUSTOMER_LNG = {{ $order->customer_lng ?? $order->deliveryAddress?->longitude ?? 'null' }};
 
-    const MERCHANT_LAT = {{ $order->merchant_lat ?? 'null' }};
-    const MERCHANT_LNG = {{ $order->merchant_lng ?? 'null' }};
+    const MERCHANT_LAT = {{ $merchantLat ?? 'null' }};
+    const MERCHANT_LNG = {{ $merchantLng ?? 'null' }};
 
-    const STATUS = @json($order->status);
+    const DELIVERY_STATUS = @json($order->delivery?->status);
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
@@ -643,8 +662,10 @@
     }
 
     function destinationPoint() {
-        if (STATUS === 'NAVIGATING_TO_PICKUP' || STATUS === 'ARRIVED_AT_PICKUP') {
-            if (MERCHANT_LAT != null) return { lat: MERCHANT_LAT, lng: MERCHANT_LNG, type: 'merchant' };
+        if (['assigned', 'accepted', 'en_route_to_pickup', 'arrived_at_pickup'].includes(DELIVERY_STATUS)) {
+            if (MERCHANT_LAT != null && MERCHANT_LNG != null) {
+                return { lat: MERCHANT_LAT, lng: MERCHANT_LNG, type: 'merchant' };
+            }
         }
         return { lat: CUSTOMER_LAT, lng: CUSTOMER_LNG, type: 'customer' };
     }
@@ -658,12 +679,12 @@
             iconEl.classList.remove('customer');
             iconEl.classList.add('merchant');
             labelEl.textContent = 'Pickup \u00B7 Merchant';
-            addrEl.textContent = @json($order->pickup_address ?? 'Pickup location');
+            addrEl.textContent = @json($pickupAddress);
         } else {
             iconEl.classList.remove('merchant');
             iconEl.classList.add('customer');
             labelEl.textContent = 'Drop-off \u00B7 Customer';
-            addrEl.textContent = @json($order->dropoff_address);
+            addrEl.textContent = @json($dropoffAddress);
         }
     }
 
@@ -690,7 +711,7 @@
                 iconAnchor: [17, 42],
             })
         }).addTo(map);
-        customerMarker.bindPopup('<strong>Customer Drop-off</strong><br>' + @json($order->dropoff_address));
+        customerMarker.bindPopup('<strong>Customer Drop-off</strong><br>' + @json($dropoffAddress));
 
         if (MERCHANT_LAT != null && MERCHANT_LNG != null) {
             merchantMarker = L.marker([MERCHANT_LAT, MERCHANT_LNG], {
@@ -701,7 +722,7 @@
                     iconAnchor: [17, 42],
                 })
             }).addTo(map);
-            merchantMarker.bindPopup('<strong>Merchant Pickup</strong><br>' + @json($order->pickup_address ?? 'Pickup location'));
+            merchantMarker.bindPopup('<strong>Merchant Pickup</strong><br>' + @json($pickupAddress));
         }
 
         riderMarker = L.marker([startLat, startLng], {

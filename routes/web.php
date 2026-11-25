@@ -54,9 +54,10 @@ Route::middleware(['auth', 'cache.headers:private;no_store;no_cache;must_revalid
 
     Route::get('/rider/orders/{order}/navigation', function (Order $order) {
         $user = auth()->user();
+        $order->loadMissing(['delivery', 'store', 'deliveryAddress']);
         $riderId = $user->riderProfile?->id;
 
-        if ($user->isRider() && $riderId !== $order->rider_id) {
+        if ($user->isRider() && $riderId !== $order->delivery?->rider_id) {
             abort(403);
         }
         if (! $user->isRider() && ! $user->isAdmin()) {

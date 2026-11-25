@@ -12,9 +12,18 @@ if (offerSection) {
     );
 
     const updateAlertButton = () => {
-        if (!alertButton || !('Notification' in window)) return;
+        if (!alertButton) return;
 
-        alertButton.hidden = Notification.permission === 'granted' || Notification.permission === 'denied';
+        if (!('Notification' in window)) {
+            alertButton.hidden = false;
+            alertButton.disabled = true;
+            alertButton.textContent = 'Notifications unavailable';
+
+            return;
+        }
+
+        alertButton.hidden = Notification.permission === 'granted';
+        alertButton.disabled = Notification.permission === 'denied';
         if (Notification.permission === 'denied') alertButton.textContent = 'Alerts blocked in browser';
     };
 
@@ -22,15 +31,48 @@ if (offerSection) {
     alertButton?.addEventListener('click', async () => {
         if (!('Notification' in window)) return;
 
-        await Notification.requestPermission();
-        updateAlertButton();
+        try {
+            await Notification.requestPermission();
+            updateAlertButton();
+        } catch (error) {
+            console.error('Unable to request notification permission.', error);
+            alertButton.textContent = 'Unable to enable alerts';
+        }
     });
 
     const notifyRider = (title, body, tag) => {
         if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body, tag, icon: '/images/825310998_1610647237377200_4391978218746131377_n.png' });
+            const notification = new Notification(title, {
+                body,
+                tag,
+                icon: '/images/825310998_1610647237377200_4391978218746131377_n.png',
+            });
+            notification.addEventListener('click', () => {
+                window.focus();
+                window.location.href = '/rider/requests';
+            }, { once: true });
         }
     };
+
+    const updateQueueCountdowns = () => {
+        offerSection.querySelectorAll('[data-rider-countdown]').forEach((countdown) => {
+            const remainingSeconds = Math.max(0, Number(countdown.dataset.riderCountdown) - 1);
+            countdown.dataset.riderCountdown = String(remainingSeconds);
+
+            if (countdown.dataset.riderCountdownMode === 'accept') {
+                countdown.textContent = `Accept within ${remainingSeconds} seconds.`;
+
+                return;
+            }
+
+            const minutes = Math.floor(remainingSeconds / 60);
+            const seconds = remainingSeconds % 60;
+            countdown.textContent = `Your turn is expected in about ${minutes} min ${seconds} sec.`;
+        });
+    };
+
+    const countdownInterval = window.setInterval(updateQueueCountdowns, 1000);
+    window.addEventListener('pagehide', () => window.clearInterval(countdownInterval), { once: true });
 
     let checkingOffers = false;
     const checkOffers = async () => {

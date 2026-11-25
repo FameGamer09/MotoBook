@@ -8,6 +8,7 @@ use App\Models\CustomDelivery;
 use App\Models\Delivery;
 use App\Models\RiderDeliveryOffer;
 use App\Models\RiderLocationLog;
+use App\Models\RiderOnlineSession;
 use App\Models\Store;
 use App\Services\RiderAssignmentService;
 use Illuminate\Http\JsonResponse;
@@ -50,10 +51,30 @@ class DashboardController extends Controller
             ->where('type', 'credit')
             ->whereDate('created_at', today())
             ->sum('amount') ?? 0;
+        $onlineHours = '0h 00m';
+
+        if ($rider) {
+            $dayStart = today();
+            $now = now();
+            $onlineSeconds = RiderOnlineSession::query()
+                ->where('rider_id', $rider->id)
+                ->where('started_at', '<', $now)
+                ->where(fn ($query) => $query->whereNull('ended_at')->orWhere('ended_at', '>', $dayStart))
+                ->get(['started_at', 'ended_at'])
+                ->sum(function (RiderOnlineSession $session) use ($dayStart, $now): int {
+                    $startedAt = max($session->started_at->getTimestamp(), $dayStart->getTimestamp());
+                    $endedAt = min(($session->ended_at ?? $now)->getTimestamp(), $now->getTimestamp());
+
+                    return max(0, $endedAt - $startedAt);
+                });
+            $onlineMinutes = intdiv($onlineSeconds, 60);
+            $onlineHours = intdiv($onlineMinutes, 60).'h '.str_pad((string) ($onlineMinutes % 60), 2, '0', STR_PAD_LEFT).'m';
+        }
 
         return view('rider.dashboard', [
             'rider' => $rider,
             'earnings' => $earnings,
+            'onlineHours' => $onlineHours,
             'deliveries' => $deliveries,
             'customDeliveries' => $customDeliveries,
             'activeCustomDelivery' => $activeCustomDelivery,
@@ -99,7 +120,14 @@ class DashboardController extends Controller
         $rider = $request->user()->riderProfile;
         abort_unless($rider, 404);
 
-        return $this->transition($delivery, fn () => $service->riderAccept($delivery, $rider));
+        try {
+            $service->riderAccept($delivery, $rider);
+        } catch (DeliveryException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
+        return redirect()->route('rider.orders.navigation', $delivery->order)
+            ->with('status', 'Order accepted. Navigation to pickup is ready.');
     }
 
     public function reject(Request $request, Delivery $delivery, RiderAssignmentService $service): RedirectResponse
