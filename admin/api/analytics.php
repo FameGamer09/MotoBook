@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__.'/../includes/functions.php';
+require_once __DIR__.'/../includes/canonical_rider_status.php';
 requireLogin();
 
 header('Content-Type: application/json');
@@ -14,9 +15,24 @@ $week = $pdo->query("SELECT COALESCE(SUM(order_total + delivery_fee), 0) AS tota
 $month = $pdo->query("SELECT COALESCE(SUM(order_total + delivery_fee), 0) AS total FROM orders WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) AND order_status = 'delivered'")->fetch()['total'];
 $lifetime = $pdo->query("SELECT COALESCE(SUM(order_total + delivery_fee), 0) AS total FROM orders WHERE order_status = 'delivered'")->fetch()['total'];
 
-$ridersActive = $pdo->query("SELECT COUNT(*) AS cnt FROM riders WHERE duty_status IN ('online','on_trip','idle') AND status IN ('active','on_duty')")->fetch()['cnt'];
-$ridersOnTrip = $pdo->query("SELECT COUNT(*) AS cnt FROM riders WHERE duty_status = 'on_trip'")->fetch()['cnt'];
-$ridersIdle = $pdo->query("SELECT COUNT(*) AS cnt FROM riders WHERE duty_status = 'idle'")->fetch()['cnt'];
+$riderRows = $pdo->query('SELECT email FROM riders')->fetchAll();
+$canonicalRiders = canonicalRiderStatuses(array_map(static fn (array $rider): string => (string) $rider['email'], $riderRows));
+$ridersActive = 0;
+$ridersOnTrip = 0;
+$ridersIdle = 0;
+foreach ($riderRows as $riderRow) {
+    $canonical = $canonicalRiders[strtolower(trim((string) $riderRow['email']))] ?? null;
+    if ($canonical === null || $canonical['user_status'] !== 'active' || ! $canonical['is_verified']) {
+        continue;
+    }
+    if ($canonical['has_active_delivery']) {
+        $ridersActive++;
+        $ridersOnTrip++;
+    } elseif ($canonical['rider_status'] === 'online') {
+        $ridersActive++;
+        $ridersIdle++;
+    }
+}
 
 $staffActive = $pdo->query("SELECT COUNT(*) AS cnt FROM staff WHERE is_active = 1 AND shift_status = 'on_shift'")->fetch()['cnt'];
 $storesActive = $pdo->query("SELECT COUNT(*) AS cnt FROM partnership_stores WHERE status = 'open'")->fetch()['cnt'];

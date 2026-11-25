@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/bootstrap.php';
+require_once dirname(__DIR__, 2).'/includes/canonical_rider_status.php';
 
 $pdo = getDBConnection();
 runOperationsMigration($pdo);
@@ -233,7 +234,10 @@ if (preg_match('#^orders/(\d+)/reassign$#', $route, $m) && $method === 'POST') {
     $rider = $pdo->prepare("SELECT * FROM riders WHERE id = ? AND status IN ('active','on_duty')");
     $rider->execute([$riderId]);
     $riderRow = $rider->fetch();
-    if (! $riderRow) {
+    $canonical = $riderRow
+        ? (canonicalRiderStatuses([(string) $riderRow['email']])[strtolower(trim((string) $riderRow['email']))] ?? null)
+        : null;
+    if (! $riderRow || ! canonicalRiderCanReceiveOrders($canonical, canonicalManagementRiderHasActiveDelivery($pdo, $riderId))) {
         apiJson(['success' => false, 'message' => 'Rider is not available for assignment.'], 422);
     }
     $pdo->beginTransaction();
@@ -266,6 +270,15 @@ if (preg_match('#^orders/(\d+)/rider-sync$#', $route, $m) && $method === 'POST')
     if ($riderId <= 0) {
         apiJson(['success' => false, 'message' => 'No rider assigned to this legacy order. Assign a rider first.'], 422);
     }
+    $riderLookup = $pdo->prepare('SELECT email FROM riders WHERE id = ? LIMIT 1');
+    $riderLookup->execute([$riderId]);
+    $riderEmail = (string) ($riderLookup->fetchColumn() ?: '');
+    $canonical = $riderEmail !== ''
+        ? (canonicalRiderStatuses([$riderEmail])[strtolower(trim($riderEmail))] ?? null)
+        : null;
+    if (! canonicalRiderCanReceiveOrders($canonical, canonicalManagementRiderHasActiveDelivery($pdo, $riderId))) {
+        apiJson(['success' => false, 'message' => 'Rider must be verified, online, and free of active deliveries before an order can be synced.'], 422);
+    }
     $synced = syncLegacyOrderToRider($pdo, $orderId, $riderId, (string) ($user['actor_email'] ?? ''));
     if (! $synced || empty($synced['rider_order_id'])) {
         apiJson(['success' => false, 'message' => 'Rider schema not installed or order not found — run A-rider/migrations/001_init_rider_schema.sql first.'], 422);
@@ -275,9 +288,16 @@ if (preg_match('#^orders/(\d+)/rider-sync$#', $route, $m) && $method === 'POST')
 }
 
 if ($route === 'riders/active') {
-    $stmt = $pdo->query("SELECT id, rider_code, full_name, phone, duty_status, status, vehicle_plate FROM riders WHERE status IN ('active','on_duty') ORDER BY full_name");
+    $stmt = $pdo->query("SELECT id, rider_code, full_name, email, phone, duty_status, status, vehicle_plate FROM riders WHERE status IN ('active','on_duty') ORDER BY full_name");
+    $riders = $stmt->fetchAll();
+    $canonicalByEmail = canonicalRiderStatuses(array_map(static fn (array $rider): string => (string) $rider['email'], $riders));
+    $riders = array_values(array_filter($riders, static function (array $rider) use ($canonicalByEmail, $pdo): bool {
+        $canonical = $canonicalByEmail[strtolower(trim((string) $rider['email']))] ?? null;
+
+        return canonicalRiderCanReceiveOrders($canonical, canonicalManagementRiderHasActiveDelivery($pdo, (int) $rider['id']));
+    }));
     $shifts = $pdo->query('SELECT rs.*, r.full_name FROM rider_shifts rs JOIN riders r ON r.id = rs.rider_id WHERE rs.shift_date = CURDATE() ORDER BY r.full_name')->fetchAll();
-    apiJson(['success' => true, 'riders' => $stmt->fetchAll(), 'shifts' => $shifts]);
+    apiJson(['success' => true, 'riders' => $riders, 'shifts' => $shifts]);
 }
 
 if ($route === 'incidents' && $method === 'GET') {

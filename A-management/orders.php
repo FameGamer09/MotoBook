@@ -120,6 +120,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
 
 $stores = fetchStores();
 $riders = fetchActiveRiders();
+$canonicalByEmail = canonicalRiderStatuses(array_map(static fn (array $rider): string => (string) $rider['email'], $riders));
+$managementPdo = getOpsDB();
+$riders = array_values(array_filter($riders, static function (array $rider) use ($canonicalByEmail, $managementPdo): bool {
+    $canonical = $canonicalByEmail[strtolower(trim((string) $rider['email']))] ?? null;
+
+    return canonicalRiderCanReceiveOrders($canonical, canonicalManagementRiderHasActiveDelivery($managementPdo, (int) $rider['id']));
+}));
 
 $kanbanCols = [
     'pending_dispatch' => [
