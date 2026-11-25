@@ -3,17 +3,17 @@
 namespace App\Services;
 
 use App\Exceptions\OrderException;
+use App\Models\Delivery;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Promotion;
+use App\Models\RiderDeliveryOffer;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 
 class OrderService
 {
-    public function __construct(private readonly RiderAssignmentService $riderAssignmentService)
-    {
-    }
+    public function __construct(private readonly RiderAssignmentService $riderAssignmentService) {}
 
     /**
      * "Place Order" (Customer) + "Verify Multi-Tenant Data & Stock" (System).
@@ -156,7 +156,7 @@ class OrderService
 
             $total = round(max(0, $subtotal - $discount) + $deliveryFee + $serviceFee, 2);
 
-            // --- create the order (status defaults to 'pending' = awaiting merchant) ---
+            // --- create the order (pending = awaiting rider assignment) ---
             $order = Order::create([
                 'store_id' => $store->id,
                 'merchant_id' => $store->user_id,
@@ -192,6 +192,10 @@ class OrderService
                     'discount_amount' => $discount,
                 ]);
             }
+
+            // Dispatch immediately after checkout. Store staff maintain the
+            // catalog; the rider collects the requested items from the store.
+            $this->riderAssignmentService->assignNearestRider($order);
 
             return $order->fresh('items');
         });
@@ -267,7 +271,7 @@ class OrderService
             $lockedOrder = $this->lockOrder($order);
 
             if ($lockedOrder->status !== 'pending') {
-                throw new OrderException('This order can only be cancelled while awaiting merchant acceptance.');
+                throw new OrderException('This order can only be cancelled while waiting for a rider.');
             }
 
             if (auth()->id() !== $lockedOrder->customer_id) {
@@ -279,6 +283,19 @@ class OrderService
                 'cancel_reason' => $reason,
                 'cancelled_at' => now(),
             ]);
+
+            $delivery = Delivery::withoutGlobalScopes()
+                ->where('order_id', $lockedOrder->id)
+                ->lockForUpdate()
+                ->first();
+            if ($delivery?->status === 'pending_assignment') {
+                $delivery->update(['status' => 'cancelled']);
+                RiderDeliveryOffer::query()
+                    ->where('delivery_id', $delivery->id)
+                    ->whereIn('status', ['waiting', 'offered'])
+                    ->update(['status' => 'withdrawn', 'responded_at' => now()]);
+            }
+
             $this->refundWalletPayment($lockedOrder, 'Refund for cancelled order');
 
             return $lockedOrder->fresh();
@@ -295,7 +312,7 @@ class OrderService
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function transitionOrder(Order $order, string $expected, array $attributes): Order
     {

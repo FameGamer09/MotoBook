@@ -9,7 +9,7 @@
     <aside class="merchant-sidebar merchant-menu-sidebar">
         <a href="{{ route('merchant.dashboard') }}" class="merchant-brand"><span class="merchant-brand-mark"></span><span><b>Moto</b>Book</span></a>
         <div class="merchant-store-switcher"><span class="merchant-store-kicker">Merchant workspace</span><strong>{{ $store->name }}</strong><span class="merchant-store-status {{ $store->is_open ? 'is-open' : 'is-closed' }}"><span></span>{{ $store->is_open ? 'Open' : 'Closed' }}</span></div>
-        <nav class="merchant-nav"><a href="{{ route('merchant.dashboard') }}" class="merchant-nav-link"><span>⌂</span>Dashboard</a><a href="{{ route('merchant.orders.index') }}" class="merchant-nav-link"><span>▤</span>Orders</a><a href="{{ route('merchant.menu.index') }}" class="merchant-nav-link is-active"><span>◈</span>Menu</a><a href="{{ route('merchant.store.edit') }}" class="merchant-nav-link"><span>□</span>Store profile</a><a href="{{ route('merchant.sales.index') }}" class="merchant-nav-link"><span>◒</span>Sales</a></nav>
+        <nav class="merchant-nav"><a href="{{ route('merchant.dashboard') }}" class="merchant-nav-link"><span>⌂</span>Dashboard</a><a href="{{ route('merchant.menu.index') }}" class="merchant-nav-link is-active"><span>◈</span>Menu</a><a href="{{ route('merchant.store.edit') }}" class="merchant-nav-link"><span>□</span>Store profile</a><a href="{{ route('merchant.sales.index') }}" class="merchant-nav-link"><span>◒</span>Sales</a></nav>
         <div class="merchant-sidebar-footer"><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="merchant-logout"><span>↪</span>Log out</button></form></div>
     </aside>
     <main class="merchant-menu-main">

@@ -11,6 +11,7 @@ use App\Models\RiderDeliveryOffer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RiderAssignmentService
 {
@@ -39,7 +40,7 @@ class RiderAssignmentService
                     ['status' => 'pending_assignment']
                 );
 
-            if (! in_array($lockedOrder->status, ['ready_for_pickup', 'assigned'], true)) {
+            if (! in_array($lockedOrder->status, ['pending', 'ready_for_pickup', 'assigned'], true)) {
                 return $delivery;
             }
 
@@ -59,7 +60,7 @@ class RiderAssignmentService
             ->with('order.store')
             ->where('status', 'pending_assignment')
             ->whereHas('order', function ($query) {
-                $query->where('status', 'ready_for_pickup')
+                $query->whereIn('status', ['pending', 'ready_for_pickup'])
                     ->whereNotNull('customer_lat')
                     ->whereNotNull('customer_lng')
                     ->whereHas('store', function ($storeQuery) {
@@ -98,14 +99,31 @@ class RiderAssignmentService
 
         $this->assignPendingDeliveries();
 
-        return RiderDeliveryOffer::query()
+        $offers = RiderDeliveryOffer::query()
             ->with(['delivery.order.store', 'delivery.order.items', 'delivery.offers'])
             ->where('rider_id', $rider->id)
             ->whereIn('status', ['waiting', 'offered'])
             ->whereHas('delivery', fn (Builder $query) => $query->where('status', 'pending_assignment'))
+            ->whereHas('delivery.order', fn (Builder $query) => $query->whereIn('status', ['pending', 'ready_for_pickup']))
             ->orderBy('created_at')
             ->orderBy('queue_position')
             ->get();
+
+        if (! app()->environment('testing') && Schema::connection('management')->hasTable('rider_orders')) {
+            $sharedOffers = DB::connection('management')->table('rider_orders')
+                ->whereIn('order_code', $offers->pluck('delivery.order.order_number')->filter()->unique())
+                ->get(['order_code', 'state', 'rider_id']);
+            $sharedByOrderNumber = $sharedOffers->keyBy('order_code');
+
+            $offers = $offers->reject(function (RiderDeliveryOffer $offer) use ($sharedByOrderNumber): bool {
+                $sharedOrder = $sharedByOrderNumber->get($offer->delivery->order->order_number);
+
+                return $sharedOrder
+                    && ($sharedOrder->state !== 'OFFER_RECEIVED' || $sharedOrder->rider_id !== null);
+            })->values();
+        }
+
+        return $offers;
     }
 
     public function advanceOfferQueues(): void
@@ -129,6 +147,55 @@ class RiderAssignmentService
 
     public function riderAccept(Delivery $delivery, Rider $rider): Delivery
     {
+        if (! app()->environment('testing') && Schema::connection('management')->hasTable('rider_orders')) {
+            $management = DB::connection('management');
+            $order = Order::withoutGlobalScopes()->findOrFail($delivery->order_id);
+
+            return $management->transaction(function () use ($management, $delivery, $rider, $order): Delivery {
+                $sharedOrder = $management->table('rider_orders')
+                    ->where('order_code', $order->order_number)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($sharedOrder) {
+                    if ($sharedOrder->state !== 'OFFER_RECEIVED' || $sharedOrder->rider_id !== null) {
+                        throw new DeliveryException('Another rider has already accepted this order. Refresh your offers.');
+                    }
+
+                    $managementRiderId = $management->table('riders')
+                        ->where('email', $rider->user?->email)
+                        ->value('id');
+
+                    if (! $managementRiderId) {
+                        throw new DeliveryException('Your rider account is not linked to the shared dispatch system. Contact management.');
+                    }
+                }
+
+                $acceptedDelivery = $this->acceptInLaravel($delivery, $rider);
+
+                if ($sharedOrder) {
+                    $management->table('rider_orders')
+                        ->where('id', $sharedOrder->id)
+                        ->where('state', 'OFFER_RECEIVED')
+                        ->whereNull('rider_id')
+                        ->update([
+                            'rider_id' => (int) $managementRiderId,
+                            'state' => 'ACCEPTED',
+                            'accepted_at' => now(),
+                            'offer_expires_at' => null,
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                return $acceptedDelivery;
+            });
+        }
+
+        return $this->acceptInLaravel($delivery, $rider);
+    }
+
+    private function acceptInLaravel(Delivery $delivery, Rider $rider): Delivery
+    {
         return DB::transaction(function () use ($delivery, $rider): Delivery {
             $lockedDelivery = Delivery::withoutGlobalScopes()->lockForUpdate()->findOrFail($delivery->id);
             $this->assertStatus($lockedDelivery, 'pending_assignment');
@@ -151,8 +218,8 @@ class RiderAssignmentService
             $this->assertRiderCanAccept($lockedRider, $lockedDelivery);
 
             $order = Order::withoutGlobalScopes()->lockForUpdate()->findOrFail($lockedDelivery->order_id);
-            if ($order->status !== 'ready_for_pickup') {
-                throw new DeliveryException('This order is no longer waiting for rider pickup.');
+            if (! in_array($order->status, ['pending', 'ready_for_pickup'], true)) {
+                throw new DeliveryException('This order is no longer waiting for a rider.');
             }
 
             $store = $order->store()->withoutGlobalScopes()->first();

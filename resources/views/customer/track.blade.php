@@ -513,7 +513,7 @@
         <div id="map" aria-label="Delivery tracking map"></div>
         <div class="map-legend" aria-label="Map legend">
             <div class="legend-item"><span class="legend-swatch" style="background:#0891B2;"></span> Rider (Live)</div>
-            <div class="legend-item"><span class="legend-swatch" style="background:#C2410C;"></span> Merchant / Pickup</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#C2410C;"></span> Store / Pickup</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#6D28D9;"></span> Your Location</div>
         </div>
     </div>
@@ -579,7 +579,7 @@
                          data-lucide="store" aria-hidden="true"></svg>
                 </div>
                 <div class="stop-body">
-                    <div class="stop-label">Pickup from Merchant</div>
+                    <div class="stop-label">Pickup from Store</div>
                     <div class="stop-addr" id="pickupAddr">{{ $order->pickup_address }}</div>
                     @if($order->merchant_lat && $order->merchant_lng)
                     <div class="stop-coord" id="pickupCoord">{{ number_format((float)$order->merchant_lat, 6) }}, {{ number_format((float)$order->merchant_lng, 6) }}</div>
@@ -754,7 +754,7 @@
         const status = (data.status || currentStatus).toUpperCase();
 
         const isPendingOrOffer    = ['PENDING', 'OFFER_RECEIVED'].includes(status);
-        const isAccepted          = ['ACCEPTED', 'NAVIGATING_TO_PICKUP', 'ARRIVED_AT_PICKUP'].includes(status);
+        const isAccepted          = ['ASSIGNED', 'ACCEPTED', 'NAVIGATING_TO_PICKUP', 'ARRIVED_AT_PICKUP'].includes(status);
         const isPicked            = ['ORDER_VERIFIED', 'NAVIGATING_TO_DROP_OFF', 'ARRIVED_AT_DROP_OFF', 'PROOF_SUBMITTED'].includes(status);
         const isDone              = ['COMPLETED'].includes(status);
         const isCancelled         = ['CANCELLED'].includes(status);
@@ -771,7 +771,7 @@
             {
                 key: 'accepted',
                 title: 'Rider Assigned',
-                desc: accepted ? 'Rider is heading to pickup' : 'Looking for an available rider',
+                desc: accepted ? 'Rider is heading to the store' : 'Looking for an available rider',
                 time: accepted,
                 state: isCancelled ? 'pending' : (isAccepted || isPicked || isDone ? 'done' : (isPendingOrOffer ? 'pending' : 'done')),
                 icon: 'bike',
@@ -779,8 +779,8 @@
             },
             {
                 key: 'picked',
-                title: 'Package Picked Up',
-                desc: pickedUp ? 'Package is on the way to you' : 'Awaiting pickup from merchant',
+                title: 'Items Picked Up',
+                desc: pickedUp ? 'Your rider has your items and is on the way' : 'Rider will get the items from the store',
                 time: pickedUp,
                 state: isCancelled ? 'pending' : (isDone ? 'done' : (isPicked ? 'done' : (isAccepted ? 'pending' : 'pending'))),
                 icon: 'package-check',

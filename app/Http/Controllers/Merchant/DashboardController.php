@@ -15,17 +15,14 @@ class DashboardController extends Controller
             return redirect()->route('merchant.onboarding');
         }
 
-        $orders = $store->orders()->with('customer', 'items')->latest();
-
         return view('merchant.dashboard', [
             'store' => $store,
             'stats' => [
-                'today_sales' => (clone $orders)->whereDate('created_at', today())->whereNotIn('status', ['rejected', 'cancelled'])->sum('total_amount'),
-                'today_orders' => (clone $orders)->whereDate('created_at', today())->count(),
-                'pending_orders' => (clone $orders)->where('status', 'pending')->count(),
+                'today_sales' => $store->orders()->whereDate('created_at', today())->whereIn('status', ['delivered', 'completed'])->sum('total_amount'),
                 'menu_items' => $store->menuItems()->count(),
+                'available_items' => $store->menuItems()->where('is_available', true)->count(),
+                'unavailable_items' => $store->menuItems()->where('is_available', false)->count(),
             ],
-            'recentOrders' => (clone $orders)->limit(7)->get(),
             'menuItems' => $store->menuItems()->latest()->limit(5)->get(),
         ]);
     }

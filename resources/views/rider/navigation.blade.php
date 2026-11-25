@@ -514,7 +514,7 @@
                 </svg>
             </div>
             <div class="dest-info">
-                <div class="dest-label">{{ $isPickupStage ? 'Pickup · Merchant' : 'Drop-off · Customer' }}</div>
+                <div class="dest-label">{{ $isPickupStage ? 'Pickup · Store' : 'Drop-off · Customer' }}</div>
                 <div class="dest-address">{{ $isPickupStage ? $pickupAddress : $dropoffAddress }}</div>
             </div>
             <div class="distance-pill" id="distancePill">-- m</div>
@@ -678,7 +678,7 @@
         if (dest.type === 'merchant') {
             iconEl.classList.remove('customer');
             iconEl.classList.add('merchant');
-            labelEl.textContent = 'Pickup \u00B7 Merchant';
+            labelEl.textContent = 'Pickup \u00B7 Store';
             addrEl.textContent = @json($pickupAddress);
         } else {
             iconEl.classList.remove('merchant');
@@ -722,7 +722,7 @@
                     iconAnchor: [17, 42],
                 })
             }).addTo(map);
-            merchantMarker.bindPopup('<strong>Merchant Pickup</strong><br>' + @json($pickupAddress));
+            merchantMarker.bindPopup('<strong>Store Pickup</strong><br>' + @json($pickupAddress));
         }
 
         riderMarker = L.marker([startLat, startLng], {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCustomer;
 use App\Models\Concerns\BelongsToStore;
+use App\Services\ManagementOrderSync;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -84,7 +85,7 @@ class Order extends Model
         });
 
         static::created(function (Order $order): void {
-            DB::afterCommit(fn () => app(\App\Services\ManagementOrderSync::class)->push($order->fresh()));
+            DB::afterCommit(fn () => app(ManagementOrderSync::class)->push($order->fresh()));
 
             $customer = User::find($order->customer_id);
             if (($customer?->customer_settings['order_notifications'] ?? true) === false) {
@@ -94,7 +95,7 @@ class Order extends Model
                 'user_id' => $order->customer_id,
                 'type' => 'order',
                 'title' => 'Order placed',
-                'message' => "Your order {$order->order_number} was sent to the restaurant.",
+                'message' => "Your order {$order->order_number} is waiting for a rider to accept it.",
                 'action_url' => route('customer.orders.show', $order, false),
             ]);
         });
@@ -103,18 +104,18 @@ class Order extends Model
             if (! $order->wasChanged('status')) {
                 return;
             }
-            DB::afterCommit(fn () => app(\App\Services\ManagementOrderSync::class)->push($order->fresh()));
+            DB::afterCommit(fn () => app(ManagementOrderSync::class)->push($order->fresh()));
             $customer = User::find($order->customer_id);
             if (($customer?->customer_settings['order_notifications'] ?? true) === false) {
                 return;
             }
 
             $messages = [
-                'accepted' => ['Order confirmed', 'The restaurant accepted your order and is preparing it.'],
-                'preparing' => ['Order is being prepared', 'The restaurant has started preparing your order.'],
+                'accepted' => ['Order confirmed', 'Your order has been confirmed.'],
+                'preparing' => ['Order is being prepared', 'Your store is preparing the requested items.'],
                 'ready_for_pickup' => ['Order ready for pickup', 'Your order is ready and waiting for a rider.'],
-                'assigned' => ['Rider assigned', 'A rider has been assigned to your order.'],
-                'out_for_delivery' => ['Order picked up', 'Your rider is on the way to you.'],
+                'assigned' => ['Rider accepted your order', 'Your rider is heading to the store to get your items.'],
+                'out_for_delivery' => ['Rider picked up your items', 'Your rider is on the way to you.'],
                 'delivered' => ['Order delivered', 'Your order has been delivered. Enjoy!'],
                 'rejected' => ['Order declined', 'The restaurant could not accept your order.'],
                 'cancelled' => ['Order cancelled', 'Your order was cancelled.'],

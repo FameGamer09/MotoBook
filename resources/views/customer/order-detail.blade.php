@@ -20,9 +20,9 @@
         $deliveryStatusMessage = match ($deliveryStatus) {
             'assigned' => 'Rider assigned to your order',
             'accepted' => 'Rider accepted your delivery',
-            'en_route_to_pickup' => 'Rider is heading to the restaurant',
-            'arrived_at_pickup' => 'Rider has arrived at the restaurant',
-            'picked_up' => 'Your order has been picked up',
+            'en_route_to_pickup' => 'Rider is heading to the store',
+            'arrived_at_pickup' => 'Rider has arrived at the store to get your items',
+            'picked_up' => 'Your rider has your items',
             'en_route_to_customer' => 'Your rider is on the way to you',
             'arrived_at_customer' => 'Your rider has arrived',
             'delivered' => 'Delivered!',
@@ -30,16 +30,19 @@
         };
 
         // ordered progression, used to decide which timeline steps are "complete"
-        $progression = ['pending', 'accepted', 'preparing', 'ready_for_pickup', 'assigned', 'out_for_delivery', 'delivered'];
-        $currentIndex = array_search($order->status, $progression);
-        if ($order->status === 'completed') $currentIndex = count($progression) - 1;
+        $currentIndex = match ($order->status) {
+            'pending' => 0,
+            'assigned', 'accepted', 'preparing', 'ready_for_pickup' => 1,
+            'out_for_delivery' => 2,
+            'delivered', 'completed' => 3,
+            default => 0,
+        };
 
         $steps = [
             ['label' => 'Order Placed', 'time' => $order->created_at, 'at' => 0],
-            ['label' => 'Preparing', 'time' => $order->accepted_at, 'at' => 2],
-            ['label' => 'Rider Assigned', 'time' => null, 'at' => 4],
-            ['label' => 'Out for Delivery', 'time' => null, 'at' => 5],
-            ['label' => 'Delivered', 'time' => $order->delivered_at, 'at' => 6],
+            ['label' => 'Rider Heading to Store', 'time' => $order->accepted_at, 'at' => 1],
+            ['label' => 'Items Picked Up', 'time' => $order->picked_up_at, 'at' => 2],
+            ['label' => 'Delivered', 'time' => $order->delivered_at, 'at' => 3],
         ];
     @endphp
 
@@ -78,7 +81,7 @@
     @else
         <div class="status-banner-big active">
             <div class="status-banner-big-icon">🛵</div>
-            <div class="status-banner-big-text" id="order-live-status">{{ $deliveryStatusMessage ?? 'Your order is on its way' }}</div>
+            <div class="status-banner-big-text" id="order-live-status">{{ $deliveryStatusMessage ?? ($order->status === 'pending' ? 'Your order is waiting for a rider.' : ($order->status === 'assigned' ? 'Your rider is heading to the store.' : 'Your order is on its way.')) }}</div>
         </div>
     @endif
 

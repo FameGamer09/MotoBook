@@ -164,7 +164,7 @@ class ManagementOrderSync
             return;
         }
 
-        if (! in_array($order->status, ['ready_for_pickup', 'assigned', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'rejected'], true)) {
+        if (! in_array($order->status, ['pending', 'ready_for_pickup', 'assigned', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'rejected'], true)) {
             return;
         }
 
@@ -195,7 +195,7 @@ class ManagementOrderSync
                 ?? $db->table('rider_orders')->where('order_code', $order->order_number)->first())
             : $riderOrderQuery->where('order_code', $order->order_number)->first();
         $state = match ($order->status) {
-            'ready_for_pickup' => 'OFFER_RECEIVED',
+            'pending', 'ready_for_pickup' => 'OFFER_RECEIVED',
             'assigned' => $managementRiderId ? 'ACCEPTED' : 'OFFER_RECEIVED',
             'out_for_delivery' => 'NAVIGATING_TO_DROP_OFF',
             'delivered', 'completed' => 'COMPLETED',

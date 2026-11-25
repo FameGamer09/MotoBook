@@ -41,9 +41,9 @@
                         $deliveryStatusLabel = match ($deliveryStatus) {
                             'assigned' => 'Rider Assigned',
                             'accepted' => 'Rider Accepted',
-                            'en_route_to_pickup' => 'Rider Heading to Restaurant',
-                            'arrived_at_pickup' => 'Rider at Restaurant',
-                            'picked_up' => 'Order Picked Up',
+                            'en_route_to_pickup' => 'Rider Heading to Store',
+                            'arrived_at_pickup' => 'Rider at Store',
+                            'picked_up' => 'Items Picked Up',
                             'en_route_to_customer' => 'On the Way to You',
                             'arrived_at_customer' => 'Rider Arrived',
                             'delivered' => 'Delivered',
@@ -55,11 +55,11 @@
                             default => 'in-progress',
                         };
                         $statusLabel = $deliveryStatusLabel ?? match($order->status) {
-                            'pending' => 'Awaiting Confirmation',
+                            'pending' => 'Waiting for Rider',
                             'accepted' => 'Accepted',
                             'preparing' => 'Preparing',
                             'ready_for_pickup' => 'Ready for Pickup',
-                            'assigned' => 'Rider Assigned',
+                            'assigned' => 'Rider Heading to Store',
                             'out_for_delivery' => 'Out for Delivery',
                             'delivered' => 'Delivered',
                             'completed' => 'Completed',

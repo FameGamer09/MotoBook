@@ -16,7 +16,7 @@
               integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
               crossorigin="">
     @endif
-    @vite(['resources/css/app.css', 'resources/css/pages/' . ($pageCss ?? 'login') . '.css'])
+    @vite(['resources/css/app.css', 'resources/css/pages/' . (($pageCss ?? 'login') === 'rider-onboarding' ? 'login' : ($pageCss ?? 'login')) . '.css'])
     @vite('resources/css/pages/customer-experience.css')
     <script src="{{ asset('js/pwa-install.js') }}" defer></script>
     @if (($pageCss ?? '') === 'rider-onboarding')
