@@ -3,12 +3,14 @@
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\MerchantController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\RiderController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'role:admin', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
     Route::get('/merchants', [MerchantController::class, 'index'])->name('merchants.index');
     Route::get('/merchants/{store}', [MerchantController::class, 'show'])->name('merchants.show');

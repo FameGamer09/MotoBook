@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <title>Store Profile · MotoBook Merchant</title>
     @vite(['resources/css/app.css', 'resources/css/pages/merchant-store.css'])
 </head>
@@ -18,7 +19,9 @@
             @csrf @method('PATCH')<input type="hidden" name="is_open" value="0">
             <label class="merchant-check"><input type="checkbox" name="is_open" value="1" @checked($store->is_open)> Accept customer orders</label>
             <div class="merchant-form-two"><div class="merchant-form-field"><label for="latitude">Latitude</label><input id="latitude" name="latitude" type="number" step="0.0000001" value="{{ old('latitude', $store->latitude) }}" placeholder="e.g. 11.5850"></div><div class="merchant-form-field"><label for="longitude">Longitude</label><input id="longitude" name="longitude" type="number" step="0.0000001" value="{{ old('longitude', $store->longitude) }}" placeholder="e.g. 122.7511"></div></div>
-            <div data-location-picker data-latitude-target="latitude" data-longitude-target="longitude">
+            <div data-location-picker data-map-picker data-latitude-target="latitude" data-longitude-target="longitude">
+                <p class="location-map-instructions">Tap the map or drag the marker to your restaurant’s exact pickup point. You can also use this device’s location if you are at the store.</p>
+                <div class="location-map" data-location-map aria-label="Map to choose store pickup location"></div>
                 <button type="button" class="merchant-form-submit">Use my current location</button>
                 <p data-location-status role="status" aria-live="polite"></p>
             </div>

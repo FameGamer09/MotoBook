@@ -32,8 +32,8 @@ class StoreController extends Controller
             'phone' => ['sometimes', 'required', 'string', 'max:20'],
             'address' => ['sometimes', 'required', 'string', 'max:500'],
             'brand_color' => ['sometimes', 'required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
-            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90', 'required_with:longitude', 'required_if:is_open,1'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180', 'required_with:latitude', 'required_if:is_open,1'],
             'is_open' => ['nullable', 'boolean'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'banner' => ['nullable', 'image', 'max:4096'],
@@ -62,6 +62,11 @@ class StoreController extends Controller
 
         if (! $store) {
             return redirect()->route('merchant.onboarding');
+        }
+
+        if (! $store->is_open && ($store->latitude === null || $store->longitude === null)) {
+            return redirect()->route('merchant.store.edit')
+                ->withErrors('Set and save the restaurant pickup location before opening your store.');
         }
 
         $store->update(['is_open' => ! $store->is_open]);

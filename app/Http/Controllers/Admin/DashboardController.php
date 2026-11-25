@@ -55,10 +55,18 @@ class DashboardController extends Controller
                 })
                 ->count();
 
+        $recentOrders = Order::withoutGlobalScopes()
+            ->with(['customer', 'store'])
+            ->where('status', '!=', 'cancelled')
+            ->latest()
+            ->limit(10)
+            ->get();
+
         return view('admin.dashboard', [
             'stats' => $stats,
             'pendingMerchants' => $pendingMerchants,
             'pendingRiders' => $pendingRiders,
+            'recentOrders' => $recentOrders,
         ]);
     }
 }

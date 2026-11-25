@@ -3,6 +3,38 @@
 @section('page-title', 'Dashboard')
 @section('content')
 
+    @if (session('status'))
+        <p class="empty-state">{{ session('status') }}</p>
+    @endif
+
+    @if ($recentOrders->isNotEmpty())
+        <div class="section-header">
+            <div class="section-title">Recent active orders</div>
+        </div>
+        <table class="ledger mb-8">
+            <thead>
+                <tr><th>Order</th><th>Customer</th><th>Store</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach ($recentOrders as $order)
+                    <tr>
+                        <td>{{ $order->order_number }}</td>
+                        <td class="text-text-dim">{{ $order->customer?->name ?? 'Customer' }}</td>
+                        <td class="text-text-dim">{{ $order->store?->name ?? 'Store' }}</td>
+                        <td><span class="status-dot pending"></span>{{ str_replace('_', ' ', ucfirst($order->status)) }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('admin.orders.cancel', $order) }}" onsubmit="return confirm('Cancel order {{ $order->order_number }}?')">
+                                @csrf
+                                <input type="hidden" name="reason" value="Cancelled by admin for testing">
+                                <button type="submit" class="table-link">Cancel</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <div class="stat-row">
         <div>
             <div class="stat-label">Total users</div>
