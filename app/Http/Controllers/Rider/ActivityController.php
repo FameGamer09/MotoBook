@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CustomDelivery;
 use App\Models\Delivery;
 use App\Models\Rider;
+use App\Models\RiderSecurityTopUp;
 use App\Models\WalletTransaction;
 use App\Services\RiderAssignmentService;
 use Illuminate\Http\Request;
@@ -110,13 +111,12 @@ class ActivityController extends Controller
     public function wallet(Request $request): View
     {
         $rider = $this->rider($request);
-        $wallet = $request->user()->wallet;
 
         return view('rider.wallet', [
             'rider' => $rider,
-            'wallet' => $wallet,
-            'transactions' => WalletTransaction::query()
-                ->where('wallet_id', $wallet?->id ?? 0)
+            'securityDeposit' => $request->user()->riderSecurityDeposit,
+            'topUps' => RiderSecurityTopUp::query()
+                ->where('user_id', $request->user()->id)
                 ->latest()
                 ->paginate(10),
             ...$this->navigationState($request, $rider),

@@ -140,24 +140,165 @@
     margin: 12px 0;
 }
 
-.rider-app-page .rider-wallet-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 12px 0;
-    padding: 12px;
-    border: 1px solid var(--rider-line);
-    border-radius: 10px;
-    background: var(--rider-surface);
+.rider-app-page .rider-wallet-icon {
+    width: 46px;
+    height: 46px;
 }
 
-.rider-app-page .rider-wallet-actions a {
-    color: var(--rider-mint);
-    font-size: 12px;
+.rider-app-page .rider-wallet-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 28px;
+}
+
+.rider-app-page .rider-wallet-action {
+    display: grid;
+    min-height: 46px;
+    place-items: center;
+    border: 1px solid var(--rider-line);
+    border-radius: 12px;
+    color: var(--rider-ink);
+    background: var(--rider-surface);
+    font: inherit;
+    font-size: 13px;
     font-weight: 700;
     text-decoration: none;
+    cursor: pointer;
+}
+
+.rider-app-page .rider-wallet-action-primary {
+    border-color: #08a6d3;
+    color: #fff;
+    background: linear-gradient(110deg, #14b9e4, #0ba4d5);
+    cursor: pointer;
+}
+
+.rider-app-page .rider-wallet-action-detail {
+    position: relative;
+}
+
+.rider-app-page .rider-wallet-action-detail summary {
+    list-style: none;
+}
+
+.rider-app-page .rider-wallet-action-detail summary::-webkit-details-marker {
+    display: none;
+}
+
+.rider-app-page .rider-wallet-action-note {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(290px, calc(100vw - 40px));
+    padding: 13px;
+    border: 1px solid var(--rider-line);
+    border-radius: 12px;
+    background: var(--rider-surface);
+    box-shadow: 0 8px 24px rgba(15, 35, 45, .12);
+}
+
+.rider-app-page .rider-wallet-action-note strong {
+    color: var(--rider-ink);
+    font-size: 12px;
+}
+
+.rider-app-page .rider-wallet-action-note p {
+    margin: 5px 0 0;
+    color: var(--rider-muted);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.rider-app-page .rider-topup-form {
+    width: min(340px, calc(100vw - 40px));
+}
+
+.rider-app-page .rider-topup-form form {
+    display: grid;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.rider-app-page .rider-topup-form label {
+    color: var(--rider-ink);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.rider-app-page .rider-topup-form input,
+.rider-app-page .rider-topup-form select {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid var(--rider-line);
+    border-radius: 8px;
+    color: var(--rider-ink);
+    background: var(--rider-surface);
+    font: inherit;
+    font-size: 12px;
+}
+
+.rider-app-page .rider-topup-form button {
+    margin-top: 5px;
+}
+
+.rider-app-page .rider-topup-error {
+    color: #c23737;
+    font-size: 10px;
+}
+
+.rider-app-page .rider-wallet-transactions {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-section-heading h2 {
+    font-size: 14px;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-record-list {
+    gap: 8px;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-record-row {
+    padding: 11px 8px;
+    border: 0;
+    border-bottom: 1px solid var(--rider-line);
+    border-radius: 0;
+    background: transparent;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-record-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+    border: 2px solid #26ac69;
+    border-radius: 50%;
+    color: #209c5e;
+    background: transparent;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-record-amount {
+    display: grid;
+    justify-items: end;
+    gap: 3px;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-transaction-status {
+    color: #209c5e;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-transaction-status.pending {
+    color: #b87808;
+}
+
+.rider-app-page .rider-wallet-transactions .rider-transaction-status.rejected {
+    color: #c23737;
 }
 
 .rider-app-page .rider-detail-card {

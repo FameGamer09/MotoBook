@@ -14,7 +14,7 @@ return new class extends Migration
 
         if (! Schema::connection('management')->hasColumn('orders', 'google_maps_location')) {
             Schema::connection('management')->table('orders', function (Blueprint $table) {
-                $table->text('google_maps_location')->nullable()->after('delivery_address');
+                $table->text('google_maps_location')->nullable();
             });
         }
     }
