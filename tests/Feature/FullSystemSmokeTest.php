@@ -160,6 +160,59 @@ test('customer checkout sends the order to the rider queue without store accepta
         ->assertSee('Pickup · Store');
 });
 
+test('rider queue recovers pending customer orders missing a delivery record', function () {
+    $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
+    $store = Store::factory()->create([
+        'user_id' => $merchant->id,
+        'is_verified' => true,
+        'is_open' => true,
+        'latitude' => 11.585,
+        'longitude' => 122.751,
+    ]);
+    $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+    $riderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+    $rider = $riderUser->riderProfile()->create([
+        'vehicle_type' => 'motorcycle',
+        'status' => 'online',
+        'is_verified' => true,
+        'current_latitude' => 11.585,
+        'current_longitude' => 122.751,
+    ]);
+    $offlineRiderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+    $offlineRider = $offlineRiderUser->riderProfile()->create([
+        'vehicle_type' => 'motorcycle',
+        'status' => 'offline',
+        'is_verified' => false,
+    ]);
+    $order = Order::create([
+        'customer_id' => $customer->id,
+        'store_id' => $store->id,
+        'status' => 'pending',
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+        'subtotal' => 100,
+        'total_amount' => 100,
+        'customer_lat' => 11.585,
+        'customer_lng' => 122.751,
+    ]);
+
+    expect($order->delivery()->exists())->toBeFalse();
+
+    expect(app(RiderAssignmentService::class)->riderOffers($offlineRider))->toBeEmpty();
+
+    $delivery = Delivery::query()->where('order_id', $order->id)->firstOrFail();
+    $this->assertDatabaseHas('deliveries', [
+        'id' => $delivery->id,
+        'status' => 'pending_assignment',
+        'rider_id' => null,
+    ]);
+    $this->assertDatabaseHas('rider_delivery_offers', [
+        'delivery_id' => $delivery->id,
+        'rider_id' => $rider->id,
+        'status' => 'offered',
+    ]);
+});
+
 test('merchant settings save and riders can complete only their assigned deliveries', function () {
     $merchant = User::factory()->create(['role' => 'merchant', 'status' => 'active']);
     $store = Store::factory()->create(['user_id' => $merchant->id]);
