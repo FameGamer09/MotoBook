@@ -63,6 +63,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf($_POST['csrf_token'] ?? 
         }
     }
 
+    if ($action === 'verify_canonical_rider' && $riderId > 0) {
+        $riderStmt = $pdo->prepare('SELECT email, full_name FROM riders WHERE id = ?');
+        $riderStmt->execute([$riderId]);
+        $legacyRider = $riderStmt->fetch();
+
+        if ($legacyRider && verifyCanonicalRiderByEmail((string) $legacyRider['email'])) {
+            flash('success', sprintf('%s has been verified. The rider must sign in and go online to receive requests.', $legacyRider['full_name']));
+        } else {
+            flash('error', 'The MotoBook rider account could not be verified. Confirm the rider email is linked, then try again.');
+        }
+    }
+
     if ($action === 'reset_password' && $riderId > 0) {
         $newPass = password_hash('Motobook200409', PASSWORD_BCRYPT, ['cost' => 10]);
         $stmt = $pdo->prepare('UPDATE riders SET password = ? WHERE id = ?');

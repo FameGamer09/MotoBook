@@ -99,6 +99,47 @@ function canonicalRiderStatuses(array $emails): array
     }
 }
 
+function verifyCanonicalRiderByEmail(string $email): bool
+{
+    $email = strtolower(trim($email));
+    $pdo = canonicalRiderDatabase();
+
+    if ($email === '' || ! $pdo instanceof PDO) {
+        return false;
+    }
+
+    try {
+        $pdo->beginTransaction();
+        $statement = $pdo->prepare("SELECT r.id AS rider_id, u.id AS user_id
+            FROM users u
+            INNER JOIN riders r ON r.user_id = u.id
+            WHERE u.role = 'rider' AND LOWER(u.email) = ?
+            LIMIT 1 FOR UPDATE");
+        $statement->execute([$email]);
+        $rider = $statement->fetch();
+
+        if (! $rider) {
+            $pdo->rollBack();
+
+            return false;
+        }
+
+        $pdo->prepare('UPDATE riders SET is_verified = 1 WHERE id = ?')->execute([(int) $rider['rider_id']]);
+        $pdo->prepare("UPDATE users SET status = 'active' WHERE id = ? AND status = 'inactive'")
+            ->execute([(int) $rider['user_id']]);
+        $pdo->commit();
+
+        return true;
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Canonical rider verification failed: '.$exception->getMessage());
+
+        return false;
+    }
+}
+
 /**
  * @param  array{rider_status: string, is_verified: bool, user_status: string, has_active_delivery: bool}|null  $status
  */

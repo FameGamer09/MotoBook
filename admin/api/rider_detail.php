@@ -138,6 +138,18 @@ $overviewHtml .= '
     <button type="submit" class="btn btn-primary btn-sm">'.($isCreate ? 'Create Rider' : 'Save Profile').'</button>
     <a href="'.APP_URL.'/riders.php" class="btn btn-outline btn-sm" style="margin-left:0.5rem;">Cancel</a>
 </form>';
+if (! $isCreate && $canonical !== null && ! $canonical['is_verified']) {
+    $overviewHtml .= '
+<div class="alert alert-warning" style="margin-top:1rem;">
+    Confirm the rider\'s identity and license documents before approving verification.
+</div>
+<form method="POST" action="'.APP_URL.'/riders.php" style="margin-top:0.75rem;" onsubmit="return confirmAction(\'Approve and verify this rider account?\');">
+    '.csrfField().'
+    <input type="hidden" name="action" value="verify_canonical_rider">
+    <input type="hidden" name="rider_id" value="'.(int) ($rider['id'] ?? 0).'">
+    <button type="submit" class="btn btn-success btn-sm">Approve &amp; Verify Rider</button>
+</form>';
+}
 if (! $isCreate) {
     $overviewHtml .= '
 <div class="btn-group" style="margin-top:1rem;">
