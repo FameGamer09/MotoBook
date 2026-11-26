@@ -56,6 +56,8 @@ class RiderAssignmentService
 
     public function assignPendingDeliveries(): int
     {
+        $this->createDeliveriesForPendingOrders();
+
         $pendingDeliveries = Delivery::withoutGlobalScopes()
             ->with('order.store')
             ->where('status', 'pending_assignment')
@@ -91,13 +93,40 @@ class RiderAssignmentService
         return $offerCount;
     }
 
+    private function createDeliveriesForPendingOrders(): void
+    {
+        $ordersWithoutDeliveries = Order::withoutGlobalScopes()
+            ->whereIn('status', ['pending', 'ready_for_pickup'])
+            ->whereDoesntHave('delivery')
+            ->orderBy('id')
+            ->limit(50)
+            ->get(['id']);
+
+        foreach ($ordersWithoutDeliveries as $order) {
+            DB::transaction(function () use ($order): void {
+                $lockedOrder = Order::withoutGlobalScopes()
+                    ->lockForUpdate()
+                    ->find($order->id);
+
+                if (! $lockedOrder || ! in_array($lockedOrder->status, ['pending', 'ready_for_pickup'], true)) {
+                    return;
+                }
+
+                Delivery::withoutGlobalScopes()->firstOrCreate(
+                    ['order_id' => $lockedOrder->id],
+                    ['status' => 'pending_assignment'],
+                );
+            });
+        }
+    }
+
     public function riderOffers(Rider $rider): Collection
     {
+        $this->assignPendingDeliveries();
+
         if ($rider->status !== 'online' || ! $rider->is_verified || $rider->user?->status !== 'active') {
             return collect();
         }
-
-        $this->assignPendingDeliveries();
 
         $offers = RiderDeliveryOffer::query()
             ->with(['delivery.order.store', 'delivery.order.items', 'delivery.offers'])

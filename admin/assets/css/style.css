@@ -1467,6 +1467,95 @@ tbody tr:last-child td {
     display: flex;
 }
 
+.admin-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(5px);
+    animation: confirmFadeIn 0.16s ease-out;
+}
+
+.admin-confirm-dialog {
+    width: min(100%, 440px);
+    padding: 1.75rem;
+    border: 1px solid var(--slate-200);
+    border-radius: 1.1rem;
+    background: var(--white);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+    animation: confirmDialogIn 0.2s ease-out;
+}
+
+.admin-confirm-icon {
+    display: grid;
+    width: 3.15rem;
+    height: 3.15rem;
+    margin-bottom: 1.1rem;
+    place-items: center;
+    border: 1px solid var(--emerald-100);
+    border-radius: 1rem;
+    background: var(--emerald-50);
+    color: var(--emerald-700);
+}
+
+.admin-confirm-icon svg {
+    width: 1.55rem;
+    height: 1.55rem;
+}
+
+.admin-confirm-dialog h2 {
+    margin: 0;
+    color: var(--slate-900);
+    font-size: 1.25rem;
+    font-weight: var(--fw-semibold);
+    line-height: 1.35;
+}
+
+.admin-confirm-dialog p {
+    margin: 0.65rem 0 1.5rem;
+    color: var(--slate-600);
+    font-size: var(--fs-sm);
+    line-height: 1.65;
+}
+
+.admin-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+
+.admin-confirm-actions .btn {
+    min-height: 2.65rem;
+    padding-inline: 1rem;
+}
+
+@keyframes confirmFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes confirmDialogIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 480px) {
+    .admin-confirm-dialog {
+        padding: 1.35rem;
+    }
+
+    .admin-confirm-actions {
+        flex-direction: column-reverse;
+    }
+
+    .admin-confirm-actions .btn {
+        width: 100%;
+    }
+}
+
 .modal {
     background: var(--white);
     border-radius: var(--radius-lg);

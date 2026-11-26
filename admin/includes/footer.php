@@ -4,6 +4,6 @@
         </footer>
     </div>
 </div>
-<script src="<?= APP_URL ?>/assets/js/app.js"></script>
+<script src="<?= APP_URL ?>/assets/js/app.js?v=20261126-confirm-dialog"></script>
 </body>
 </html>
