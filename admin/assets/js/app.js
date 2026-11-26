@@ -44,6 +44,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    document.addEventListener('submit', function (event) {
+        const form = event.target.closest('form[data-confirm-dialog]');
+        if (!form) return;
+
+        if (form.dataset.confirmedSubmit === 'true') {
+            delete form.dataset.confirmedSubmit;
+            return;
+        }
+
+        event.preventDefault();
+        showAdminConfirmDialog(form, event.submitter);
+    });
+
     document.querySelectorAll('.tab-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             const container = this.closest('.modal-body') || this.closest('.card-body');
@@ -111,4 +124,60 @@ function openStoreModal(storeId) {
 
 function confirmAction(message) {
     return confirm(message);
+}
+
+function showAdminConfirmDialog(form, submitter) {
+    const overlay = document.createElement('div');
+    overlay.className = 'admin-confirm-overlay';
+    overlay.innerHTML = `
+        <section class="admin-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="adminConfirmTitle" aria-describedby="adminConfirmMessage" tabindex="-1">
+            <div class="admin-confirm-icon" aria-hidden="true"><i data-lucide="badge-check"></i></div>
+            <h2 id="adminConfirmTitle"></h2>
+            <p id="adminConfirmMessage"></p>
+            <div class="admin-confirm-actions">
+                <button type="button" class="btn btn-outline" data-confirm-cancel>Cancel</button>
+                <button type="button" class="btn btn-success" data-confirm-approve></button>
+            </div>
+        </section>`;
+
+    overlay.querySelector('#adminConfirmTitle').textContent = form.dataset.confirmTitle || 'Please confirm';
+    overlay.querySelector('#adminConfirmMessage').textContent = form.dataset.confirmMessage || 'Continue with this action?';
+    overlay.querySelector('[data-confirm-approve]').textContent = form.dataset.confirmLabel || 'Confirm';
+    document.body.appendChild(overlay);
+
+    if (window.lucide) {
+        window.lucide.createIcons({ attrs: { 'stroke-width': 1.8 }, root: overlay });
+    }
+
+    const dialog = overlay.querySelector('.admin-confirm-dialog');
+    const cancelButton = overlay.querySelector('[data-confirm-cancel]');
+    const approveButton = overlay.querySelector('[data-confirm-approve]');
+    const closeDialog = function () {
+        document.removeEventListener('keydown', onKeyDown);
+        overlay.remove();
+        form.querySelector('button[type="submit"]')?.focus();
+    };
+    const onKeyDown = function (event) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialog();
+        }
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            (document.activeElement === cancelButton ? approveButton : cancelButton).focus();
+        }
+    };
+
+    cancelButton.addEventListener('click', closeDialog);
+    overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) closeDialog();
+    });
+    approveButton.addEventListener('click', function () {
+        closeDialog();
+        form.dataset.confirmedSubmit = 'true';
+        form.requestSubmit(submitter || undefined);
+    });
+    document.addEventListener('keydown', onKeyDown);
+    dialog.focus();
+    cancelButton.focus();
 }
