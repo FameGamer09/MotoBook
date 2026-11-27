@@ -15,6 +15,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 ...pageStyles,
+                'resources/js/custom-delivery-location-picker.js',
                 'resources/js/customer-order-tracking.js',
                 'resources/js/rider-location.js',
                 'resources/js/rider-offers.js',

@@ -42,7 +42,7 @@ test('checkout confirmation renders the restaurant from the order relationship',
         ->get(route('customer.checkout.confirmation', $order))
         ->assertOk()
         ->assertSee($store->name)
-        ->assertSee('offer is sent to eligible riders');
+        ->assertSee('sent to nearby riders');
 });
 
 test('customers only see verified stores', function () {
