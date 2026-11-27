@@ -21,13 +21,21 @@ class CustomDeliveryController extends Controller
         $validated = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy_m' => ['required', 'numeric', 'between:1,500'],
         ]);
         $rider->update([
             'current_latitude' => $validated['latitude'],
             'current_longitude' => $validated['longitude'],
+            'current_location_accuracy_m' => $validated['accuracy_m'],
+            'current_location_updated_at' => now(),
         ]);
 
-        return response()->json(['latitude' => $rider->current_latitude, 'longitude' => $rider->current_longitude, 'updated_at' => now()->toIso8601String()]);
+        return response()->json([
+            'latitude' => $rider->current_latitude,
+            'longitude' => $rider->current_longitude,
+            'accuracy_m' => $rider->current_location_accuracy_m,
+            'updated_at' => now()->toIso8601String(),
+        ]);
     }
 
     public function accept(Request $request, CustomDelivery $customDelivery): RedirectResponse

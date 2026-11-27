@@ -182,6 +182,7 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy_m' => ['required', 'numeric', 'between:1,500'],
             'delivery_id' => ['sometimes', 'nullable', 'integer'],
         ]);
         $rider = $request->user()->riderProfile;
@@ -204,6 +205,8 @@ class DashboardController extends Controller
         $rider->update([
             'current_latitude' => $validated['latitude'],
             'current_longitude' => $validated['longitude'],
+            'current_location_accuracy_m' => $validated['accuracy_m'],
+            'current_location_updated_at' => now(),
         ]);
 
         if ($delivery) {
@@ -214,11 +217,14 @@ class DashboardController extends Controller
                 'longitude' => $validated['longitude'],
                 'recorded_at' => now(),
             ]);
+        } else {
+            app(RiderAssignmentService::class)->assignPendingDeliveries();
         }
 
         return response()->json([
             'latitude' => $rider->current_latitude,
             'longitude' => $rider->current_longitude,
+            'accuracy_m' => $rider->current_location_accuracy_m,
             'recorded_at' => now()->toIso8601String(),
         ]);
     }

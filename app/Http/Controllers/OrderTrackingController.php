@@ -22,7 +22,7 @@ class OrderTrackingController extends Controller
         $validated = $request->validate([
             'rider_lat' => ['required', 'numeric', 'between:-90,90'],
             'rider_lng' => ['required', 'numeric', 'between:-180,180'],
-            'accuracy' => ['nullable', 'numeric', 'min:0'],
+            'accuracy' => ['required', 'numeric', 'between:1,500'],
             'heading' => ['nullable', 'numeric', 'between:0,360'],
             'speed' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -40,6 +40,8 @@ class OrderTrackingController extends Controller
             $rider->update([
                 'current_latitude' => $validated['rider_lat'],
                 'current_longitude' => $validated['rider_lng'],
+                'current_location_accuracy_m' => $validated['accuracy'],
+                'current_location_updated_at' => now(),
             ]);
 
             RiderLocationLog::create([

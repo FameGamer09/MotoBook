@@ -1,4 +1,5 @@
 <x-rider.page-layout title="New Delivery Requests" active="requests" :rider="$rider" :can-go-online="$canGoOnline" :has-active-delivery="$hasActiveDelivery">
+    @vite('resources/js/rider-location.js')
     @if (! $rider->is_verified)
         <div class="rider-empty"><strong>Verification required</strong><p>Your rider documents must be verified before you can receive delivery requests.</p></div>
     @elseif ($rider->status !== 'online')
@@ -8,6 +9,10 @@
             <div class="rider-section-heading">
                 <div><span class="rider-kicker">Fair rider queue</span><h2>Restaurant orders <span class="rider-offer-count">{{ $offers->count() }}</span></h2></div>
                 <button class="rider-notification-toggle" type="button" data-enable-order-notifications>Enable alerts</button>
+            </div>
+            <div id="location">
+                <button id="share-location" class="rider-location-button" type="button" data-location-url="{{ route('rider.location.update') }}">Share precise GPS to receive nearby orders</button>
+                <p class="rider-location-feedback" id="location-feedback" aria-live="polite"></p>
             </div>
             <p class="rider-queue-note">Riders get turns to accept an order. Your place in the queue is shown below.</p>
             @forelse ($offers as $offer)

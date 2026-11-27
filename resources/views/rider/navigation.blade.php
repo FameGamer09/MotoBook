@@ -604,6 +604,7 @@
     let currentInstructions = [];
     let instructionsOpen = false;
     let lastSpeed = 0;
+    let lastGpsAccuracy = null;
 
     function showLoading(text) {
         loadingText.textContent = text;
@@ -860,8 +861,16 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    function updateRiderPosition(lat, lng, accuracy, heading, speed) {
+    function updateRiderPosition(lat, lng, accuracy, heading, speed, shouldShareLocation = true) {
         currentRiderLatLng = { lat, lng };
+        const hasUsableGpsFix = Number.isFinite(accuracy) && accuracy > 0 && accuracy <= 500;
+
+        if (shouldShareLocation && !hasUsableGpsFix) {
+            setGpsError('GPS ACCURACY LOW');
+        } else if (hasUsableGpsFix) {
+            lastGpsAccuracy = accuracy;
+            setGpsOk();
+        }
 
         if (map) {
             riderMarker.setLatLng([lat, lng]);
@@ -879,7 +888,7 @@
 
             const interval = isMoving ? 3000 : 15000;
             const now = Date.now();
-            if (now - lastApiUpdate > interval - 500) {
+            if (shouldShareLocation && hasUsableGpsFix && now - lastApiUpdate > interval - 500) {
                 sendLocationUpdate(lat, lng, accuracy, heading, speed);
                 lastApiUpdate = now;
             }
@@ -898,7 +907,10 @@
             rider_lat: Number(lat.toFixed(8)),
             rider_lng: Number(lng.toFixed(8)),
         };
-        if (accuracy != null) payload.accuracy = Number(accuracy.toFixed(2));
+        if (!Number.isFinite(accuracy) || accuracy <= 0 || accuracy > 500) {
+            return;
+        }
+        payload.accuracy = Number(accuracy.toFixed(2));
         if (heading != null && isFinite(heading)) payload.heading = Number(heading.toFixed(2));
         if (speed != null) payload.speed = Number(speed.toFixed(3));
 
@@ -932,7 +944,7 @@
             hideLoading();
             if (msg) loadingText.textContent = msg;
             setTimeout(() => hideLoading(), 800);
-            updateRiderPosition(fallbackLat, fallbackLng, 25, null, 0);
+            updateRiderPosition(fallbackLat, fallbackLng, null, null, 0, false);
         }
 
         if (!('geolocation' in navigator)) {
@@ -951,6 +963,9 @@
                     hideLoading();
                 }
                 setGpsOk();
+                if (c.accuracy > 500) {
+                    setGpsError(`GPS ACCURACY ±${Math.round(c.accuracy)}m`);
+                }
                 updateRiderPosition(c.latitude, c.longitude, c.accuracy, c.heading, c.speed);
             },
             function error(err) {
@@ -994,7 +1009,7 @@
             sendLocationUpdate(
                 currentRiderLatLng.lat,
                 currentRiderLatLng.lng,
-                null, null, null
+                lastGpsAccuracy, null, null
             );
         }
     });

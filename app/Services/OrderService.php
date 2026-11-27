@@ -48,6 +48,17 @@ class OrderService
                 throw new OrderException('This store is not currently accepting orders.');
             }
 
+            if (! $this->hasValidCoordinates($store->latitude, $store->longitude)) {
+                throw new OrderException('This store needs a valid map location before it can receive delivery orders. Please contact MotoBook support.');
+            }
+
+            if (! $this->hasValidCoordinates(
+                $deliveryAddressSnapshot['latitude'] ?? null,
+                $deliveryAddressSnapshot['longitude'] ?? null,
+            )) {
+                throw new OrderException('Choose a valid delivery map pin before placing your order.');
+            }
+
             $subtotal = 0;
             $lineItems = [];
 
@@ -350,5 +361,15 @@ class OrderService
             ->where('status', 'paid')
             ->update(['status' => 'refunded']);
         $order->update(['payment_status' => 'refunded']);
+    }
+
+    private function hasValidCoordinates(float|string|null $latitude, float|string|null $longitude): bool
+    {
+        return is_numeric($latitude)
+            && is_numeric($longitude)
+            && (float) $latitude >= -90
+            && (float) $latitude <= 90
+            && (float) $longitude >= -180
+            && (float) $longitude <= 180;
     }
 }

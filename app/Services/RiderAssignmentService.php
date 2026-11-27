@@ -19,6 +19,10 @@ class RiderAssignmentService
 
     private const OFFER_WINDOW_SECONDS = 20;
 
+    private const LOCATION_FRESHNESS_MINUTES = 2;
+
+    private const MAX_LOCATION_ACCURACY_METERS = 500;
+
     private const ACTIVE_DELIVERY_STATUSES = [
         'assigned', 'accepted', 'en_route_to_pickup', 'arrived_at_pickup', 'picked_up',
         'en_route_to_customer', 'arrived_at_customer',
@@ -447,6 +451,10 @@ class RiderAssignmentService
             ->whereHas('user', fn (Builder $query) => $query->where('status', 'active'))
             ->whereNotNull('current_latitude')
             ->whereNotNull('current_longitude')
+            ->whereNotNull('current_location_updated_at')
+            ->where('current_location_updated_at', '>=', now()->subMinutes(self::LOCATION_FRESHNESS_MINUTES))
+            ->whereNotNull('current_location_accuracy_m')
+            ->where('current_location_accuracy_m', '<=', self::MAX_LOCATION_ACCURACY_METERS)
             ->whereDoesntHave('deliveries', fn (Builder $query) => $query
                 ->withoutGlobalScopes()
                 ->whereIn('status', self::ACTIVE_DELIVERY_STATUSES))
@@ -627,6 +635,10 @@ class RiderAssignmentService
             ->whereHas('user', fn (Builder $query) => $query->where('status', 'active'))
             ->whereNotNull('current_latitude')
             ->whereNotNull('current_longitude')
+            ->whereNotNull('current_location_updated_at')
+            ->where('current_location_updated_at', '>=', now()->subMinutes(self::LOCATION_FRESHNESS_MINUTES))
+            ->whereNotNull('current_location_accuracy_m')
+            ->where('current_location_accuracy_m', '<=', self::MAX_LOCATION_ACCURACY_METERS)
             ->whereDoesntHave('deliveries', fn (Builder $query) => $query
                 ->withoutGlobalScopes()
                 ->whereIn('status', self::ACTIVE_DELIVERY_STATUSES))
@@ -655,6 +667,10 @@ class RiderAssignmentService
             || ! $rider->is_verified
             || $rider->user?->status !== 'active'
             || ! $this->hasValidCoordinates($rider->current_latitude, $rider->current_longitude)
+            || $rider->current_location_updated_at === null
+            || $rider->current_location_updated_at->lt(now()->subMinutes(self::LOCATION_FRESHNESS_MINUTES))
+            || $rider->current_location_accuracy_m === null
+            || (float) $rider->current_location_accuracy_m > self::MAX_LOCATION_ACCURACY_METERS
         ) {
             return false;
         }

@@ -42,7 +42,8 @@ class Rider extends Model
 
     protected $fillable = [
         'user_id', 'vehicle_type', 'plate_number', 'license_number', 'license_photo',
-        'status', 'current_latitude', 'current_longitude', 'rating', 'level',
+        'status', 'current_latitude', 'current_longitude', 'current_location_accuracy_m',
+        'current_location_updated_at', 'rating', 'level',
         'total_deliveries', 'acceptance_rate', 'cancellation_rate', 'is_verified', 'dispatch_turn_at',
     ];
 
@@ -53,6 +54,8 @@ class Rider extends Model
         'cancellation_rate' => 'decimal:2',
         'current_latitude' => 'decimal:7',
         'current_longitude' => 'decimal:7',
+        'current_location_accuracy_m' => 'decimal:2',
+        'current_location_updated_at' => 'datetime',
         'dispatch_turn_at' => 'datetime',
     ];
 
