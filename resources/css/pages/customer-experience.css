@@ -345,6 +345,39 @@ body.cx-custom-delivery {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
+.delivery-location-select {
+  display: flex; width: 100%; min-height: 66px; align-items: center; gap: 11px; padding: 10px;
+  border: 1px solid var(--cx-line); border-radius: 14px; background: #fff; color: var(--cx-ink); text-align: left;
+}
+.delivery-location-pin { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 10px; background: #eaf4ff; color: #1675f3; font-size: 23px; }
+.delivery-location-pin.dropoff { background: #fff0ef; color: #ee2828; }
+.delivery-location-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.delivery-location-copy strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.delivery-location-copy small { color: var(--cx-muted); font-size: 11px; }
+.delivery-map-dialog { position: fixed; inset: 0; width: 100%; max-width: 560px; height: 100dvh; max-height: none; margin: auto; padding: 10px; overflow: hidden; border: 0; background: #f6f8fa; color: #182230; }
+.delivery-map-dialog::backdrop { background: #101820; }
+.delivery-map-dialog[open] { display: grid; grid-template-rows: 46px 42px 34px minmax(180px, 1fr) auto; gap: 8px; }
+.delivery-map-dialog > header { display: flex; align-items: center; justify-content: space-between; }
+.delivery-map-dialog > header h2 { margin: 0; font-size: 16px; }
+.delivery-map-dialog > header button { width: 38px; height: 38px; border: 0; border-radius: 12px; background: white; font-size: 25px; }
+.delivery-map-search { display: flex; align-items: center; border: 1px solid #e4e8ed; border-radius: 13px; background: white; }
+.delivery-map-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; padding: 0 12px; font-size: 12px; }
+.delivery-map-search button { width: 42px; border: 0; background: transparent; color: #778395; font-size: 22px; }
+.delivery-map-hint { align-self: center; padding: 8px 12px; border-radius: 10px; background: #eaf5ff; font-size: 11px; }
+.delivery-map-hint strong { color: #087de0; }
+.delivery-map { min-height: 220px; z-index: 0; }
+.delivery-map-current { position: absolute; right: 20px; bottom: 270px; z-index: 500; width: 42px; height: 42px; border: 0; border-radius: 50%; background: white; color: #087de0; box-shadow: 0 2px 9px #26384a33; font-size: 23px; }
+.delivery-map-sheet { z-index: 1; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); border-radius: 18px; background: white; box-shadow: 0 -3px 14px #24364912; }
+.delivery-map-handle { width: 40px; height: 4px; margin: 0 auto 10px; border-radius: 9px; background: #bbc4cf; }
+.delivery-map-place { display: flex; align-items: center; gap: 9px; padding-bottom: 10px; border-bottom: 1px solid #edf0f3; }
+.delivery-map-place > span:nth-child(2) { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.delivery-map-place small { color: #737f90; font-size: 10px; }
+.delivery-map-place strong { display: -webkit-box; overflow: hidden; font-size: 12px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.delivery-map-place button { border: 0; background: transparent; color: #087de0; font-size: 11px; }
+.delivery-map-instructions { display: grid; gap: 5px; margin: 9px 0; font-size: 10px; font-weight: 700; }
+.delivery-map-instructions input { min-height: 38px; padding: 8px 10px; border: 1px solid #e3e8ed; border-radius: 11px; font-size: 11px; }
+.delivery-map-sheet > .cx-button { width: 100%; min-height: 42px; border-radius: 11px; background: #08b9d7; color: white; }
+.delivery-map-footnote { display: block; margin-top: 8px; color: #657184; text-align: center; font-size: 10px; }
 .delivery-location-tools,
 .delivery-payment-details {
   margin-top: 9px;

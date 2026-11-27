@@ -182,25 +182,39 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'delivery_id' => ['required', 'integer'],
+            'delivery_id' => ['sometimes', 'nullable', 'integer'],
         ]);
         $rider = $request->user()->riderProfile;
-        $delivery = $rider->deliveries()
-            ->whereKey($validated['delivery_id'])
-            ->whereIn('status', ['assigned', 'accepted', 'en_route_to_pickup', 'arrived_at_pickup', 'picked_up', 'en_route_to_customer', 'arrived_at_customer'])
-            ->firstOrFail();
+        abort_unless($rider, 404);
+        $delivery = null;
+
+        if (! empty($validated['delivery_id'])) {
+            $delivery = $rider->deliveries()
+                ->whereKey($validated['delivery_id'])
+                ->whereIn('status', ['assigned', 'accepted', 'en_route_to_pickup', 'arrived_at_pickup', 'picked_up', 'en_route_to_customer', 'arrived_at_customer'])
+                ->firstOrFail();
+        } else {
+            abort_unless(
+                $request->user()->status === 'active' && $rider->is_verified && $rider->status === 'online',
+                403,
+                'Go online with an active, verified rider account before sharing your location.'
+            );
+        }
 
         $rider->update([
             'current_latitude' => $validated['latitude'],
             'current_longitude' => $validated['longitude'],
         ]);
-        RiderLocationLog::create([
-            'rider_id' => $rider->id,
-            'order_id' => $delivery->order_id,
-            'latitude' => $validated['latitude'],
-            'longitude' => $validated['longitude'],
-            'recorded_at' => now(),
-        ]);
+
+        if ($delivery) {
+            RiderLocationLog::create([
+                'rider_id' => $rider->id,
+                'order_id' => $delivery->order_id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'recorded_at' => now(),
+            ]);
+        }
 
         return response()->json([
             'latitude' => $rider->current_latitude,

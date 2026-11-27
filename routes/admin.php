@@ -3,12 +3,15 @@
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\MerchantController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\RiderController;
+use App\Http\Controllers\Admin\RiderSecurityTopUpController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'role:admin', 'cache.headers:private;no_store;no_cache;must_revalidate;max_age=0'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
     Route::get('/merchants', [MerchantController::class, 'index'])->name('merchants.index');
     Route::get('/merchants/{store}', [MerchantController::class, 'show'])->name('merchants.show');
@@ -24,6 +27,10 @@ Route::middleware(['auth', 'role:admin', 'cache.headers:private;no_store;no_cach
     Route::patch('/riders/{rider}/unverify', [RiderController::class, 'unverify'])->name('riders.unverify');
     Route::patch('/riders/{rider}/ban', [RiderController::class, 'ban'])->name('riders.ban');
     Route::patch('/riders/{rider}/activate', [RiderController::class, 'activate'])->name('riders.activate');
+
+    Route::get('/security-top-ups', [RiderSecurityTopUpController::class, 'index'])->name('security-top-ups.index');
+    Route::patch('/security-top-ups/{topUp}/approve', [RiderSecurityTopUpController::class, 'approve'])->name('security-top-ups.approve');
+    Route::patch('/security-top-ups/{topUp}/reject', [RiderSecurityTopUpController::class, 'reject'])->name('security-top-ups.reject');
 
     Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::patch('/customers/{customer}/ban', [CustomerController::class, 'ban'])->name('customers.ban');

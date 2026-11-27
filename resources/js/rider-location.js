@@ -15,7 +15,7 @@ if (button && !button.disabled) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             },
             body: JSON.stringify({
-                ...(customUrl ? {} : { delivery_id: Number(button.dataset.deliveryId) }),
+                ...(!customUrl && button.dataset.deliveryId ? { delivery_id: Number(button.dataset.deliveryId) } : {}),
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
             }),

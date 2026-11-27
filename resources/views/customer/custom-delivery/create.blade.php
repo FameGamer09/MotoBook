@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>Custom Delivery · MotoBook</title>
-    @vite(['resources/css/app.css','resources/css/pages/customer-experience.css'])
+    @vite(['resources/css/app.css','resources/css/pages/customer-experience.css','resources/js/custom-delivery-location-picker.js'])
 </head>
 <body class="cx-page cx-custom-delivery" data-theme="{{ (auth()->user()->customer_settings['dark_mode'] ?? false) ? 'dark' : 'light' }}">
 <main class="cx-wrap cx-custom-delivery-wrap">
@@ -24,8 +24,11 @@
         <section class="cx-card">
             <h2 class="delivery-section-title">Pickup details</h2>
             <div class="cx-field">
-                <label for="pickup_address">Pickup Address *</label>
-                <input id="pickup_address" name="pickup_address" value="{{ old('pickup_address', $address?->address_line) }}" required maxlength="500" autocomplete="street-address">
+                <label>Pickup Location *</label>
+                <input id="pickup_address" name="pickup_address" type="hidden" value="{{ old('pickup_address', $address?->address_line) }}" maxlength="500">
+                <input id="pickup_latitude" name="pickup_latitude" type="hidden" value="{{ old('pickup_latitude', $address?->latitude) }}">
+                <input id="pickup_longitude" name="pickup_longitude" type="hidden" value="{{ old('pickup_longitude', $address?->longitude) }}">
+                <button class="delivery-location-select" type="button" data-location-open="pickup"><span class="delivery-location-pin pickup">⌖</span><span class="delivery-location-copy"><strong data-location-title="pickup">{{ old('pickup_address', $address?->address_line) ?: 'Choose pickup on map' }}</strong><small data-location-subtitle="pickup">Tap to select a point on the map</small></span><span aria-hidden="true">›</span></button>
             </div>
             <div class="cx-field">
                 <label for="pickup_landmark">Landmark / Pickup Instructions</label>
@@ -41,27 +44,16 @@
                     <input id="sender_phone" name="sender_phone" value="{{ old('sender_phone', auth()->user()->phone) }}" required maxlength="30" autocomplete="tel">
                 </div>
             </div>
-            <details class="delivery-location-tools">
-                <summary>Optional pickup map pin</summary>
-                <div class="cx-two">
-                    <div class="cx-field">
-                        <label for="pickup_latitude">Latitude</label>
-                        <input id="pickup_latitude" name="pickup_latitude" type="number" step="any" value="{{ old('pickup_latitude', $address?->latitude) }}">
-                    </div>
-                    <div class="cx-field">
-                        <label for="pickup_longitude">Longitude</label>
-                        <input id="pickup_longitude" name="pickup_longitude" type="number" step="any" value="{{ old('pickup_longitude', $address?->longitude) }}">
-                    </div>
-                </div>
-                <button class="cx-button secondary" type="button" data-geolocate="pickup">Use my current location</button>
-            </details>
         </section>
 
         <section class="cx-card">
             <h2 class="delivery-section-title">Drop-off details</h2>
             <div class="cx-field">
-                <label for="dropoff_address">Drop-off Address *</label>
-                <input id="dropoff_address" name="dropoff_address" value="{{ old('dropoff_address') }}" required maxlength="500" autocomplete="street-address">
+                <label>Drop-off Location *</label>
+                <input id="dropoff_address" name="dropoff_address" type="hidden" value="{{ old('dropoff_address') }}" maxlength="500">
+                <input id="dropoff_latitude" name="dropoff_latitude" type="hidden" value="{{ old('dropoff_latitude') }}">
+                <input id="dropoff_longitude" name="dropoff_longitude" type="hidden" value="{{ old('dropoff_longitude') }}">
+                <button class="delivery-location-select" type="button" data-location-open="dropoff"><span class="delivery-location-pin dropoff">⌖</span><span class="delivery-location-copy"><strong data-location-title="dropoff">{{ old('dropoff_address') ?: 'Choose drop-off on map' }}</strong><small data-location-subtitle="dropoff">Tap to select a point on the map</small></span><span aria-hidden="true">›</span></button>
             </div>
             <div class="cx-field">
                 <label for="dropoff_landmark">Landmark / Drop-off Instructions</label>
@@ -77,20 +69,6 @@
                     <input id="recipient_phone" name="recipient_phone" value="{{ old('recipient_phone') }}" required maxlength="30" autocomplete="tel">
                 </div>
             </div>
-            <details class="delivery-location-tools">
-                <summary>Optional drop-off map pin</summary>
-                <div class="cx-two">
-                    <div class="cx-field">
-                        <label for="dropoff_latitude">Latitude</label>
-                        <input id="dropoff_latitude" name="dropoff_latitude" type="number" step="any" value="{{ old('dropoff_latitude') }}">
-                    </div>
-                    <div class="cx-field">
-                        <label for="dropoff_longitude">Longitude</label>
-                        <input id="dropoff_longitude" name="dropoff_longitude" type="number" step="any" value="{{ old('dropoff_longitude') }}">
-                    </div>
-                </div>
-                <button class="cx-button secondary" type="button" data-geolocate="dropoff">Use my current location</button>
-            </details>
         </section>
 
         <section class="cx-card">
@@ -152,6 +130,19 @@
         </div>
     </form>
 </main>
+<dialog class="delivery-map-dialog" data-location-dialog aria-label="Select delivery location">
+    <header><button type="button" data-map-back aria-label="Back">‹</button><h2 data-map-heading>Select location</h2><span aria-hidden="true">ⓘ</span></header>
+    <form class="delivery-map-search" data-map-search-form><input type="search" data-map-search placeholder="Search for a place or address" autocomplete="off"><button type="submit" aria-label="Search">⌕</button></form>
+    <div class="delivery-map-hint">Tap the map or move it to set your <strong data-map-kind>location</strong></div>
+    <div class="delivery-map" data-map></div>
+    <button class="delivery-map-current" type="button" data-map-current aria-label="Use my current location">◎</button>
+    <section class="delivery-map-sheet"><div class="delivery-map-handle"></div>
+        <div class="delivery-map-place"><span class="delivery-location-pin" data-map-pin>⌖</span><span><small data-map-label>Location</small><strong data-map-address>Move the map to choose a location</strong></span><button type="button" data-map-clear>Clear</button></div>
+        <label class="delivery-map-instructions">Add instructions (optional)<input type="text" data-map-instructions maxlength="255" placeholder="e.g., Near the entrance, beside the gate"></label>
+        <button class="cx-button" type="button" data-map-confirm>Confirm Location</button>
+        <small class="delivery-map-footnote">Zoom in or move the map for a more accurate location.</small>
+    </section>
+</dialog>
 <script>
 document.querySelectorAll('[data-geolocate]').forEach(button => button.addEventListener('click', () => {
     if (!navigator.geolocation) {
