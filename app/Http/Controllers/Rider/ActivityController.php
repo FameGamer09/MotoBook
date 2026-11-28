@@ -115,6 +115,8 @@ class ActivityController extends Controller
         return view('rider.wallet', [
             'rider' => $rider,
             'securityDeposit' => $request->user()->riderSecurityDeposit,
+            'earningsWallet' => $request->user()->wallet,
+            'cashOutRequests' => $request->user()->riderCashOutRequests()->latest()->paginate(10),
             'topUps' => RiderSecurityTopUp::query()
                 ->where('user_id', $request->user()->id)
                 ->latest()

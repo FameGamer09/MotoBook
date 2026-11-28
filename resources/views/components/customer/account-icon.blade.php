@@ -22,7 +22,7 @@
                 <path d="M3 10h18M7 15h4" />
                 @break
             @case('dark-mode')
-                <path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z" />
+                <path d="M20.2 15.4A8.7 8.7 0 0 1 8.6 3.8 8.8 8.8 0 1 0 20.2 15.4Z" />
                 @break
             @case('notifications')
                 <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />

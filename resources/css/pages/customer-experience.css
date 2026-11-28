@@ -163,6 +163,7 @@ body[data-theme=dark] .cx-bottom-dot { border-color: #192633; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 body[data-theme=dark] {
+  color-scheme: dark;
   --cx-ink: #edf5fa; --cx-muted: #a8b7c5; --cx-line: #2a3b49; --cx-canvas: #101a24;
   --cx-card: #192633; --cx-soft: #173a46; --cx-shadow: 0 8px 24px rgba(0,0,0,.24);
 }
@@ -503,21 +504,29 @@ body.cx-custom-delivery {
 }
 body[data-theme="dark"].cx-custom-delivery { background: var(--cx-canvas); }
 body[data-theme="dark"].cx-custom-delivery .cx-topbar,
-body[data-theme="dark"] .cx-custom-delivery form .cx-card {
+body[data-theme="dark"].cx-custom-delivery form .cx-card {
   color: var(--cx-ink);
 }
-body[data-theme="dark"] .cx-custom-delivery form .cx-card { background: var(--cx-card); }
-body[data-theme="dark"] .cx-custom-delivery .delivery-section-title,
-body[data-theme="dark"] .cx-custom-delivery .cx-field label,
+body[data-theme="dark"].cx-custom-delivery form .cx-card { background: var(--cx-card); }
+body[data-theme="dark"].cx-custom-delivery .delivery-section-title,
+body[data-theme="dark"].cx-custom-delivery .cx-field label,
 body[data-theme="dark"] .delivery-package-fieldset legend,
 body[data-theme="dark"] .package-option input:checked + .package-option-content {
   color: var(--cx-ink);
 }
-body[data-theme="dark"] .cx-custom-delivery .cx-field input,
-body[data-theme="dark"] .cx-custom-delivery .cx-field textarea {
+body[data-theme="dark"].cx-custom-delivery .cx-field input,
+body[data-theme="dark"].cx-custom-delivery .cx-field textarea {
   background: #192635;
   color: var(--cx-ink);
 }
+body[data-theme="dark"].cx-custom-delivery .delivery-location-select {
+  border-color: var(--cx-line);
+  background: var(--cx-card);
+  color: var(--cx-ink);
+}
+body[data-theme="dark"].cx-custom-delivery .delivery-location-copy small { color: var(--cx-muted); }
+body[data-theme="dark"].cx-custom-delivery .delivery-location-copy strong { color: var(--cx-ink); }
+body[data-theme="dark"].cx-custom-delivery .delivery-location-pin { color: var(--cx-cyan); background: var(--cx-soft); }
 body[data-theme="dark"] .package-option-content {
   border-color: var(--cx-line);
   color: var(--cx-muted);

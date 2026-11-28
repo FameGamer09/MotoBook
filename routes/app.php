@@ -20,6 +20,7 @@ use App\Http\Controllers\Rider\CustomDeliveryController as RiderCustomDeliveryCo
 use App\Http\Controllers\Rider\DashboardController as RiderDashboardController;
 use App\Http\Controllers\Rider\OnboardingController as RiderOnboardingController;
 use App\Http\Controllers\Rider\ProfileController as RiderProfileController;
+use App\Http\Controllers\RiderCashOutController;
 use App\Http\Controllers\RiderSecurityTopUpController;
 use App\Models\MenuItem;
 use App\Models\Store;
@@ -127,6 +128,7 @@ Route::middleware(['auth', 'role:rider', 'cache.headers:private;no_store;no_cach
     Route::get('/earnings', [RiderActivityController::class, 'earnings'])->name('earnings');
     Route::get('/wallet', [RiderActivityController::class, 'wallet'])->name('wallet');
     Route::post('/wallet/security-top-ups', [RiderSecurityTopUpController::class, 'store'])->middleware('throttle:5,1')->name('wallet.security-top-ups.store');
+    Route::post('/wallet/cash-outs', [RiderCashOutController::class, 'store'])->middleware('throttle:5,1')->name('wallet.cash-outs.store');
     Route::get('/settings', [RiderActivityController::class, 'settings'])->name('settings');
     Route::get('/orders/history', [RiderActivityController::class, 'history'])->name('history');
     Route::get('/orders/{delivery}', [RiderActivityController::class, 'showOrder'])->name('orders.show');

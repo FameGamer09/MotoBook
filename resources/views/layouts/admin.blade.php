@@ -35,6 +35,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16v13H4zM4 7l2-3h12l2 3M8 12h8m-4-4v8"/></svg>
                 Security Top-ups
             </a>
+            <a href="{{ route('admin.cash-outs.index') }}" class="admin-rail-link {{ request()->routeIs('admin.cash-outs.*') ? 'active' : '' }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                Rider Cash-outs
+            </a>
             <a href="{{ route('admin.customers.index') }}" class="admin-rail-link {{ request()->routeIs('admin.customers.*') ? 'active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="9" cy="8" r="3.5"/><path stroke-linecap="round" d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6M16 8a3 3 0 110-6M17 14c2.5 0 4.5 2 4.5 4.5"/></svg>
                 Customers

@@ -16,6 +16,7 @@
     <meta name="theme-color" content="#f4f7f8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>try{const theme=localStorage.getItem('rider-dashboard-theme');if(theme==='dark'||theme==='light'){document.documentElement.dataset.riderTheme=theme}}catch{}</script>
 
     <title>Navigation &middot; Order {{ $order->order_number }} &middot; Motobook</title>
     @vite(['resources/css/pages/rider-theme.css', 'resources/js/rider-theme.js'])
