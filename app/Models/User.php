@@ -71,6 +71,11 @@ class User extends Authenticatable
         return $this->hasMany(RiderSecurityTopUp::class);
     }
 
+    public function riderCashOutRequests(): HasMany
+    {
+        return $this->hasMany(RiderCashOutRequest::class);
+    }
+
     public function favoriteStores(): BelongsToMany
     {
         return $this->belongsToMany(Store::class, 'customer_favorites')->withTimestamps();

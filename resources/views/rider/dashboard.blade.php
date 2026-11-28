@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard · MotoBook Rider</title>
+    <script>try{const theme=localStorage.getItem('rider-dashboard-theme');if(theme==='dark'||theme==='light'){document.documentElement.dataset.riderTheme=theme}}catch{}</script>
     @vite(['resources/css/app.css', 'resources/css/pages/rider-dashboard.css', 'resources/css/pages/rider-theme.css'])
     @vite('resources/js/rider-location.js')
     @vite('resources/js/rider-offers.js')

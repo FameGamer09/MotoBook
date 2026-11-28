@@ -15,11 +15,6 @@ themeRoots.forEach((root) => {
         themeToggles.forEach((toggle) => {
             toggle.setAttribute('aria-pressed', String(isDark));
             toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
-            const icon = toggle.querySelector('span');
-
-            if (icon) {
-                icon.textContent = isDark ? '☼' : '☾';
-            }
         });
 
         const themeColor = document.querySelector('meta[name="theme-color"]');

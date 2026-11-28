@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Profile · MotoBook Rider</title>
+    <script>try{const theme=localStorage.getItem('rider-dashboard-theme');if(theme==='dark'||theme==='light'){document.documentElement.dataset.riderTheme=theme}}catch{}</script>
     @vite(['resources/css/app.css', 'resources/css/pages/rider-profile.css', 'resources/css/pages/rider-theme.css', 'resources/css/pages/rider-activity.css', 'resources/js/rider-theme.js'])
 </head>
 <body class="rider-profile-shell rider-profile-page" data-rider-page="profile">

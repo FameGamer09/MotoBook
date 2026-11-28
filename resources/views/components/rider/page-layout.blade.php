@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#f4f7f8">
     <title>{{ $title }} · MotoBook Rider</title>
+    <script>try{const theme=localStorage.getItem('rider-dashboard-theme');if(theme==='dark'||theme==='light'){document.documentElement.dataset.riderTheme=theme}}catch{}</script>
     @vite(['resources/css/app.css', 'resources/css/pages/rider-dashboard.css', 'resources/css/pages/rider-theme.css', 'resources/css/pages/rider-activity.css', 'resources/js/rider-theme.js'])
     @if ($active === 'requests')
         @vite('resources/js/rider-offers.js')

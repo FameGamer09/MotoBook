@@ -63,12 +63,23 @@
 .rider-profile-shell .rider-profile-header,
 .rider-profile-shell .rider-profile-card,
 .rider-shell .rider-stats-row,
+.rider-shell .rider-status-card,
 .rider-shell .rider-delivery-card,
 .rider-shell .rider-store-list,
 .rider-shell .rider-empty {
     color: var(--rider-ink);
     border-color: var(--rider-line);
     background-color: var(--rider-surface);
+}
+
+:root[data-rider-theme="dark"] .rider-shell .rider-offers-section {
+    border-color: var(--rider-line);
+    background: var(--rider-card);
+}
+
+:root[data-rider-theme="dark"] .rider-shell .rider-offer-count {
+    color: var(--rider-ink);
+    background: var(--rider-line);
 }
 
 .rider-shell .rider-header h1,
@@ -220,6 +231,28 @@
 .rider-theme-toggle:focus-visible {
     outline: 2px solid var(--rider-mint, var(--accent));
     outline-offset: 3px;
+}
+
+.rider-theme-toggle > span {
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+}
+
+.rider-theme-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.rider-theme-icon-sun,
+.rider-theme-toggle[aria-pressed="true"] .rider-theme-icon-moon {
+    display: none;
+}
+
+.rider-theme-toggle[aria-pressed="true"] .rider-theme-icon-sun {
+    display: block;
 }
 
 .rider-status-form {
